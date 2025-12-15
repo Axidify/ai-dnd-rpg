@@ -1,0 +1,155 @@
+# Changelog
+
+All notable changes to the AI D&D Text RPG project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+---
+
+## [Unreleased]
+
+### Planned
+- Phase 2: Core Game Mechanics (Dice, Combat, Inventory)
+
+---
+
+## [0.3.0] - 2024-12-15
+
+### Added
+- **Phase 1.3: Scene/Scenario System** - Structured adventures with story progression
+  - New `src/scenario.py` module with Scene and Scenario classes
+  - ScenarioManager for tracking adventure state
+  - Scene transitions with objective tracking
+  - Minimum exchange count for pacing control
+  - AI receives scene context for guided narration
+
+- **First Adventure: "The Goblin Cave"**
+  - 6-scene complete adventure (~20-40 minutes)
+  - Rescue quest: Save a farmer's daughter from goblins
+  - Scenes: Tavern Hook → Journey → Cave Entrance → Goblin Camp → Boss Fight → Resolution
+  - Objectives and transition triggers for each scene
+  - Detailed DM instructions for consistent storytelling
+
+- **New Commands**
+  - `progress` - Show current scenario progress with visual bar
+  - Adventure selection menu at game start
+  - Free Play mode option (no structured scenario)
+
+### Changed
+- Game now offers scenario selection before starting
+- AI receives scene-specific context for better narration
+- `create_client()` now accepts scenario context parameter
+- `get_dm_response()` injects scene context into prompts
+- Updated help command to show scenario-specific commands
+
+---
+
+## [0.2.1] - 2024-12-15
+
+### Added
+- **Streaming AI Responses** - DM text now appears word-by-word as it's generated
+  - Reduced perceived latency - user sees text immediately
+  - More immersive typing effect
+  - Uses Gemini's native streaming API
+
+### Changed
+- `get_dm_response()` now streams by default (optional `stream` parameter)
+- Improved user experience during AI response generation
+
+---
+
+## [0.2.0] - 2024-12-15
+
+### Added
+- **Phase 1.2: Basic Character Sheet** - Full character system
+  - New `src/character.py` module with `Character` dataclass
+  - Interactive character creation (name, race, class, stats)
+  - Quick start option for random character generation
+  - 9 D&D races: Human, Elf, Dwarf, Halfling, Half-Orc, Tiefling, Dragonborn, Gnome, Half-Elf
+  - 12 D&D classes: Fighter, Wizard, Rogue, Cleric, Ranger, Barbarian, Paladin, Warlock, Bard, Monk, Druid, Sorcerer
+  - 4d6-drop-lowest stat rolling
+  - ASCII character sheet display with HP bar
+  - HP and AC calculation based on class and stats
+
+- **New In-Game Commands**
+  - `stats` / `character` / `sheet` - View character sheet
+  - `hp` - Quick HP check with visual bar
+  - `help` / `?` - Show available commands
+
+- **AI Integration**
+  - DM receives character context (race, class, stats)
+  - Opening narrative tailored to character
+
+- **Error Handling**
+  - Graceful exit on KeyboardInterrupt
+  - Graceful exit on EOFError
+
+### Changed
+- Updated `src/game.py` to integrate character system
+- DM system prompt now includes character context
+- Opening narration customized per character
+
+### Documentation
+- Updated README with gameplay section
+- Added terminal usage warning (use dedicated terminal)
+- Documented new commands and character creation
+- Updated DEVELOPMENT_PLAN.md with Phase 1.2 complete
+
+---
+
+## [0.1.0] - 2024-12-15
+
+### Added
+- **Phase 1.1: Simple Chat Loop** - Core game functionality
+  - Main game file (`src/game.py`) with AI Dungeon Master
+  - Google Gemini 2.0 Flash integration via `google-generativeai`
+  - System prompt defining DM behavior and narrative style
+  - Interactive conversation loop with player input
+  - Conversation history maintained throughout session
+  
+- **Project Configuration**
+  - `.env` support for API keys and model selection via `python-dotenv`
+  - `.env.example` template for configuration
+  - `requirements.txt` with dependencies
+  - `.gitignore` to protect sensitive files
+  
+- **Documentation**
+  - `README.md` with setup instructions and project overview
+  - `DEVELOPMENT_PLAN.md` with 6-phase roadmap
+  - `CHANGELOG.md` (this file)
+
+### Technical Details
+- Python 3.14 virtual environment
+- Google Gemini API for AI responses
+- Configurable model via `GEMINI_MODEL` environment variable
+- Default model: `gemini-2.0-flash`
+
+### Tested
+- ✅ AI DM creates immersive opening narrative
+- ✅ Player actions receive contextual responses
+- ✅ Conversation history maintains context
+- ✅ Inventory queries answered naturally
+- ✅ Quest/reward dialogue works properly
+- ✅ Graceful exit with "quit" command
+
+---
+
+## Version History
+
+| Version | Date | Phase | Description |
+|---------|------|-------|-------------|
+| 0.1.0 | 2024-12-15 | 1.1 | Simple Chat Loop - Initial working version |
+
+---
+
+## Upcoming Versions
+
+| Version | Phase | Features |
+|---------|-------|----------|
+| 0.2.0 | 1.2 | Basic Character Sheet (name, class, stats) |
+| 0.3.0 | 1.3 | Starting Scenario (hardcoded encounter) |
+| 0.4.0 | 2.1-2.4 | Dice, Combat, Inventory mechanics |
+| 0.5.0 | 3.1-3.3 | Save/Load, Locations, NPCs |
+| 0.6.0 | 4.1-4.3 | Advanced AI features |
+| 1.0.0 | 5.1-5.4 | Backend API |
+| 2.0.0 | 6.1-6.8 | Flutter App (iOS, Android, Web, Desktop) |

@@ -1,37 +1,39 @@
 """
-AI D&D Text RPG - Simple Chat Loop (Phase 1, Step 1.1)
-A basic conversation loop where AI acts as Dungeon Master.
+AI D&D Text RPG - Core Game (Phase 1)
+A D&D adventure where AI acts as Dungeon Master.
 """
 
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
+from character import Character, create_character_interactive, CLASSES, RACES
+from scenario import ScenarioManager
 
 # Load environment variables from .env
 load_dotenv()
 
-# System prompt that defines the AI as a Dungeon Master
-DM_SYSTEM_PROMPT = """You are an experienced Dungeon Master running a classic D&D adventure.
+# Base system prompt that defines the AI as a Dungeon Master
+DM_SYSTEM_PROMPT_BASE = """You are an experienced Dungeon Master running a classic D&D adventure.
 
 Your responsibilities:
 - Narrate the story in an engaging, immersive way
 - Describe environments, NPCs, and events vividly
 - Respond to player actions and decisions
 - Keep the adventure exciting and fair
-- Ask for dice rolls when appropriate (you'll handle the mechanics later)
+- Follow the scene context provided to guide the story
+- Progress the story naturally based on player actions
 
 Style guidelines:
 - Use second person ("You enter the tavern...")
 - Be descriptive but concise
 - Create tension and mystery
 - Encourage player creativity
-
-Start by welcoming the player and setting the scene for their adventure.
+- When transitioning between scenes, make it feel natural, not forced
 """
 
 
-def create_client():
-    """Configure and return the Gemini model."""
+def create_client(character: Character = None, scenario_context: str = ""):
+    """Configure and return the Gemini model with character and scenario context."""
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         print("Error: GOOGLE_API_KEY environment variable not set.")
@@ -43,22 +45,103 @@ def create_client():
     # Get model name from env or use default
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     
+    # Build system prompt with character and scenario context
+    system_prompt = DM_SYSTEM_PROMPT_BASE
+    if character:
+        system_prompt += "\n" + character.get_context_for_dm()
+    if scenario_context:
+        system_prompt += "\n" + scenario_context
+    
     # Create the model with system instruction
     model = genai.GenerativeModel(
         model_name=model_name,
-        system_instruction=DM_SYSTEM_PROMPT
+        system_instruction=system_prompt
     )
     
     return model
 
 
-def get_dm_response(chat, player_input):
-    """Get a response from the AI Dungeon Master."""
+def get_dm_response(chat, player_input, scenario_context: str = "", stream=True):
+    """Get a response from the AI Dungeon Master.
+    
+    Args:
+        chat: The chat session
+        player_input: What the player said/did
+        scenario_context: Current scene context to inject
+        stream: If True, yields chunks for streaming. If False, returns full text.
+    """
+    # Prepend scenario context to the message if provided
+    if scenario_context:
+        full_input = f"[SCENE CONTEXT: {scenario_context}]\n\nPlayer action: {player_input}"
+    else:
+        full_input = player_input
+    
     try:
-        response = chat.send_message(player_input)
-        return response.text
+        if stream:
+            response = chat.send_message(full_input, stream=True)
+            full_response = ""
+            for chunk in response:
+                if chunk.text:
+                    print(chunk.text, end="", flush=True)
+                    full_response += chunk.text
+            print()  # Final newline after streaming
+            return full_response
+        else:
+            response = chat.send_message(player_input)
+            return response.text
     except Exception as e:
         return f"[DM Error: {str(e)}]"
+
+
+def show_help(scenario_active: bool = False):
+    """Display available commands."""
+    help_text = """
+╔══════════════════════════════════════════════════════════╗
+║                     COMMANDS                             ║
+╠══════════════════════════════════════════════════════════╣
+║  stats, character, sheet  - View your character sheet    ║
+║  hp                       - Quick HP check               ║"""
+    
+    if scenario_active:
+        help_text += """
+║  progress                 - Show scenario progress       ║"""
+    
+    help_text += """
+║  help, ?                  - Show this help               ║
+║  quit, exit, q            - Exit the game                ║
+╠══════════════════════════════════════════════════════════╣
+║  Any other text sends your action to the Dungeon Master  ║
+╚══════════════════════════════════════════════════════════╝
+"""
+    print(help_text)
+
+
+def select_scenario(scenario_manager: ScenarioManager) -> None:
+    """Let player select a scenario to play."""
+    scenarios = scenario_manager.list_available()
+    
+    print("\n" + "=" * 60)
+    print("              📜 AVAILABLE ADVENTURES 📜")
+    print("=" * 60)
+    
+    for i, scenario in enumerate(scenarios, 1):
+        print(f"\n  [{i}] {scenario['name']}")
+        print(f"      {scenario['description']}")
+        print(f"      ⏱️  Estimated: {scenario['duration']}")
+    
+    print(f"\n  [0] Free Play (no structured scenario)")
+    
+    while True:
+        choice = input("\nSelect adventure (number): ").strip()
+        if choice == "0":
+            return None
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(scenarios):
+                return scenarios[idx]["id"]
+        except ValueError:
+            pass
+        print("Invalid choice. Please enter a number.")
 
 
 def main():
@@ -66,21 +149,66 @@ def main():
     print("=" * 60)
     print("       AI D&D TEXT RPG - Dungeon Master Edition")
     print("=" * 60)
-    print("\nInitializing AI Dungeon Master...")
     
-    # Initialize the model
-    model = create_client()
+    # Character creation
+    print("\nWelcome, adventurer! Let's create your character.")
+    print("\n[1] Create character (choose race, class, roll stats)")
+    print("[2] Quick start (random character)")
+    
+    choice = input("\nYour choice (1/2): ").strip()
+    
+    if choice == "1":
+        character = create_character_interactive()
+    else:
+        print("\nWhat is your character's name?")
+        name = input("Name: ").strip() or "Hero"
+        character = Character.create_random(name)
+        print("\n✨ Character created!")
+        print(character.get_stat_block())
+    
+    # Scenario selection
+    scenario_manager = ScenarioManager()
+    scenario_id = select_scenario(scenario_manager)
+    
+    scenario_context = ""
+    if scenario_id:
+        first_scene = scenario_manager.start_scenario(scenario_id)
+        scenario = scenario_manager.active_scenario
+        print(f"\n🏰 Starting: {scenario.name}")
+        print(f"   \"{scenario.hook}\"")
+        scenario_context = scenario_manager.get_dm_context()
+    
+    input("\nPress Enter to begin your adventure...")
+    
+    # Initialize the model with character context
+    print("\nInitializing AI Dungeon Master...")
+    model = create_client(character, scenario_context)
     
     # Start a chat session
     chat = model.start_chat(history=[])
     
     # Get the opening narration from the DM
     print("\n" + "-" * 60)
-    opening = get_dm_response(chat, "Begin the adventure. Welcome me as a new player and set the scene.")
-    print(f"\n🎲 Dungeon Master:\n{opening}")
+    
+    if scenario_id and scenario_manager.active_scenario:
+        scene = scenario_manager.active_scenario.get_current_scene()
+        opening_prompt = f"""
+Begin the adventure for {character.name}, a {character.race} {character.char_class}.
+We are starting in: {scene.name}
+Setting: {scene.setting}
+
+Set the scene according to the DM instructions. Introduce the scenario hook naturally.
+"""
+        print(f"\n📍 {scene.name}")
+        print("-" * 40)
+    else:
+        opening_prompt = f"Begin the adventure. Welcome {character.name}, a {character.race} {character.char_class}, and set the scene for their adventure. Make it appropriate for their class and race."
+    
+    print("\n🎲 Dungeon Master:")
+    get_dm_response(chat, opening_prompt, scenario_context)
     
     print("\n" + "-" * 60)
-    print("Commands: Type your action, 'quit' to exit")
+    print("Commands: 'stats' for character, 'progress' for story, 'help' for more")
     print("-" * 60)
     
     # Main game loop
@@ -91,20 +219,69 @@ def main():
         
         # Check for exit commands
         if player_input.lower() in ["quit", "exit", "q"]:
-            print("\n🎲 Dungeon Master: Your adventure ends here... for now.")
+            print(f"\n🎲 Dungeon Master: And so, {character.name}'s adventure ends here... for now.")
             print("Thanks for playing! See you next time, adventurer.")
             break
+        
+        # Check for stats command
+        if player_input.lower() in ["stats", "character", "sheet", "char"]:
+            print(character.get_stat_block())
+            continue
+        
+        # Check for HP command
+        if player_input.lower() == "hp":
+            hp_bar = character._get_hp_bar()
+            print(f"\n  ❤️  HP: {character.current_hp}/{character.max_hp} {hp_bar}")
+            continue
+        
+        # Check for progress command
+        if player_input.lower() == "progress":
+            if scenario_manager.is_active():
+                print(f"\n  📍 {scenario_manager.get_progress()}")
+            else:
+                print("\n  (No structured scenario active - Free Play mode)")
+            continue
+        
+        # Check for help command
+        if player_input.lower() in ["help", "?"]:
+            show_help(scenario_manager.is_active())
+            continue
         
         # Skip empty input
         if not player_input:
             print("(Please enter an action or 'quit' to exit)")
             continue
         
-        # Get DM response
+        # Get current scenario context
+        current_context = scenario_manager.get_dm_context() if scenario_manager.is_active() else ""
+        
+        # Record the exchange
+        if scenario_manager.is_active():
+            scenario_manager.record_exchange()
+        
+        # Get DM response (streaming handles printing)
         print("\n🎲 Dungeon Master:")
-        response = get_dm_response(chat, player_input)
-        print(response)
+        response = get_dm_response(chat, player_input, current_context)
+        
+        # Check for scene transitions
+        if scenario_manager.is_active() and response:
+            transition = scenario_manager.check_transition(player_input, response)
+            if transition:
+                print(transition)
+                
+                # Check if scenario is complete
+                if scenario_manager.active_scenario.is_complete:
+                    print("\n🎉 Congratulations! You've completed this adventure!")
+                    print("Thanks for playing! See you next time, adventurer.")
+                    break
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n⚔️  Game interrupted. Your adventure awaits another day!")
+        print("Thanks for playing!")
+    except EOFError:
+        print("\n\n⚔️  Input stream closed. Exiting game.")
+        print("Thanks for playing!")
