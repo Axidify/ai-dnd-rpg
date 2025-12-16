@@ -335,6 +335,47 @@ def roll_attack(character: Character, target_ac: int, weapon_name: str = 'longsw
     }
 
 
+def roll_attack_with_advantage(character: Character, target_ac: int, weapon_name: str = 'longsword') -> dict:
+    """
+    Roll an attack with ADVANTAGE (roll 2d20, take higher).
+    Used when player has surprised enemies or other advantageous conditions.
+    Returns dict with roll details and hit/miss, plus both rolls shown.
+    """
+    weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['longsword'])
+    attack_bonus = calculate_attack_bonus(character, weapon_name)
+    
+    # Roll 2d20, take higher
+    roll1 = random.randint(1, 20)
+    roll2 = random.randint(1, 20)
+    d20_roll = max(roll1, roll2)
+    total = d20_roll + attack_bonus
+    
+    is_nat_20 = d20_roll == 20
+    is_nat_1 = d20_roll == 1 and roll1 == 1 and roll2 == 1  # Both must be 1 for fumble with advantage
+    
+    # Nat 20 always hits, Nat 1 always misses
+    if is_nat_20:
+        hit = True
+    elif is_nat_1:
+        hit = False
+    else:
+        hit = total >= target_ac
+    
+    return {
+        'weapon': weapon_name.title(),
+        'd20_roll': d20_roll,
+        'd20_roll_1': roll1,
+        'd20_roll_2': roll2,
+        'has_advantage': True,
+        'attack_bonus': attack_bonus,
+        'total': total,
+        'target_ac': target_ac,
+        'hit': hit,
+        'is_crit': is_nat_20,
+        'is_fumble': is_nat_1,
+    }
+
+
 def roll_damage(character: Character, weapon_name: str = 'longsword', is_crit: bool = False) -> dict:
     """
     Roll damage for a weapon hit.
@@ -373,28 +414,36 @@ def format_attack_result(attack: dict) -> str:
     """Format attack roll for display."""
     bonus_sign = '+' if attack['attack_bonus'] >= 0 else ''
     
+    # Format roll display (with advantage shows both rolls)
+    if attack.get('has_advantage'):
+        roll_display = f"[{attack['d20_roll_1']}, {attack['d20_roll_2']}→{attack['d20_roll']}]"
+        adv_label = "⬆️ ADV "
+    else:
+        roll_display = f"[{attack['d20_roll']}]"
+        adv_label = ""
+    
     if attack['is_crit']:
         return (
-            f"🗡️ Attack ({attack['weapon']}): "
-            f"[{attack['d20_roll']}]{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
+            f"🗡️ {adv_label}Attack ({attack['weapon']}): "
+            f"{roll_display}{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
             f"vs AC {attack['target_ac']} = ⚡ CRITICAL HIT!"
         )
     elif attack['is_fumble']:
         return (
-            f"🗡️ Attack ({attack['weapon']}): "
-            f"[{attack['d20_roll']}]{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
+            f"🗡️ {adv_label}Attack ({attack['weapon']}): "
+            f"{roll_display}{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
             f"vs AC {attack['target_ac']} = 💥 CRITICAL MISS!"
         )
     elif attack['hit']:
         return (
-            f"🗡️ Attack ({attack['weapon']}): "
-            f"[{attack['d20_roll']}]{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
+            f"🗡️ {adv_label}Attack ({attack['weapon']}): "
+            f"{roll_display}{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
             f"vs AC {attack['target_ac']} = ✅ HIT!"
         )
     else:
         return (
-            f"🗡️ Attack ({attack['weapon']}): "
-            f"[{attack['d20_roll']}]{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
+            f"🗡️ {adv_label}Attack ({attack['weapon']}): "
+            f"{roll_display}{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
             f"vs AC {attack['target_ac']} = ❌ MISS"
         )
 

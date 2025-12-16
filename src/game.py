@@ -13,7 +13,7 @@ from character import Character, create_character_interactive, CLASSES, RACES
 from scenario import ScenarioManager
 from combat import (
     create_enemy, Enemy, ENEMIES, WEAPONS,
-    roll_attack, roll_damage, enemy_attack,
+    roll_attack, roll_attack_with_advantage, roll_damage, enemy_attack,
     format_attack_result, format_damage_result, format_enemy_attack,
     roll_initiative, format_initiative_roll
 )
@@ -115,24 +115,39 @@ def parse_roll_request(dm_response: str) -> tuple:
     return None, None
 
 
-def parse_combat_request(dm_response: str) -> list:
-    """Parse [COMBAT: enemy_type, enemy_type, ...] from DM response.
+def parse_combat_request(dm_response: str) -> tuple:
+    """Parse [COMBAT: enemy_type, enemy_type, ... | SURPRISE] from DM response.
     
-    Supports multiple enemies:
-    - [COMBAT: goblin] -> ['goblin']
-    - [COMBAT: goblin, goblin] -> ['goblin', 'goblin']
-    - [COMBAT: goblin, orc] -> ['goblin', 'orc']
+    Supports multiple enemies and surprise modifier:
+    - [COMBAT: goblin] -> (['goblin'], False)
+    - [COMBAT: goblin, goblin] -> (['goblin', 'goblin'], False)
+    - [COMBAT: goblin, goblin | SURPRISE] -> (['goblin', 'goblin'], True)
+    - [COMBAT: goblin | SURPRISE] -> (['goblin'], True)
     
-    Returns list of enemy types, or empty list if no combat.
+    Returns tuple of (list of enemy types, surprise_player boolean).
+    Returns ([], False) if no combat.
     """
     pattern = r'\[COMBAT:\s*([^\]]+)\]'
     match = re.search(pattern, dm_response, re.IGNORECASE)
     if match:
-        enemies_str = match.group(1).strip().lower()
-        # Split by comma and clean up
+        content = match.group(1).strip().lower()
+        
+        # Check for SURPRISE modifier (pipe separator)
+        surprise_player = False
+        if '|' in content:
+            parts = content.split('|')
+            enemies_str = parts[0].strip()
+            modifiers = parts[1].strip() if len(parts) > 1 else ''
+            if 'surprise' in modifiers:
+                surprise_player = True
+        else:
+            enemies_str = content
+        
+        # Split enemies by comma and clean up
         enemies = [e.strip() for e in enemies_str.split(',')]
-        return [e for e in enemies if e]  # Remove empty strings
-    return []
+        enemies = [e for e in enemies if e]  # Remove empty strings
+        return (enemies, surprise_player)
+    return ([], False)
 
 
 def parse_item_rewards(dm_response: str) -> list:
@@ -201,6 +216,7 @@ When you receive a [ROLL RESULT: ...]:
 When combat should begin (player attacks, enemy ambush, etc.), trigger it with:
 [COMBAT: enemy_type] for single enemy
 [COMBAT: enemy1, enemy2] for multiple enemies
+[COMBAT: enemy1, enemy2 | SURPRISE] for when player ambushes enemies
 
 Available enemies: goblin, goblin_boss, skeleton, orc, bandit, wolf
 
@@ -211,6 +227,15 @@ Examples:
 - Ambushed by bandits: [COMBAT: bandit, bandit]
 - Wolf pack: [COMBAT: wolf, wolf, wolf]
 - Boss with minions: [COMBAT: goblin_boss, goblin, goblin]
+- Player sneaks up on guards: [COMBAT: bandit, bandit | SURPRISE]
+- Player ambushes wolves: [COMBAT: wolf, wolf | SURPRISE]
+
+SURPRISE RULES:
+- Add | SURPRISE when the PLAYER catches enemies off guard
+- Player must have used stealth or caught enemies unaware
+- Do NOT use SURPRISE when enemies ambush the player
+- Surprised enemies cannot act in Round 1
+- Player gets ADVANTAGE (roll 2d20, take higher) on first attack
 
 COMBAT RULES:
 - Match the number of enemies in [COMBAT] to your narration!
@@ -398,13 +423,15 @@ def show_combat_status(character: Character, enemies: list, round_num: int = 1):
     print("╚" + "═" * 60 + "╝")
 
 
-def run_combat(character: Character, enemy_types: list, chat) -> str:
+def run_combat(character: Character, enemy_types: list, chat, surprise_player: bool = False) -> str:
     """Run a multi-enemy combat encounter and return the result.
     
     Args:
         character: Player character
         enemy_types: List of enemy type strings (e.g., ['goblin', 'goblin'])
         chat: The chat session for DM responses
+        surprise_player: If True, player has surprised enemies (enemies skip round 1,
+                         player gets advantage on first attack)
     
     Returns: 'victory', 'defeat', or 'fled'
     """
@@ -448,6 +475,12 @@ def run_combat(character: Character, enemy_types: list, chat) -> str:
         for i, enemy in enumerate(enemies, 1):
             print(f"  [{i}] {enemy.name} - HP: {enemy.current_hp}/{enemy.max_hp}, AC: {enemy.armor_class}")
     
+    # Surprise announcement
+    if surprise_player:
+        print("\n⚡ SURPRISE! You have caught the enemies off guard!")
+        print("   Enemies are surprised and cannot act in Round 1.")
+        print("   You have ADVANTAGE on your first attack (roll 2d20, take higher).")
+    
     # Roll initiative for everyone
     print("\n" + "-" * 40)
     input("Press Enter to roll initiative...")
@@ -471,7 +504,8 @@ def run_combat(character: Character, enemy_types: list, chat) -> str:
     print(f"\n📋 Turn Order:")
     for ctype, init_val, combatant in all_combatants:
         name = character.name if ctype == 'player' else combatant.name
-        print(f"   {init_val}: {name}")
+        surprised_mark = " (SURPRISED)" if ctype == 'enemy' and surprise_player else ""
+        print(f"   {init_val}: {name}{surprised_mark}")
     
     print("\n" + "-" * 60)
     if len(enemies) > 1:
@@ -492,6 +526,7 @@ def run_combat(character: Character, enemy_types: list, chat) -> str:
     round_num = 1
     result = None
     player_is_defending = False  # Track if player is defending
+    player_has_advantage = surprise_player  # Track if player still has advantage from surprise
     
     while result is None:
         print(f"\n{'='*60}")
@@ -573,10 +608,18 @@ def run_combat(character: Character, enemy_types: list, chat) -> str:
                                 continue
                         
                         # Execute attack
-                        print(f"\n   Press Enter to attack {target_enemy.name}...")
+                        if player_has_advantage:
+                            print(f"\n   ⬆️ Press Enter to attack {target_enemy.name} with ADVANTAGE...")
+                        else:
+                            print(f"\n   Press Enter to attack {target_enemy.name}...")
                         input()
                         
-                        attack = roll_attack(character, target_enemy.armor_class, weapon)
+                        # Use advantage roll if player still has it (first attack after surprise)
+                        if player_has_advantage:
+                            attack = roll_attack_with_advantage(character, target_enemy.armor_class, weapon)
+                            player_has_advantage = False  # Consume advantage after first attack
+                        else:
+                            attack = roll_attack(character, target_enemy.armor_class, weapon)
                         print(f"\n{format_attack_result(attack)}")
                         
                         if attack['is_crit']:
@@ -639,6 +682,11 @@ def run_combat(character: Character, enemy_types: list, chat) -> str:
             else:
                 enemy = combatant
                 if not enemy.is_dead:
+                    # Surprise: enemies skip their turn in round 1
+                    if surprise_player and round_num == 1:
+                        print(f"\n   😵 {enemy.name} is SURPRISED and loses their turn!")
+                        continue
+                    
                     print(f"\n   ⚔️ {enemy.name}'s turn (Initiative: {init_val})")
                     input("   Press Enter...")
                     
@@ -899,10 +947,10 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
             skill, dc = parse_roll_request(response)
         
         # Check if DM triggered combat
-        enemy_types = parse_combat_request(response)
+        enemy_types, surprise_player = parse_combat_request(response)
         if enemy_types:
-            # Run combat encounter (now supports multiple enemies)
-            combat_result = run_combat(character, enemy_types, chat)
+            # Run combat encounter (now supports multiple enemies and surprise)
+            combat_result = run_combat(character, enemy_types, chat, surprise_player=surprise_player)
             
             # Handle combat aftermath
             if combat_result == 'victory':

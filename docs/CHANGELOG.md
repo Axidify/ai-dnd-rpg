@@ -14,6 +14,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.2] - 2024-12-16
+
+### Added
+- **Surprise Round & Advantage System** - Ambush mechanics for stealth attacks
+  - DM triggers surprise with `[COMBAT: goblin, wolf | SURPRISE]` format
+  - Surprised enemies cannot act in Round 1
+  - Player gets ADVANTAGE on first attack (roll 2d20, take higher)
+  - Turn order shows `(SURPRISED)` next to affected enemies
+  - Attack display: `🗡️ ⬆️ ADV Attack (Longsword): [8, 15→15]+5 = 20`
+
+- **Roll Attack with Advantage**
+  - New `roll_attack_with_advantage()` function in combat.py
+  - Shows both dice rolls in output format
+  - Only fumbles if BOTH dice are 1
+
+- **Combat Test Updates**
+  - New options 7 & 8: Pre-configured multi-enemy + surprise tests
+  - Add 's' to any option for surprise (e.g., '2s', '4s')
+
+---
+
 ## [0.6.1] - 2024-12-16
 
 ### Added
