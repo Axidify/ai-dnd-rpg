@@ -41,6 +41,7 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 | 2.3 | Combat System | Turn-based, HP tracking, attack/defend/flee actions | ✅ Complete |
 | 2.4 | Combat Integration | Integrate combat into main game with AI triggers | ✅ Complete |
 | 2.5 | Inventory System | Pick up items, use items, equip gear | ✅ Complete |
+| 2.5.1 | Multi-Enemy Combat | Fight multiple enemies with proper turn order | ✅ Complete |
 | 2.6 | Leveling System | Simplified XP/milestone progression (cap at level 5) | ⬜ |
 
 **Success Criteria:**
@@ -49,7 +50,19 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 - [x] Player can fight an enemy and win/lose
 - [x] Combat works seamlessly in main game
 - [x] Player can collect and use items
+- [x] Player can fight multiple enemies simultaneously
 - [ ] Player can level up and gain abilities
+
+**Multi-Enemy Combat Features (2.5.1):**
+```
+- DM triggers with [COMBAT: enemy1, enemy2, enemy3]
+- All enemies roll initiative individually
+- Proper D&D turn order (sorted by initiative)
+- Target selection: "attack 1", "attack 2" or just "1", "2"
+- Defend bonus (+2 AC) persists until player's next turn
+- Victory when all enemies defeated
+- Loot drops from each defeated enemy
+```
 
 **Leveling System Design (Planned):**
 ```
