@@ -22,6 +22,7 @@ from inventory import (
     find_item_in_inventory, format_inventory, format_item_details,
     use_item, generate_loot, gold_from_enemy, Item, ItemType
 )
+from save_system import SaveManager, quick_save, quick_load, format_saves_list
 
 # Load environment variables from .env
 load_dotenv()
@@ -224,8 +225,12 @@ IMPORTANT RULES:
 When you receive a [ROLL RESULT: ...]:
 - SUCCESS: Describe the positive outcome naturally
 - FAILURE: Describe the negative consequence - be honest about failures
-- NATURAL 20: Make it EPIC! Something amazing happens
-- NATURAL 1: Make it DISASTROUS! A dramatic or comedic failure
+- CRITICAL SUCCESS (NATURAL 20): Make it LEGENDARY! The player achieves something beyond what 
+  they hoped for. Describe an extraordinary, memorable moment - perhaps they discover a hidden 
+  secret, impress everyone watching, or accomplish the task with incredible flair.
+- CRITICAL FAILURE (NATURAL 1): Make it SPECTACULAR... spectacularly bad! Create a dramatic 
+  or comedic disaster - equipment breaks, they fall on their face, make a fool of themselves, 
+  or cause an unexpected complication. Keep it fun and memorable, not punishing.
 
 ## COMBAT SYSTEM
 
@@ -372,10 +377,17 @@ def show_help(scenario_active: bool = False):
 ╠══════════════════════════════════════════════════════════╣
 ║  stats, character, sheet  - View your character sheet    ║
 ║  hp                       - Quick HP check               ║
+║  xp, level                - View XP progress             ║
+║  levelup                  - Level up (when ready)        ║
 ║  inventory, inv, i        - View your inventory          ║
 ║  use <item>               - Use a consumable item        ║
 ║  equip <item>             - Equip a weapon or armor      ║
-║  inspect <item>           - View item details            ║"""
+║  inspect <item>           - View item details            ║
+╠══════════════════════════════════════════════════════════╣
+║  💾 SAVE & LOAD                                          ║
+║  save                     - Save game to file            ║
+║  load                     - Load a saved game            ║
+║  saves                    - List all saved games         ║"""
     
     if scenario_active:
         help_text += """
@@ -770,33 +782,74 @@ def main():
     print("       AI D&D TEXT RPG - Dungeon Master Edition")
     print("=" * 60)
     
-    # Character creation
-    print("\nWelcome, adventurer! Let's create your character.")
+    # Check for saved games
+    save_manager = SaveManager()
+    saves, _ = save_manager.list_saves()  # Returns (saves, errors) tuple
+    
+    # Character creation / loading
+    print("\nWelcome, adventurer!")
     print("\n[1] Create character (choose race, class, roll stats)")
     print("[2] Quick start (random character)")
+    if saves:
+        print(f"[3] Load saved game ({len(saves)} save(s) found)")
     
-    choice = input("\nYour choice (1/2): ").strip()
+    choice = input("\nYour choice: ").strip()
     
-    if choice == "1":
-        character = create_character_interactive()
-    else:
-        print("\nWhat is your character's name?")
-        name = input("Name: ").strip() or "Hero"
-        character = Character.create_random(name)
-        print("\n✨ Character created!")
-        print(character.get_stat_block())
-    
-    # Scenario selection
+    character = None
     scenario_manager = ScenarioManager()
-    scenario_id = select_scenario(scenario_manager)
+    loaded_game = False
     
+    if choice == "3" and saves:
+        # Load game
+        print(f"\n{format_saves_list(saves)}")
+        print("  [0] Back to menu")
+        
+        load_choice = input("\nSelect save to load: ").strip()
+        if load_choice != "0" and load_choice:
+            try:
+                idx = int(load_choice) - 1
+                if 0 <= idx < len(saves):
+                    result = save_manager.load_game(
+                        saves[idx]['filepath'],
+                        Character,
+                        ScenarioManager
+                    )
+                    if result and result['character']:
+                        character = result['character']
+                        if result['scenario_manager']:
+                            scenario_manager = result['scenario_manager']
+                        loaded_game = True
+                        print(f"\n  ✅ Game loaded: {character.name}")
+                        print(character.get_stat_block())
+            except (ValueError, IndexError):
+                print("  ❌ Invalid selection.")
+    
+    if not character:
+        if choice == "1":
+            character = create_character_interactive()
+        else:
+            print("\nWhat is your character's name?")
+            name = input("Name: ").strip() or "Hero"
+            character = Character.create_random(name)
+            print("\n✨ Character created!")
+            print(character.get_stat_block())
+    
+    # Scenario selection (skip if loading a saved game with scenario)
     scenario_context = ""
-    if scenario_id:
-        first_scene = scenario_manager.start_scenario(scenario_id)
-        scenario = scenario_manager.active_scenario
-        print(f"\n🏰 Starting: {scenario.name}")
-        print(f"   \"{scenario.hook}\"")
-        scenario_context = scenario_manager.get_dm_context()
+    if not loaded_game or not scenario_manager.is_active():
+        scenario_id = select_scenario(scenario_manager)
+        
+        if scenario_id:
+            first_scene = scenario_manager.start_scenario(scenario_id)
+            scenario = scenario_manager.active_scenario
+            print(f"\n🏰 Starting: {scenario.name}")
+            print(f"   \"{scenario.hook}\"")
+            scenario_context = scenario_manager.get_dm_context()
+    else:
+        # Get context from loaded scenario
+        scenario_context = scenario_manager.get_dm_context() if scenario_manager.is_active() else ""
+        if scenario_manager.is_active():
+            print(f"\n📍 Resuming scenario: {scenario_manager.active_scenario.name}")
     
     input("\nPress Enter to begin your adventure...")
     
@@ -847,6 +900,103 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
         if player_input.lower() in ["stats", "character", "sheet", "char"]:
             print(character.get_stat_block())
             continue
+        
+        # =====================================================================
+        # SAVE/LOAD SYSTEM COMMANDS
+        # =====================================================================
+        
+        # Save game command
+        if player_input.lower() in ["save", "savegame", "save game"]:
+            save_manager = SaveManager()
+            print("\n💾 SAVE GAME")
+            print("-" * 40)
+            print("  [1] Quick Save (Slot 1)")
+            print("  [2] Save Slot 2")
+            print("  [3] Save Slot 3")
+            print("  [0] Cancel")
+            
+            slot_choice = input("\nSelect slot: ").strip()
+            if slot_choice in ["1", "2", "3"]:
+                slot = int(slot_choice)
+                desc = input("Description (optional): ").strip() or f"Slot {slot} save"
+                filepath, message = save_manager.save_game(
+                    character,
+                    scenario_manager,
+                    chat_history=None,  # Could add chat history tracking later
+                    slot=slot,
+                    description=desc
+                )
+                if filepath:
+                    print(f"\n  ✅ {message}")
+                else:
+                    print(f"\n  ❌ {message}")
+            else:
+                print("  Save cancelled.")
+            continue
+        
+        # Load game command
+        if player_input.lower() in ["load", "loadgame", "load game"]:
+            save_manager = SaveManager()
+            saves, errors = save_manager.list_saves()
+            
+            if not saves:
+                print("\n  ❌ No saved games found.")
+                if errors:
+                    for e in errors:
+                        print(f"    {e}")
+                continue
+            
+            print(f"\n{format_saves_list(saves, errors)}")
+            print("  [0] Cancel")
+            
+            load_choice = input("\nSelect save to load: ").strip()
+            if load_choice == "0" or not load_choice:
+                print("  Load cancelled.")
+                continue
+            
+            try:
+                idx = int(load_choice) - 1
+                if 0 <= idx < len(saves):
+                    print("\n⚠️  Loading will replace your current game!")
+                    confirm = input("Continue? (y/n): ").strip().lower()
+                    if confirm == 'y':
+                        result = save_manager.load_game(
+                            saves[idx]['filepath'],
+                            Character,
+                            ScenarioManager
+                        )
+                        if result and result['character']:
+                            character = result['character']
+                            if result['scenario_manager']:
+                                scenario_manager = result['scenario_manager']
+                            print(f"\n  ✅ Game loaded: {character.name}")
+                            print(character.get_stat_block())
+                            
+                            # Re-initialize chat with loaded character
+                            scenario_context = scenario_manager.get_dm_context() if scenario_manager.is_active() else ""
+                            model = create_client(character, scenario_context)
+                            chat = model.start_chat(history=[])
+                            print("\n🎲 Dungeon Master: Welcome back to your adventure!")
+                        else:
+                            print("\n  ❌ Failed to load game.")
+                    else:
+                        print("  Load cancelled.")
+                else:
+                    print("  ❌ Invalid selection.")
+            except ValueError:
+                print("  ❌ Invalid selection.")
+            continue
+        
+        # List saves command
+        if player_input.lower() in ["saves", "list saves", "listsaves"]:
+            save_manager = SaveManager()
+            saves, errors = save_manager.list_saves()
+            print(f"\n{format_saves_list(saves, errors)}")
+            continue
+        
+        # =====================================================================
+        # END SAVE/LOAD COMMANDS
+        # =====================================================================
         
         # Check for HP command
         if player_input.lower() == "hp":
@@ -994,16 +1144,29 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
             result = roll_skill_check(character, skill, dc)
             print(f"\n{format_roll_result(result)}")
             
-            # Build result message for DM
-            result_msg = (
-                f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = "
-                f"{'SUCCESS' if result['success'] else 'FAILURE'}"
-            )
+            # Build result message for DM with enhanced critical context
             if result['is_nat_20']:
-                result_msg += " (NATURAL 20!)"
+                # Critical success - give AI explicit guidance
+                result_msg = (
+                    f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = "
+                    f"CRITICAL SUCCESS - NATURAL 20! "
+                    f"Narrate something EXTRAORDINARY happening - the player succeeds in a spectacular, "
+                    f"memorable way that exceeds their wildest expectations!]"
+                )
             elif result['is_nat_1']:
-                result_msg += " (NATURAL 1!)"
-            result_msg += "]"
+                # Critical failure - give AI explicit guidance
+                result_msg = (
+                    f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = "
+                    f"CRITICAL FAILURE - NATURAL 1! "
+                    f"Narrate a DISASTROUS or COMEDIC failure - something goes hilariously or dramatically wrong, "
+                    f"creating an entertaining or tense moment!]"
+                )
+            else:
+                # Normal success or failure
+                result_msg = (
+                    f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = "
+                    f"{'SUCCESS' if result['success'] else 'FAILURE'}]"
+                )
             
             # Get DM's reaction to the roll
             print(f"\n🎲 Dungeon Master:")

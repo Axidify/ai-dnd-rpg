@@ -86,6 +86,16 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 - Loot drops from each defeated enemy
 ```
 
+**Skill Check System Features (2.2):**
+```
+- AI requests with [ROLL: SkillName DC X]
+- Automatic stat modifier application (STR, DEX, etc.)
+- Display: 🎲 Stealth (DEX): [14]+3 = 17 vs DC 15 = ✅ SUCCESS
+- Natural 20 → CRITICAL SUCCESS: AI narrates legendary/epic outcomes
+- Natural 1 → CRITICAL FAILURE: AI narrates dramatic/comedic disasters
+- Enhanced context sent to AI for memorable critical narration
+```
+
 **Leveling System Design (Planned):**
 ```
 Level Cap: 5
@@ -101,17 +111,27 @@ Milestone XP: Minor=25, Major=50, Boss=100, Adventure=150
 
 ---
 
-### Phase 3: World & Persistence ⬜ Not Started
+### Phase 3: World & Persistence 🔄 In Progress
 **Goal:** Make it feel like a real adventure
 
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
-| 3.1 | Save/Load System | JSON file for character + story progress | ⬜ |
+| 3.1 | Save/Load System | JSON file for character + story progress | ✅ Complete |
 | 3.2 | Location System | Multiple rooms/areas with movement | ⬜ |
 | 3.3 | NPCs | Dialogue, quests, shop functionality | ⬜ |
 
+**Save/Load System Features (3.1):**
+```
+- Save game to numbered slots (1-3) or timestamped files
+- Load from main menu or in-game
+- Preserves: character stats, HP, XP, inventory, gold, equipped items
+- Preserves: scenario progress and story flags
+- Commands: 'save', 'load', 'saves' (list all)
+- Save directory: /saves/
+```
+
 **Success Criteria:**
-- [ ] Game state persists between sessions
+- [x] Game state persists between sessions
 - [ ] Player can navigate between locations
 - [ ] Player can interact with NPCs for quests/trading
 
