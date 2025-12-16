@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from combat import (
     create_enemy, Enemy, ENEMIES, WEAPONS,
-    roll_attack, roll_damage, enemy_attack,
+    roll_attack, roll_attack_with_advantage, roll_damage, enemy_attack,
     format_attack_result, format_damage_result, format_enemy_attack,
     roll_initiative, format_initiative_roll, determine_turn_order,
     display_turn_order, Combatant
@@ -268,28 +268,37 @@ def select_enemies():
     print("  5. Goblin Boss + 2 goblins")
     print("  6. Custom (enter enemy types)")
     print("-" * 40)
+    print("  7. Two goblins + SURPRISE (ambush test)")
+    print("  8. Goblin + Wolf + SURPRISE")
+    print("-" * 40)
+    print("  Tip: Add 's' to any option for surprise (e.g., '2s', '4s')")
+    print("-" * 40)
     
-    choice = input("\nSelect (1-6): ").strip()
+    choice = input("\nSelect (1-8): ").strip()
+    
+    # Check for surprise modifier
+    surprise_player = False
+    if 's' in choice.lower():
+        surprise_player = True
+        choice = choice.lower().replace('s', '').strip()
+        print("⚡ SURPRISE enabled! Enemies will be surprised in round 1.")
     
     if choice == '1':
-        return [create_enemy('goblin')]
+        enemies = [create_enemy('goblin')]
     elif choice == '2':
         enemies = [create_enemy('goblin'), create_enemy('goblin')]
         enemies[0].name = "Goblin 1"
         enemies[1].name = "Goblin 2"
-        return enemies
     elif choice == '3':
-        return [create_enemy('goblin'), create_enemy('wolf')]
+        enemies = [create_enemy('goblin'), create_enemy('wolf')]
     elif choice == '4':
         enemies = [create_enemy('wolf'), create_enemy('wolf'), create_enemy('wolf')]
         for i, e in enumerate(enemies, 1):
             e.name = f"Wolf {i}"
-        return enemies
     elif choice == '5':
         enemies = [create_enemy('goblin_boss'), create_enemy('goblin'), create_enemy('goblin')]
         enemies[1].name = "Goblin 1"
         enemies[2].name = "Goblin 2"
-        return enemies
     elif choice == '6':
         print("\nEnter enemy types separated by commas (e.g., 'goblin, orc, wolf'):")
         print("Available: goblin, goblin_boss, orc, wolf, skeleton, bandit, giant_spider")
@@ -309,11 +318,21 @@ def select_enemies():
                 enemies.append(enemy)
         if not enemies:
             print("No valid enemies, defaulting to goblin.")
-            return [create_enemy('goblin')]
-        return enemies
+    elif choice == '7':
+        # Multi-enemy + Surprise combo test
+        enemies = [create_enemy('goblin'), create_enemy('goblin')]
+        enemies[0].name = "Goblin 1"
+        enemies[1].name = "Goblin 2"
+        surprise_player = True
+    elif choice == '8':
+        # Mixed enemies + Surprise combo test
+        enemies = [create_enemy('goblin'), create_enemy('wolf')]
+        surprise_player = True
     else:
         print("Invalid choice, defaulting to single goblin.")
-        return [create_enemy('goblin')]
+        enemies = [create_enemy('goblin')]
+    
+    return enemies, surprise_player
 
 
 def show_multi_combat_status(character, enemies, round_num=1):
@@ -363,11 +382,14 @@ def main():
     print("=" * 60)
     
     character = TestCharacter()
-    enemies = select_enemies()
+    enemies, surprise_player = select_enemies()
     
     print(f"\nYou are: {character.name} ({character.race} {character.char_class})")
     print(f"Wielding: {character.weapon.title()}")
     print(f"HP: {character.current_hp}/{character.max_hp}, AC: {character.armor_class}")
+    
+    if surprise_player:
+        print("\n⚡ SURPRISE ATTACK! Enemies are caught off guard!")
     
     print(f"\nOpponents ({len(enemies)}):")
     for i, enemy in enumerate(enemies, 1):
@@ -412,12 +434,19 @@ def main():
     else:
         print(f"\n⚡ {combatants[0][1]} goes first!")
     
+    # Surprise announcement
+    if surprise_player:
+        print("\n⚡ SURPRISE! You have caught the enemies off guard!")
+        print("   Enemies are surprised and cannot act in Round 1.")
+        print("   You have ADVANTAGE on your first attack (roll 2d20, take higher).")
+    
     print("\n╔══════════════════════════════════════╗")
     print("║          ⚔️ TURN ORDER ⚔️            ║")
     print("╠══════════════════════════════════════╣")
     for i, (ctype, name, init_val) in enumerate(combatants, 1):
         marker = "(You)" if ctype == 'player' else ""
-        print(f"║  {i}. {name} [{init_val}] {marker}".ljust(39) + "║")
+        surprised_mark = " (SURPRISED)" if ctype == 'enemy' and surprise_player else ""
+        print(f"║  {i}. {name} [{init_val}] {marker}{surprised_mark}".ljust(39) + "║")
     print("╚══════════════════════════════════════╝")
     
     print("\n" + "-" * 60)
@@ -439,7 +468,10 @@ def main():
     print("\n🎲 Dungeon Master:")
     # Build initial context for DM - mention all enemies
     enemy_names = ", ".join([e.name for e in enemies])
-    context = f"Combat begins! {init_context}\n\nKira (HP {character.current_hp}/{character.max_hp}) faces {enemy_names}. Set the scene for this confrontation."
+    if surprise_player:
+        context = f"Combat begins with SURPRISE! {init_context}\n\nKira (HP {character.current_hp}/{character.max_hp}) has caught {enemy_names} off guard! The enemies are surprised and cannot act in Round 1. Kira has advantage on her first attack! Set the scene for this ambush."
+    else:
+        context = f"Combat begins! {init_context}\n\nKira (HP {character.current_hp}/{character.max_hp}) faces {enemy_names}. Set the scene for this confrontation."
     
     dm_response = get_dm_response(chat, context)
     
@@ -450,6 +482,7 @@ def main():
     
     round_num = 1
     player_is_defending = False  # Track if player is defending this round
+    player_has_advantage = surprise_player  # Track if player has advantage on first attack
     
     while True:
         print(f"\n{'='*60}")
@@ -539,10 +572,18 @@ def main():
                                 continue
                         
                         # Execute attack
-                        print(f"\n   Press Enter to attack {target_enemy.name}...")
+                        if player_has_advantage:
+                            print(f"\n   ⬆️ Press Enter to attack {target_enemy.name} with ADVANTAGE...")
+                        else:
+                            print(f"\n   Press Enter to attack {target_enemy.name}...")
                         input()
                         
-                        attack = roll_attack(character, target_enemy.armor_class, character.weapon)
+                        # Use advantage roll if player still has it (first attack after surprise)
+                        if player_has_advantage:
+                            attack = roll_attack_with_advantage(character, target_enemy.armor_class, character.weapon)
+                            player_has_advantage = False  # Consume advantage after first attack
+                        else:
+                            attack = roll_attack(character, target_enemy.armor_class, character.weapon)
                         print(f"\n{format_attack_result(attack)}")
                         
                         if attack['is_crit']:
@@ -620,6 +661,11 @@ def main():
                         break
                 
                 if current_enemy and not current_enemy.is_dead:
+                    # Surprise: enemies skip their turn in round 1
+                    if surprise_player and round_num == 1:
+                        print(f"\n   😵 {current_enemy.name} is SURPRISED and loses their turn!")
+                        continue
+                    
                     print(f"\n   ⚔️ {current_enemy.name}'s turn (Initiative: {init_val})")
                     input("   Press Enter...")
                     

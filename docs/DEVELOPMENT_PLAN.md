@@ -42,6 +42,7 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 | 2.4 | Combat Integration | Integrate combat into main game with AI triggers | ✅ Complete |
 | 2.5 | Inventory System | Pick up items, use items, equip gear | ✅ Complete |
 | 2.5.1 | Multi-Enemy Combat | Fight multiple enemies with proper turn order | ✅ Complete |
+| 2.5.2 | Surprise & Advantage | Ambush attacks with surprise round and advantage | ✅ Complete |
 | 2.6 | Leveling System | Simplified XP/milestone progression (cap at level 5) | ⬜ |
 
 **Success Criteria:**
@@ -51,6 +52,7 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 - [x] Combat works seamlessly in main game
 - [x] Player can collect and use items
 - [x] Player can fight multiple enemies simultaneously
+- [x] Player can ambush enemies with surprise round
 - [ ] Player can level up and gain abilities
 
 **Multi-Enemy Combat Features (2.5.1):**
@@ -58,6 +60,15 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 - DM triggers with [COMBAT: enemy1, enemy2, enemy3]
 - All enemies roll initiative individually
 - Proper D&D turn order (sorted by initiative)
+```
+
+**Surprise & Advantage Features (2.5.2):**
+```
+- DM triggers with [COMBAT: enemy1, enemy2 | SURPRISE]
+- Surprised enemies skip their turn in Round 1
+- Player gets ADVANTAGE on first attack (2d20, take higher)
+- Attack shows both dice: [8, 15→15]+5 = 20
+```
 - Target selection: "attack 1", "attack 2" or just "1", "2"
 - Defend bonus (+2 AC) persists until player's next turn
 - Victory when all enemies defeated

@@ -508,6 +508,92 @@ src/
 
 ---
 
+## Combat System
+
+### DM Combat Triggers
+
+The AI DM triggers combat using special tags in responses:
+
+| Tag Format | Description |
+|------------|-------------|
+| `[COMBAT: goblin]` | Single enemy combat |
+| `[COMBAT: goblin, goblin]` | Multiple enemies |
+| `[COMBAT: wolf, wolf, wolf]` | Pack encounter |
+| `[COMBAT: goblin, orc \| SURPRISE]` | Surprise attack (player ambushes) |
+
+### Combat Flow
+
+```
+DM Response with [COMBAT: enemy_types] or [COMBAT: enemies | SURPRISE]
+           │
+           ▼
+┌──────────────────────────────┐
+│  parse_combat_request()      │ → Returns (enemy_list, surprise_flag)
+└──────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│  run_combat(surprise_player) │
+└──────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│  Roll Initiative (all)       │ → Each combatant rolls d20+DEX
+└──────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│  Build Turn Order            │ → Sorted by initiative (high first)
+└──────────────────────────────┘
+           │
+           ▼
+  [If SURPRISE: Round 1 enemies skip, player has advantage]
+           │
+           ▼
+┌──────────────────────────────┐
+│  Combat Loop by Turn Order   │ → Each combatant acts in order
+└──────────────────────────────┘
+           │
+           ▼
+  [Victory / Defeat / Fled]
+```
+
+### Key Combat Functions (combat.py)
+
+| Function | Purpose |
+|----------|---------|
+| `roll_attack(char, ac, weapon)` | Standard attack roll |
+| `roll_attack_with_advantage(char, ac, weapon)` | 2d20 take higher (surprise) |
+| `roll_damage(char, weapon, is_crit)` | Damage calculation |
+| `enemy_attack(enemy, player_ac)` | Enemy attack against player |
+| `roll_initiative(dex_mod)` | d20 + DEX modifier |
+| `create_enemy(enemy_type)` | Create enemy from template |
+
+### Surprise & Advantage System
+
+When player ambushes enemies:
+1. DM uses `[COMBAT: enemies | SURPRISE]`
+2. `parse_combat_request()` returns `surprise_player=True`
+3. In Round 1:
+   - Enemies skip their turn (shown as "😵 SURPRISED")
+   - Player gets ADVANTAGE on first attack
+4. `roll_attack_with_advantage()` rolls 2d20, takes higher
+5. Display shows both dice: `[8, 15→15]+5 = 20`
+
+### Available Enemies
+
+| Type | HP | AC | Attack | Damage |
+|------|-----|-----|--------|--------|
+| `goblin` | 7 | 15 | +4 | 1d6+2 |
+| `goblin_boss` | 21 | 17 | +4 | 2d6+2 |
+| `orc` | 15 | 13 | +5 | 1d12+3 |
+| `wolf` | 11 | 13 | +4 | 2d4+2 |
+| `skeleton` | 13 | 13 | +4 | 1d6+2 |
+| `bandit` | 11 | 12 | +3 | 1d6+1 |
+| `giant_spider` | 26 | 14 | +5 | 1d8+3 |
+
+---
+
 ## Testing Guidelines
 
 ### Manual Testing Checklist
