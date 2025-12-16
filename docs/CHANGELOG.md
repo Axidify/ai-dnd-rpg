@@ -9,8 +9,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Planned
-- Phase 2.6: Leveling System
 - Phase 3: World & Persistence
+
+---
+
+## [0.7.0] - 2024-12-17
+
+### Added
+- **Leveling System (Phase 2.6)** - Character progression with XP and levels
+  - Level cap: 5, XP thresholds: 0 → 100 → 300 → 600 → 1000
+  - `xp` command - View current level, XP, and progress bar
+  - `levelup` command - Advance level when XP threshold met
+  - +2 HP per level, stat boosts at L2/L4, class abilities at L3/L5
+  - Proficiency bonus: +2 (L1-4), +3 (L5)
+
+- **XP Reward System**
+  - DM can award XP with `[XP: amount]` or `[XP: amount | reason]` tags
+  - Milestone XP: minor=25, major=50, boss=100, adventure=150
+  - XP rewards shown in game with level up notifications
+
+- **Combat XP Integration**
+  - `test_combat_with_dm.py` now awards XP after victory
+  - XP breakdown by enemy type shown on win
+
+- **Unit Tests**
+  - New `tests/test_xp_system.py` with 10 test cases
+  - Covers: initial state, XP gain, thresholds, level up, max cap
 
 ---
 
