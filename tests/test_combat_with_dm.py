@@ -22,6 +22,10 @@ from combat import (
     roll_initiative, format_initiative_roll, determine_turn_order,
     display_turn_order, Combatant
 )
+from game import (
+    build_combat_context, get_combat_narration, display_combat_narration,
+    COMBAT_NARRATION_PROMPT
+)
 
 # Load environment variables
 load_dotenv()
@@ -123,6 +127,258 @@ class TestCharacter:
             'hp_gain': hp_gain,
             'new_max_hp': self.max_hp
         }
+
+
+# =============================================================================
+# COMBAT NARRATION SYSTEM TESTS
+# =============================================================================
+
+def test_combat_context_building():
+    """Test that build_combat_context creates proper context dicts."""
+    print("\n" + "=" * 60)
+    print("     COMBAT NARRATION SYSTEM TESTS")
+    print("=" * 60)
+    
+    # Test hit context
+    attack_result = {'hit': True, 'is_crit': False, 'is_fumble': False}
+    damage_result = {'total': 8, 'damage_type': 'slashing'}
+    
+    context = build_combat_context(
+        attacker_name="Kira",
+        target_name="Goblin",
+        weapon="longsword",
+        attack_result=attack_result,
+        damage_result=damage_result,
+        target_died=False,
+        is_player_attacking=True
+    )
+    
+    assert context['attacker'] == "Kira"
+    assert context['target'] == "Goblin"
+    assert context['weapon'] == "longsword"
+    assert context['outcome'] == 'hit'
+    assert context['damage'] == 8
+    assert context['damage_type'] == 'slashing'
+    assert context['is_player_attack'] == True
+    print("✅ Hit context built correctly")
+    
+    # Test critical hit context
+    attack_result_crit = {'hit': True, 'is_crit': True, 'is_fumble': False}
+    context_crit = build_combat_context(
+        attacker_name="Kira",
+        target_name="Orc",
+        weapon="greatsword",
+        attack_result=attack_result_crit,
+        damage_result={'total': 18, 'damage_type': 'slashing'},
+        target_died=True,
+        is_player_attacking=True
+    )
+    
+    assert context_crit['outcome'] == 'critical_hit'
+    assert context_crit['target_killed'] == True
+    print("✅ Critical hit context built correctly")
+    
+    # Test miss context
+    attack_result_miss = {'hit': False, 'is_crit': False, 'is_fumble': False}
+    context_miss = build_combat_context(
+        attacker_name="Kira",
+        target_name="Wolf",
+        weapon="shortbow",
+        attack_result=attack_result_miss,
+        damage_result=None,
+        target_died=False,
+        is_player_attacking=True
+    )
+    
+    assert context_miss['outcome'] == 'miss'
+    assert 'damage' not in context_miss
+    print("✅ Miss context built correctly")
+    
+    # Test fumble context
+    attack_result_fumble = {'hit': False, 'is_crit': False, 'is_fumble': True}
+    context_fumble = build_combat_context(
+        attacker_name="Kira",
+        target_name="Skeleton",
+        weapon="mace",
+        attack_result=attack_result_fumble,
+        damage_result=None,
+        target_died=False,
+        is_player_attacking=True
+    )
+    
+    assert context_fumble['outcome'] == 'critical_miss'
+    print("✅ Fumble context built correctly")
+    
+    # Test enemy attack context
+    enemy_attack_result = {'hit': True, 'is_crit': False, 'is_fumble': False}
+    enemy_context = build_combat_context(
+        attacker_name="Goblin",
+        target_name="Kira",
+        weapon="rusty dagger",
+        attack_result=enemy_attack_result,
+        damage_result={'total': 5, 'damage_type': 'piercing'},
+        target_died=False,
+        is_player_attacking=False
+    )
+    
+    assert enemy_context['is_player_attack'] == False
+    assert enemy_context['attacker'] == "Goblin"
+    print("✅ Enemy attack context built correctly")
+    
+    print("\n✅ All combat context tests passed!")
+    return True
+
+
+def test_combat_narration_with_ai():
+    """Test actual AI combat narration generation."""
+    print("\n" + "=" * 60)
+    print("     AI COMBAT NARRATION TEST")
+    print("=" * 60)
+    
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        print("⚠️ GOOGLE_API_KEY not set - skipping AI narration test")
+        return True
+    
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+    chat = model.start_chat(history=[])
+    
+    # Test narration for a hit
+    attack_result = {'hit': True, 'is_crit': False, 'is_fumble': False}
+    damage_result = {'total': 8, 'damage_type': 'slashing'}
+    
+    context = build_combat_context(
+        attacker_name="Kira",
+        target_name="Goblin",
+        weapon="longsword",
+        attack_result=attack_result,
+        damage_result=damage_result,
+        target_died=False,
+        is_player_attacking=True
+    )
+    
+    print("\n📖 Testing AI narration for a HIT...")
+    narration = get_combat_narration(chat, context)
+    print(f"   Narration: {narration}")
+    assert len(narration) > 10, "Narration should have meaningful content"
+    print("✅ AI generated narration for hit")
+    
+    # Test narration for a critical hit kill
+    context_crit = build_combat_context(
+        attacker_name="Kira",
+        target_name="Orc Warlord",
+        weapon="greatsword",
+        attack_result={'hit': True, 'is_crit': True, 'is_fumble': False},
+        damage_result={'total': 24, 'damage_type': 'slashing'},
+        target_died=True,
+        is_player_attacking=True
+    )
+    
+    print("\n📖 Testing AI narration for CRITICAL HIT KILL...")
+    narration_crit = get_combat_narration(chat, context_crit)
+    print(f"   Narration: {narration_crit}")
+    assert len(narration_crit) > 10, "Narration should have meaningful content"
+    print("✅ AI generated narration for critical kill")
+    
+    # Test enemy attack narration
+    enemy_context = build_combat_context(
+        attacker_name="Wolf",
+        target_name="Kira",
+        weapon="claws",
+        attack_result={'hit': True, 'is_crit': False, 'is_fumble': False},
+        damage_result={'total': 6, 'damage_type': 'piercing'},
+        target_died=False,
+        is_player_attacking=False
+    )
+    
+    print("\n📖 Testing AI narration for ENEMY ATTACK...")
+    narration_enemy = get_combat_narration(chat, enemy_context)
+    print(f"   Narration: {narration_enemy}")
+    assert len(narration_enemy) > 10, "Narration should have meaningful content"
+    print("✅ AI generated narration for enemy attack")
+    
+    print("\n✅ All AI narration tests passed!")
+    return True
+
+
+def test_display_combat_narration():
+    """Test the display function handles edge cases."""
+    print("\n" + "=" * 60)
+    print("     DISPLAY NARRATION TESTS")
+    print("=" * 60)
+    
+    # Test with valid narration
+    import io
+    import sys
+    
+    # Capture stdout
+    old_stdout = sys.stdout
+    sys.stdout = buffer = io.StringIO()
+    
+    display_combat_narration("Your blade strikes true!")
+    
+    output = buffer.getvalue()
+    sys.stdout = old_stdout
+    
+    assert "📖" in output
+    assert "Your blade strikes true!" in output
+    print("✅ Valid narration displays correctly")
+    
+    # Test with empty narration (should not print anything)
+    sys.stdout = buffer = io.StringIO()
+    display_combat_narration("")
+    output = buffer.getvalue()
+    sys.stdout = old_stdout
+    
+    assert output == ""
+    print("✅ Empty narration handled correctly (no output)")
+    
+    # Test with None-like narration
+    sys.stdout = buffer = io.StringIO()
+    display_combat_narration(None)  # Should handle gracefully
+    sys.stdout = old_stdout
+    print("✅ None narration handled gracefully")
+    
+    print("\n✅ All display tests passed!")
+    return True
+
+
+def run_narration_tests():
+    """Run all combat narration tests."""
+    print("\n" + "=" * 60)
+    print("     RUNNING COMBAT NARRATION SYSTEM TESTS")
+    print("=" * 60)
+    
+    tests_passed = 0
+    tests_failed = 0
+    
+    try:
+        if test_combat_context_building():
+            tests_passed += 1
+    except Exception as e:
+        print(f"❌ Context building test failed: {e}")
+        tests_failed += 1
+    
+    try:
+        if test_display_combat_narration():
+            tests_passed += 1
+    except Exception as e:
+        print(f"❌ Display test failed: {e}")
+        tests_failed += 1
+    
+    try:
+        if test_combat_narration_with_ai():
+            tests_passed += 1
+    except Exception as e:
+        print(f"❌ AI narration test failed: {e}")
+        tests_failed += 1
+    
+    print("\n" + "=" * 60)
+    print(f"     NARRATION TESTS: {tests_passed} passed, {tests_failed} failed")
+    print("=" * 60)
+    
+    return tests_failed == 0
 
 
 # =============================================================================
@@ -680,31 +936,59 @@ def main():
                             attack = roll_attack(character, target_enemy.armor_class, character.weapon)
                         print(f"\n{format_attack_result(attack)}")
                         
+                        # NEW NARRATION SYSTEM
+                        damage_result = None
+                        target_died = False
+                        
                         if attack['is_crit']:
                             damage = roll_damage(character, character.weapon, True)
                             print(format_damage_result(damage))
+                            target_died = target_enemy.current_hp - damage['total'] <= 0
                             target_enemy.take_damage(damage['total'])
-                            result_msg = f"[ATTACK: CRITICAL HIT for {damage['total']} on {target_enemy.name}! {target_enemy.get_status()}]"
+                            damage_result = {'total': damage['total'], 'damage_type': damage.get('damage_type', 'physical')}
                         elif attack['is_fumble']:
-                            result_msg = "[ATTACK: FUMBLE! The attack goes terribly wrong.]"
+                            pass  # No damage on fumble
                         elif attack['hit']:
                             damage = roll_damage(character, character.weapon, False)
                             print(format_damage_result(damage))
+                            target_died = target_enemy.current_hp - damage['total'] <= 0
                             target_enemy.take_damage(damage['total'])
-                            result_msg = f"[ATTACK: HIT for {damage['total']} on {target_enemy.name}. {target_enemy.get_status()}]"
-                        else:
-                            result_msg = f"[ATTACK: MISS on {target_enemy.name}.]"
+                            damage_result = {'total': damage['total'], 'damage_type': damage.get('damage_type', 'physical')}
                         
-                        print("\n🎲 Dungeon Master:")
-                        dm_response = get_dm_response(chat, result_msg)
+                        # Build context and get AI narration
+                        combat_ctx = build_combat_context(
+                            attacker_name=character.name,
+                            target_name=target_enemy.name,
+                            weapon=character.weapon,
+                            attack_result=attack,
+                            damage_result=damage_result,
+                            target_died=target_died,
+                            is_player_attacking=True
+                        )
+                        narration = get_combat_narration(chat, combat_ctx)
+                        display_combat_narration(narration)
+                        
                         player_acted = True
                         player_is_defending = False
                         
                     elif is_defend:
                         print("\n🛡️ You take a defensive stance! (+2 AC until your next turn)")
                         player_is_defending = True
-                        print("\n🎲 Dungeon Master:")
-                        dm_response = get_dm_response(chat, "[PLAYER DEFENDS: Describe their defensive posture briefly.]")
+                        # Simple defend narration using new format
+                        defend_ctx = {
+                            'attacker': character.name,
+                            'target': 'self',
+                            'weapon': 'shield/stance',
+                            'outcome': 'defend',
+                            'is_player_attack': True
+                        }
+                        import json
+                        defend_prompt = f"Briefly narrate (1 sentence) the player taking a defensive stance. Context: {json.dumps(defend_ctx)}"
+                        try:
+                            defend_narration = chat.send_message(defend_prompt).text.strip()
+                            display_combat_narration(defend_narration)
+                        except:
+                            pass
                         player_acted = True
                         
                     elif is_flee:
@@ -720,23 +1004,55 @@ def main():
                         
                         if flee_total >= flee_dc:
                             print(f"\n🎯 Escape: [{flee_roll}]{mod_sign}{flee_mod} = {flee_total} vs DC {flee_dc} = ✅ ESCAPED!")
-                            print("\n🎲 Dungeon Master:")
-                            dm_response = get_dm_response(chat, "[FLEE SUCCESS: Describe the player's escape.]")
+                            # Narration for successful escape
+                            escape_ctx = {
+                                'attacker': character.name,
+                                'target': 'escape',
+                                'weapon': 'none',
+                                'outcome': 'success',
+                                'is_player_attack': True
+                            }
+                            import json
+                            escape_prompt = f"Narrate the player's dramatic escape from combat. 2 sentences. Context: {json.dumps(escape_ctx)}"
+                            try:
+                                escape_narration = chat.send_message(escape_prompt).text.strip()
+                                display_combat_narration(escape_narration)
+                            except:
+                                pass
                             print("\n🏃 You successfully fled!")
                             print("\nCombat test complete!")
                             return
                         else:
                             print(f"\n🎯 Escape: [{flee_roll}]{mod_sign}{flee_mod} = {flee_total} vs DC {flee_dc} = ❌ FAILED!")
-                            # Opportunity attacks from all enemies
+                            # Opportunity attacks from all enemies with NEW narration system
                             for opp_enemy in alive_enemies:
                                 print(f"\n   {opp_enemy.name} gets an opportunity attack!")
                                 input("   Press Enter...")
                                 enemy_atk, enemy_dmg = enemy_attack(opp_enemy, character.armor_class)
                                 print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
+                                
+                                # NEW narration for opportunity attack
+                                opp_damage_result = None
                                 if enemy_dmg:
                                     character.take_damage(enemy_dmg['total'])
-                                print("\n🎲 Dungeon Master:")
-                                dm_response = get_dm_response(chat, f"[{opp_enemy.name} opportunity attack. Player HP: {character.current_hp}/{character.max_hp}]")
+                                    opp_damage_result = {
+                                        'total': enemy_dmg['total'],
+                                        'damage_type': 'physical'
+                                    }
+                                
+                                opp_weapon = "claws" if "wolf" in opp_enemy.name.lower() else "rusty dagger"
+                                opp_ctx = build_combat_context(
+                                    attacker_name=opp_enemy.name,
+                                    target_name=character.name,
+                                    weapon=opp_weapon,
+                                    attack_result=enemy_atk,
+                                    damage_result=opp_damage_result,
+                                    target_died=False,
+                                    is_player_attacking=False
+                                )
+                                opp_narration = get_combat_narration(chat, opp_ctx)
+                                display_combat_narration(opp_narration)
+                                
                                 if character.current_hp <= 0:
                                     break
                             player_acted = True
@@ -769,21 +1085,30 @@ def main():
                     enemy_atk, enemy_dmg = enemy_attack(current_enemy, effective_ac)
                     print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
                     
+                    # NEW NARRATION SYSTEM for enemy attacks
+                    enemy_damage_result = None
                     if enemy_dmg:
                         character.take_damage(enemy_dmg['total'])
-                        crit = " CRITICAL!" if enemy_atk['is_crit'] else ""
-                        if player_is_defending:
-                            enemy_msg = f"[{current_enemy.name} attacks defended player: HIT for {enemy_dmg['total']}{crit}. Player HP: {character.current_hp}/{character.max_hp}]"
-                        else:
-                            enemy_msg = f"[{current_enemy.name} attacks: HIT for {enemy_dmg['total']}{crit}. Player HP: {character.current_hp}/{character.max_hp}]"
-                    else:
-                        if player_is_defending:
-                            enemy_msg = f"[{current_enemy.name} attacks defended player: MISS. Player HP: {character.current_hp}/{character.max_hp}]"
-                        else:
-                            enemy_msg = f"[{current_enemy.name} attacks: MISS. Player HP: {character.current_hp}/{character.max_hp}]"
+                        enemy_damage_result = {
+                            'total': enemy_dmg['total'],
+                            'damage_type': 'physical',
+                            'is_crit': enemy_atk.get('is_crit', False)
+                        }
                     
-                    print("\n🎲 Dungeon Master:")
-                    dm_response = get_dm_response(chat, enemy_msg)
+                    # Determine enemy weapon based on type
+                    enemy_weapon = "claws" if "wolf" in current_enemy.name.lower() else "rusty dagger"
+                    
+                    combat_ctx = build_combat_context(
+                        attacker_name=current_enemy.name,
+                        target_name=character.name,
+                        weapon=enemy_weapon,
+                        attack_result=enemy_atk,
+                        damage_result=enemy_damage_result,
+                        target_died=False,  # Don't spoil player death
+                        is_player_attacking=False
+                    )
+                    narration = get_combat_narration(chat, combat_ctx)
+                    display_combat_narration(narration)
         
         # End of round
         round_num += 1
@@ -792,8 +1117,40 @@ def main():
     print("\nCombat test complete!")
 
 
+def show_test_menu():
+    """Show test selection menu."""
+    print("\n" + "=" * 60)
+    print("      ⚔️ COMBAT + DM TEST SUITE ⚔️")
+    print("=" * 60)
+    print("\nSelect test to run:")
+    print("  1. Combat Narration System Tests (unit tests)")
+    print("  2. Interactive Combat Test (full combat simulation)")
+    print("  3. Run All Tests")
+    print("  0. Exit")
+    
+    choice = input("\nChoice: ").strip()
+    return choice
+
+
 if __name__ == "__main__":
     try:
-        main()
+        choice = show_test_menu()
+        
+        if choice == '1':
+            run_narration_tests()
+        elif choice == '2':
+            main()
+        elif choice == '3':
+            print("\n🧪 Running unit tests first...")
+            if run_narration_tests():
+                print("\n🎮 Now running interactive combat test...")
+                main()
+            else:
+                print("\n❌ Unit tests failed. Fix before running interactive test.")
+        elif choice == '0':
+            print("Goodbye!")
+        else:
+            print("Invalid choice. Running interactive combat test...")
+            main()
     except KeyboardInterrupt:
-        print("\n\nCombat interrupted.")
+        print("\n\nTest interrupted.")

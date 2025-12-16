@@ -384,7 +384,13 @@ def show_help(scenario_active: bool = False):
 ║  equip <item>             - Equip a weapon or armor      ║
 ║  inspect <item>           - View item details            ║
 ╠══════════════════════════════════════════════════════════╣
-║  💾 SAVE & LOAD                                          ║
+║  �️ NAVIGATION                                           ║
+║  look                     - Describe current location    ║
+║  exits                    - Show available exits         ║
+║  go <direction>           - Move to a new location       ║
+║  (or just type: north, south, east, west, etc.)         ║
+╠══════════════════════════════════════════════════════════╣
+║  �💾 SAVE & LOAD                                          ║
 ║  save                     - Save game to file            ║
 ║  load                     - Load a saved game            ║
 ║  saves                    - List all saved games         ║"""
@@ -460,6 +466,95 @@ def show_combat_status(character: Character, enemies: list, round_num: int = 1):
         print(status_line)
     
     print("╚" + "═" * 60 + "╝")
+
+
+# =============================================================================
+# COMBAT NARRATION SYSTEM
+# =============================================================================
+
+COMBAT_NARRATION_PROMPT = """You are the Dungeon Master narrating a combat moment. 
+Given the combat result below, provide a brief (2-3 sentences) vivid, immersive description.
+
+RULES:
+- Do NOT mention dice rolls, numbers, AC, HP, or any game mechanics
+- Focus on visceral, cinematic description of the action
+- Match the tone to the outcome (triumphant for crits, tense for misses, brutal for kills)
+- Keep it under 50 words
+- Write in second person ("You..." or "Your...") for player actions
+- Write in third person for enemy actions
+
+Combat Result:
+{context}
+
+Narration:"""
+
+
+def build_combat_context(
+    attacker_name: str,
+    target_name: str,
+    weapon: str,
+    attack_result: dict,
+    damage_result: dict = None,
+    target_died: bool = False,
+    is_player_attacking: bool = True
+) -> dict:
+    """Build context dict for combat narration."""
+    
+    # Determine outcome type
+    if attack_result.get('is_crit'):
+        outcome = 'critical_hit'
+    elif attack_result.get('is_fumble'):
+        outcome = 'critical_miss'
+    elif attack_result.get('hit'):
+        outcome = 'hit'
+    else:
+        outcome = 'miss'
+    
+    context = {
+        'attacker': attacker_name,
+        'target': target_name,
+        'weapon': weapon,
+        'outcome': outcome,
+        'is_player_attack': is_player_attacking,
+    }
+    
+    if damage_result:
+        context['damage'] = damage_result.get('total', 0)
+        context['damage_type'] = damage_result.get('damage_type', 'physical')
+    
+    if target_died:
+        context['target_killed'] = True
+    
+    return context
+
+
+def get_combat_narration(chat, context: dict) -> str:
+    """Request AI narration for a combat action."""
+    try:
+        import json
+        context_str = json.dumps(context, indent=2)
+        prompt = COMBAT_NARRATION_PROMPT.format(context=context_str)
+        
+        # Send to AI for narration
+        response = chat.send_message(prompt)
+        
+        # Clean up response - extract just the narration
+        narration = response.text.strip()
+        
+        # Remove any markdown or extra formatting
+        if narration.startswith('"') and narration.endswith('"'):
+            narration = narration[1:-1]
+        
+        return narration
+    except Exception as e:
+        # If narration fails, return empty (don't break combat)
+        return ""
+
+
+def display_combat_narration(narration: str):
+    """Display the AI-generated combat narration."""
+    if narration:
+        print(f"\n📖 {narration}")
 
 
 def run_combat(character: Character, enemy_types: list, chat, surprise_player: bool = False) -> str:
@@ -597,6 +692,7 @@ def run_combat(character: Character, enemy_types: list, chat, surprise_player: b
                 
                 if len(alive_enemies) > 1:
                     print(f"   Target with 'attack 1', 'attack 2', etc. or just type a number.")
+                print(f"   (You can also: 'use potion', 'defend', 'flee', 'status')")
                 
                 # Player action loop (retry on invalid input)
                 player_acted = False
@@ -606,6 +702,24 @@ def run_combat(character: Character, enemy_types: list, chat, surprise_player: b
                     if action == 'status':
                         show_combat_status(character, enemies, round_num)
                         continue
+                    
+                    # Check for use item command (potions in combat)
+                    if action.startswith('use '):
+                        item_name = action[4:].strip()
+                        item = find_item_in_inventory(character.inventory, item_name)
+                        if not item:
+                            print(f"\n  ❌ You don't have '{item_name}' in your inventory.")
+                            continue
+                        elif item.item_type != ItemType.CONSUMABLE:
+                            print(f"\n  ❌ You can't use {item.name} in combat!")
+                            continue
+                        else:
+                            success, msg = use_item(item, character)
+                            if success:
+                                remove_item_from_inventory(character.inventory, item_name)
+                            print(f"\n  {msg}")
+                            player_acted = True
+                            continue
                     
                     # Check for attack
                     attack_words = ['attack', 'hit', 'strike', 'swing', 'slash', 'stab', 'a', 
@@ -664,11 +778,67 @@ def run_combat(character: Character, enemy_types: list, chat, surprise_player: b
                         if attack['is_crit']:
                             damage = roll_damage(character, weapon, True)
                             print(format_damage_result(damage))
+                            target_died = target_enemy.current_hp - damage['total'] <= 0
                             target_enemy.take_damage(damage['total'])
+                            
+                            # AI Combat Narration
+                            combat_ctx = build_combat_context(
+                                attacker_name=character.name,
+                                target_name=target_enemy.name,
+                                weapon=weapon,
+                                attack_result=attack,
+                                damage_result=damage,
+                                target_died=target_died,
+                                is_player_attacking=True
+                            )
+                            narration = get_combat_narration(chat, combat_ctx)
+                            display_combat_narration(narration)
+                            
+                        elif attack['is_fumble']:
+                            # AI Combat Narration for fumble
+                            combat_ctx = build_combat_context(
+                                attacker_name=character.name,
+                                target_name=target_enemy.name,
+                                weapon=weapon,
+                                attack_result=attack,
+                                damage_result=None,
+                                target_died=False,
+                                is_player_attacking=True
+                            )
+                            narration = get_combat_narration(chat, combat_ctx)
+                            display_combat_narration(narration)
+                            
                         elif attack['hit']:
                             damage = roll_damage(character, weapon, False)
                             print(format_damage_result(damage))
+                            target_died = target_enemy.current_hp - damage['total'] <= 0
                             target_enemy.take_damage(damage['total'])
+                            
+                            # AI Combat Narration
+                            combat_ctx = build_combat_context(
+                                attacker_name=character.name,
+                                target_name=target_enemy.name,
+                                weapon=weapon,
+                                attack_result=attack,
+                                damage_result=damage,
+                                target_died=target_died,
+                                is_player_attacking=True
+                            )
+                            narration = get_combat_narration(chat, combat_ctx)
+                            display_combat_narration(narration)
+                        else:
+                            # Miss - AI Narration
+                            combat_ctx = build_combat_context(
+                                attacker_name=character.name,
+                                target_name=target_enemy.name,
+                                weapon=weapon,
+                                attack_result=attack,
+                                damage_result=None,
+                                target_died=False,
+                                is_player_attacking=True
+                            )
+                            narration = get_combat_narration(chat, combat_ctx)
+                            display_combat_narration(narration)
                         
                         player_acted = True
                         
@@ -734,6 +904,27 @@ def run_combat(character: Character, enemy_types: list, chat, surprise_player: b
                     
                     enemy_atk, enemy_dmg = enemy_attack(enemy, effective_ac)
                     print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
+                    
+                    # AI Combat Narration for enemy attack
+                    enemy_damage_result = None
+                    if enemy_dmg:
+                        enemy_damage_result = {
+                            'total': enemy_dmg['total'],
+                            'damage_type': 'physical',
+                            'is_crit': enemy_atk.get('is_crit', False)
+                        }
+                    
+                    combat_ctx = build_combat_context(
+                        attacker_name=enemy.name,
+                        target_name=character.name,
+                        weapon="claws" if "wolf" in enemy.name.lower() else "weapon",
+                        attack_result=enemy_atk,
+                        damage_result=enemy_damage_result,
+                        target_died=False,  # Don't spoil player death
+                        is_player_attacking=False
+                    )
+                    narration = get_combat_narration(chat, combat_ctx)
+                    display_combat_narration(narration)
                     
                     if enemy_dmg:
                         character.take_damage(enemy_dmg['total'])
@@ -1049,6 +1240,82 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
                 print(f"\n  📍 {scenario_manager.get_progress()}")
             else:
                 print("\n  (No structured scenario active - Free Play mode)")
+            continue
+        
+        # =====================================================================
+        # LOCATION SYSTEM COMMANDS (Phase 3.2)
+        # =====================================================================
+        
+        # Look command - describe current location
+        if player_input.lower() in ["look", "look around", "where am i", "location"]:
+            if scenario_manager.is_active() and scenario_manager.active_scenario.location_manager:
+                loc_mgr = scenario_manager.active_scenario.location_manager
+                location = loc_mgr.get_current_location()
+                if location:
+                    print(f"\n  📍 {location.name}")
+                    print(f"  {location.description}")
+                    if location.atmosphere:
+                        print(f"  ({location.atmosphere})")
+                    print(f"\n  {location.get_exits_display()}")
+                else:
+                    print("\n  (Location not set)")
+            else:
+                print("\n  (No location system active)")
+            continue
+        
+        # Exits command - show available exits
+        if player_input.lower() in ["exits", "directions", "where can i go"]:
+            if scenario_manager.is_active() and scenario_manager.active_scenario.location_manager:
+                loc_mgr = scenario_manager.active_scenario.location_manager
+                exits = loc_mgr.get_exits()
+                if exits:
+                    print(f"\n  🚪 Available exits: {', '.join(exits.keys())}")
+                else:
+                    print("\n  🚪 There are no obvious exits.")
+            else:
+                print("\n  (No location system active)")
+            continue
+        
+        # Movement commands - go <direction>
+        movement_prefixes = ["go ", "move ", "walk ", "head ", "travel ", "enter "]
+        is_movement = any(player_input.lower().startswith(p) for p in movement_prefixes)
+        
+        # Also check for cardinal directions or short commands
+        cardinal_directions = ["north", "south", "east", "west", "up", "down", "n", "s", "e", "w"]
+        is_cardinal = player_input.lower().strip() in cardinal_directions
+        
+        if is_movement or is_cardinal:
+            if scenario_manager.is_active() and scenario_manager.active_scenario.location_manager:
+                loc_mgr = scenario_manager.active_scenario.location_manager
+                
+                # Extract direction
+                if is_cardinal:
+                    direction = player_input.strip()
+                else:
+                    # Remove the prefix
+                    for prefix in movement_prefixes:
+                        if player_input.lower().startswith(prefix):
+                            direction = player_input[len(prefix):].strip()
+                            break
+                
+                # Attempt to move
+                success, new_location, message = loc_mgr.move(direction)
+                
+                if success and new_location:
+                    print(f"\n  📍 You move to: {new_location.name}")
+                    if new_location.enter_text:
+                        print(f"  {new_location.enter_text}")
+                    print(f"  {new_location.get_exits_display()}")
+                    
+                    # Let DM describe the new location
+                    current_context = scenario_manager.get_dm_context()
+                    print("\n🎲 Dungeon Master:")
+                    get_dm_response(chat, f"[Player moved to {new_location.name}. Describe what they see and experience here.]", current_context)
+                else:
+                    print(f"\n  ❌ {message}")
+            else:
+                # No location system - pass to DM for narrative handling
+                pass  # Fall through to DM response
             continue
         
         # Check for inventory command

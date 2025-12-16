@@ -117,7 +117,7 @@ Milestone XP: Minor=25, Major=50, Boss=100, Adventure=150
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
 | 3.1 | Save/Load System | JSON file for character + story progress | ✅ Complete |
-| 3.2 | Location System | Multiple rooms/areas with movement | ⬜ |
+| 3.2 | Location System | Multiple rooms/areas with movement | ✅ Complete |
 | 3.3 | NPCs | Dialogue, quests, shop functionality | ⬜ |
 
 **Save/Load System Features (3.1):**
@@ -130,9 +130,21 @@ Milestone XP: Minor=25, Major=50, Boss=100, Adventure=150
 - Save directory: /saves/
 ```
 
+**Location System Features (3.2):**
+```
+- Location dataclass with: id, name, description, exits, npcs, items, atmosphere
+- LocationManager: handles movement, exit validation, context for AI
+- Pre-defined locations per scenario scene (18 locations in Goblin Cave)
+- Scene → Location binding: each scene unlocks specific locations
+- Commands: 'look' (describe location), 'exits' (show available), 'go <direction>'
+- Cardinal directions supported: north, south, east, west, n, s, e, w
+- AI receives location context for immersive narration
+- Location state persisted in save files (visited, current location)
+```
+
 **Success Criteria:**
 - [x] Game state persists between sessions
-- [ ] Player can navigate between locations
+- [x] Player can navigate between locations
 - [ ] Player can interact with NPCs for quests/trading
 
 ---
