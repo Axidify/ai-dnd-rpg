@@ -14,6 +14,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.1] - 2024-12-16
+
+### Added
+- **Multi-Enemy Combat System** - Fight multiple enemies simultaneously
+  - DM triggers multi-enemy combat with `[COMBAT: goblin, goblin, wolf]` format
+  - All enemies roll initiative individually
+  - Proper D&D turn order - each combatant acts in initiative order
+  - Target selection with `attack 1`, `attack 2`, or just type the number
+  - All enemies displayed with numbered targeting: `[1] Goblin 1`, `[2] Goblin 2`
+
+- **Improved Turn Order**
+  - Initiative sorted by roll (highest first)
+  - Player wins ties
+  - Turn order displayed with initiative values: `[1] Goblin 2 [22]`
+  - Round counter shown at start of each round
+
+- **Combat Test Script**
+  - `tests/test_combat_with_dm.py` updated with enemy selection menu
+  - Options: Single, 2 goblins, mixed enemies, 3 wolves, boss+minions, custom
+
+### Fixed
+- **Enemy Naming**: Multiple same-type enemies now correctly named "Goblin 1", "Goblin 2"
+- **Bare Number Input**: Typing just "1" or "2" after target prompt now works
+- **Defend Timing**: Defend bonus (+2 AC) now correctly persists until player's next turn
+
+---
+
 ## [0.6.0] - 2024-12-16
 
 ### Added

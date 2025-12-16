@@ -257,20 +257,124 @@ def show_combat_status(character, enemy, round_num=1):
 # MAIN COMBAT TEST
 # =============================================================================
 
+def select_enemies():
+    """Let user select enemy configuration for testing."""
+    print("\n📋 SELECT ENEMY CONFIGURATION:")
+    print("-" * 40)
+    print("  1. Single goblin")
+    print("  2. Two goblins (multi-enemy test)")
+    print("  3. Goblin + Wolf (mixed enemies)")
+    print("  4. Three wolves (pack attack)")
+    print("  5. Goblin Boss + 2 goblins")
+    print("  6. Custom (enter enemy types)")
+    print("-" * 40)
+    
+    choice = input("\nSelect (1-6): ").strip()
+    
+    if choice == '1':
+        return [create_enemy('goblin')]
+    elif choice == '2':
+        enemies = [create_enemy('goblin'), create_enemy('goblin')]
+        enemies[0].name = "Goblin 1"
+        enemies[1].name = "Goblin 2"
+        return enemies
+    elif choice == '3':
+        return [create_enemy('goblin'), create_enemy('wolf')]
+    elif choice == '4':
+        enemies = [create_enemy('wolf'), create_enemy('wolf'), create_enemy('wolf')]
+        for i, e in enumerate(enemies, 1):
+            e.name = f"Wolf {i}"
+        return enemies
+    elif choice == '5':
+        enemies = [create_enemy('goblin_boss'), create_enemy('goblin'), create_enemy('goblin')]
+        enemies[1].name = "Goblin 1"
+        enemies[2].name = "Goblin 2"
+        return enemies
+    elif choice == '6':
+        print("\nEnter enemy types separated by commas (e.g., 'goblin, orc, wolf'):")
+        print("Available: goblin, goblin_boss, orc, wolf, skeleton, bandit, giant_spider")
+        custom = input("> ").strip()
+        enemy_types = [e.strip().lower().replace(' ', '_') for e in custom.split(',')]
+        enemies = []
+        type_counts = {}
+        for etype in enemy_types:
+            type_counts[etype] = type_counts.get(etype, 0) + 1
+        type_indices = {}
+        for etype in enemy_types:
+            enemy = create_enemy(etype)
+            if enemy:
+                if type_counts.get(etype, 1) > 1:
+                    type_indices[etype] = type_indices.get(etype, 0) + 1
+                    enemy.name = f"{enemy.name} {type_indices[etype]}"
+                enemies.append(enemy)
+        if not enemies:
+            print("No valid enemies, defaulting to goblin.")
+            return [create_enemy('goblin')]
+        return enemies
+    else:
+        print("Invalid choice, defaulting to single goblin.")
+        return [create_enemy('goblin')]
+
+
+def show_multi_combat_status(character, enemies, round_num=1):
+    """Display combat status for multiple enemies."""
+    # Player HP bar
+    hp_percent = character.current_hp / character.max_hp
+    hp_filled = int(hp_percent * 10)
+    hp_bar = "█" * hp_filled + "░" * (10 - hp_filled)
+    
+    if hp_percent > 0.75:
+        hp_color = "🟢"
+    elif hp_percent > 0.5:
+        hp_color = "🟡"
+    elif hp_percent > 0.25:
+        hp_color = "🟠"
+    else:
+        hp_color = "🔴"
+    
+    weapon_name = character.weapon.title()
+    weapon_data = WEAPONS.get(character.weapon, {})
+    weapon_damage = weapon_data.get('damage', '1d6')
+    
+    print()
+    print("╔" + "═" * 60 + "╗")
+    print(f"║  🗡️ COMBAT STATUS - Round {round_num}".ljust(61) + "║")
+    print("╠" + "═" * 60 + "╣")
+    print(f"║  YOU: {character.name} ({character.char_class})".ljust(61) + "║")
+    print(f"║  {hp_color} {hp_bar} {character.current_hp}/{character.max_hp} HP  |  AC: {character.armor_class}  |  {weapon_name} ({weapon_damage})".ljust(61) + "║")
+    print("╠" + "═" * 60 + "╣")
+    print("║  ENEMIES:".ljust(61) + "║")
+    
+    for i, enemy in enumerate(enemies, 1):
+        if enemy.is_dead:
+            print(f"║  [{i}] ☠️ {enemy.name} - DEFEATED".ljust(61) + "║")
+        else:
+            e_hp_percent = enemy.current_hp / enemy.max_hp
+            e_hp_filled = int(e_hp_percent * 10)
+            e_hp_bar = "█" * e_hp_filled + "░" * (10 - e_hp_filled)
+            print(f"║  [{i}] {enemy.name}: {e_hp_bar} {enemy.current_hp}/{enemy.max_hp} HP, AC {enemy.armor_class}".ljust(61) + "║")
+    
+    print("╚" + "═" * 60 + "╝")
+
+
 def main():
     print("=" * 60)
     print("      ⚔️ AI DM + COMBAT INTEGRATION TEST ⚔️")
     print("=" * 60)
     
     character = TestCharacter()
-    enemy = create_enemy('goblin')
+    enemies = select_enemies()
     
     print(f"\nYou are: {character.name} ({character.race} {character.char_class})")
     print(f"Wielding: {character.weapon.title()}")
     print(f"HP: {character.current_hp}/{character.max_hp}, AC: {character.armor_class}")
     
-    print(f"\nOpponent: {enemy.name}")
-    print(f"HP: {enemy.current_hp}/{enemy.max_hp}, AC: {enemy.armor_class}")
+    print(f"\nOpponents ({len(enemies)}):")
+    for i, enemy in enumerate(enemies, 1):
+        print(f"  [{i}] {enemy.name} - HP: {enemy.current_hp}/{enemy.max_hp}, AC: {enemy.armor_class}")
+    
+    # Use first enemy for backwards compatibility with single-enemy code
+    enemy = enemies[0]
     
     # =========================================================================
     # INITIATIVE PHASE
@@ -285,26 +389,35 @@ def main():
     player_init = roll_initiative(character.get_ability_modifier('dexterity'))
     print(f"\n{format_initiative_roll(character.name, player_init)}")
     
-    # Roll enemy initiative
-    enemy_init = roll_initiative(enemy.dex_modifier)
-    print(format_initiative_roll(enemy.name, enemy_init))
+    # Roll initiative for ALL enemies
+    enemy_initiatives = []
+    for e in enemies:
+        e_init = roll_initiative(e.dex_modifier)
+        enemy_initiatives.append((e, e_init))
+        print(format_initiative_roll(e.name, e_init))
     
-    # Determine turn order
-    player_goes_first = player_init['total'] >= enemy_init['total']
+    # Determine turn order - collect all combatants with their initiatives
+    combatants = [('player', character.name, player_init['total'])]
+    for e, e_init in enemy_initiatives:
+        combatants.append(('enemy', e.name, e_init['total']))
+    
+    # Sort by initiative (highest first), player wins ties
+    combatants.sort(key=lambda x: (x[2], 1 if x[0] == 'player' else 0), reverse=True)
+    
+    # Check if player goes before any enemy
+    player_goes_first = combatants[0][0] == 'player'
     
     if player_goes_first:
         print(f"\n✨ {character.name} goes first!")
-        turn_order = [character.name, enemy.name]
     else:
-        print(f"\n⚡ {enemy.name} goes first!")
-        turn_order = [enemy.name, character.name]
+        print(f"\n⚡ {combatants[0][1]} goes first!")
     
     print("\n╔══════════════════════════════════════╗")
     print("║          ⚔️ TURN ORDER ⚔️            ║")
     print("╠══════════════════════════════════════╣")
-    for i, name in enumerate(turn_order, 1):
-        marker = "(You)" if name == character.name else ""
-        print(f"║  {i}. {name} {marker}".ljust(39) + "║")
+    for i, (ctype, name, init_val) in enumerate(combatants, 1):
+        marker = "(You)" if ctype == 'player' else ""
+        print(f"║  {i}. {name} [{init_val}] {marker}".ljust(39) + "║")
     print("╚══════════════════════════════════════╝")
     
     print("\n" + "-" * 60)
@@ -315,194 +428,226 @@ def main():
     chat = model.start_chat(history=[])
     
     # Build initiative context for DM
-    init_context = f"Initiative rolled! Turn order: "
+    turn_order_str = ", ".join([f"{name} ({init_val})" for _, name, init_val in combatants])
+    init_context = f"Initiative rolled! Turn order: {turn_order_str}."
     if player_goes_first:
-        init_context += f"{character.name} ({player_init['total']}) then {enemy.name} ({enemy_init['total']}). {character.name} acts first!"
+        init_context += f" {character.name} acts first!"
     else:
-        init_context += f"{enemy.name} ({enemy_init['total']}) then {character.name} ({player_init['total']}). {enemy.name} acts first!"
+        init_context += f" Enemies act first!"
     
     # Start combat
     print("\n🎲 Dungeon Master:")
-    context = f"Combat begins! {init_context}\n\nKira (HP {character.current_hp}/{character.max_hp}) faces a {enemy.name} (HP {enemy.current_hp}/{enemy.max_hp}). Set the scene for this confrontation."
-    
-    if player_goes_first:
-        context += f" The player acts first. Describe the tense standoff."
-    else:
-        context += f" The {enemy.name} acts first - describe it lunging to attack."
+    # Build initial context for DM - mention all enemies
+    enemy_names = ", ".join([e.name for e in enemies])
+    context = f"Combat begins! {init_context}\n\nKira (HP {character.current_hp}/{character.max_hp}) faces {enemy_names}. Set the scene for this confrontation."
     
     dm_response = get_dm_response(chat, context)
     
-    # If enemy goes first, process their attack
-    if not player_goes_first:
-        print(f"\n   The {enemy.name} attacks first!")
-        input("   Press Enter...")
-        
-        enemy_atk, enemy_dmg = enemy_attack(enemy, character.armor_class)
-        print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
-        
-        if enemy_dmg:
-            character.take_damage(enemy_dmg['total'])
-            crit = " CRITICAL!" if enemy_atk['is_crit'] else ""
-            enemy_msg = f"[ENEMY ATTACK: HIT for {enemy_dmg['total']} damage{crit}. Player HP: {character.current_hp}/{character.max_hp}]"
-        else:
-            enemy_msg = f"[ENEMY ATTACK: MISS. Player HP: {character.current_hp}/{character.max_hp}]"
-        
-        print("\n🎲 Dungeon Master:")
-        dm_response = get_dm_response(chat, enemy_msg + f" Now it's {character.name}'s turn.")
+    # =========================================================================
+    # PROPER TURN-BASED COMBAT LOOP
+    # Each combatant takes their turn in initiative order
+    # =========================================================================
     
-    # Combat loop
     round_num = 1
+    player_is_defending = False  # Track if player is defending this round
+    
     while True:
-        if enemy.is_dead:
-            print("\n🎉 Victory!")
-            print("\n🎲 Dungeon Master:")
-            dm_response = get_dm_response(chat, f"[VICTORY: Player killed the {enemy.name}! Narrate the killing blow and victory moment. Keep it to 2-3 dramatic sentences.]")
-            break
+        print(f"\n{'='*60}")
+        print(f"                    ROUND {round_num}")
+        print(f"{'='*60}")
         
-        if character.current_hp <= 0:
-            print("\n💀 You have fallen...")
-            print("\n🎲 Dungeon Master:")
-            dm_response = get_dm_response(chat, f"[DEFEAT: The {enemy.name} has struck down {character.name}! Narrate the death scene dramatically but briefly. 2-3 sentences.]")
-            break
-        
-        show_combat_status(character, enemy, round_num)
-        action = input("\n⚔️ Your action: ").strip().lower()
-        
-        if action in ['quit', 'exit', 'q']:
-            print("\nCombat ended.")
-            break
-        
-        if action == 'status':
-            continue
-        
-        # Check for attack intent
-        attack_words = ['attack', 'hit', 'strike', 'swing', 'slash', 'stab', 'a', 
-                        'i attack', 'i hit', 'i strike', 'i swing', 'attack goblin',
-                        'fight', 'i fight', 'kill', 'i kill']
-        is_attack = any(word in action for word in attack_words) or action == 'a'
-        
-        # Check for defend action
-        defend_words = ['defend', 'block', 'parry', 'dodge', 'i defend', 'i block', 'i dodge']
-        is_defend = any(word in action for word in defend_words)
-        
-        # Check for flee action
-        flee_words = ['flee', 'run', 'escape', 'retreat', 'i flee', 'i run', 'i escape', 'run away']
-        is_flee = any(word in action for word in flee_words)
-        
-        if is_attack:
-            # Player attack
-            print(f"\n   Press Enter to attack the {enemy.name}...")
-            input()
+        # Process each turn in initiative order
+        for turn_idx, (ctype, name, init_val) in enumerate(combatants):
+            # Check win/lose conditions
+            alive_enemies = [e for e in enemies if not e.is_dead]
+            if not alive_enemies:
+                print("\n🎉 Victory! All enemies defeated!")
+                print("\n🎲 Dungeon Master:")
+                dm_response = get_dm_response(chat, f"[VICTORY: Player defeated all enemies! Narrate the victory moment. 2-3 dramatic sentences.]")
+                print("\nCombat test complete!")
+                return
             
-            attack = roll_attack(character, enemy.armor_class, character.weapon)
-            print(f"\n{format_attack_result(attack)}")
+            if character.current_hp <= 0:
+                print("\n💀 You have fallen...")
+                print("\n🎲 Dungeon Master:")
+                dm_response = get_dm_response(chat, f"[DEFEAT: The enemies have struck down {character.name}! Narrate the death scene. 2-3 sentences.]")
+                print("\nCombat test complete!")
+                return
             
-            # Build message for DM
-            if attack['is_crit']:
-                damage = roll_damage(character, character.weapon, True)
-                print(format_damage_result(damage))
-                enemy.take_damage(damage['total'])
-                result_msg = f"[ATTACK RESULT: CRITICAL HIT for {damage['total']} damage! {enemy.get_status()}]"
-            elif attack['is_fumble']:
-                result_msg = "[ATTACK RESULT: FUMBLE! The attack goes terribly wrong.]"
-            elif attack['hit']:
-                damage = roll_damage(character, character.weapon, False)
-                print(format_damage_result(damage))
-                enemy.take_damage(damage['total'])
-                result_msg = f"[ATTACK RESULT: HIT for {damage['total']} damage. {enemy.get_status()}]"
+            # === PLAYER'S TURN ===
+            if ctype == 'player':
+                # Reset defend at start of player's turn (defend lasts until next turn)
+                was_defending = player_is_defending
+                player_is_defending = False
+                
+                show_multi_combat_status(character, enemies, round_num)
+                print(f"\n   🎯 {character.name}'s turn (Initiative: {init_val})")
+                
+                if len(alive_enemies) > 1:
+                    print(f"   Target with 'attack 1', 'attack 2', etc. or just type a number.")
+                
+                # Player action loop (retry on invalid input)
+                player_acted = False
+                while not player_acted:
+                    action = input("\n⚔️ Your action: ").strip().lower()
+                    
+                    if action in ['quit', 'exit', 'q']:
+                        print("\nCombat ended.")
+                        return
+                    
+                    if action == 'status':
+                        show_multi_combat_status(character, enemies, round_num)
+                        continue
+                    
+                    # Check for attack
+                    attack_words = ['attack', 'hit', 'strike', 'swing', 'slash', 'stab', 'a', 
+                                    'i attack', 'fight', 'kill']
+                    is_attack = any(word in action for word in attack_words) or action == 'a' or action.isdigit()
+                    
+                    # Check for defend
+                    defend_words = ['defend', 'block', 'parry', 'dodge']
+                    is_defend = any(word in action for word in defend_words)
+                    
+                    # Check for flee
+                    flee_words = ['flee', 'run', 'escape', 'retreat']
+                    is_flee = any(word in action for word in flee_words)
+                    
+                    if is_attack:
+                        # Determine target
+                        target_enemy = None
+                        if len(alive_enemies) == 1:
+                            target_enemy = alive_enemies[0]
+                        else:
+                            target_num = None
+                            for word in action.split():
+                                if word.isdigit():
+                                    target_num = int(word)
+                                    break
+                            if target_num is None and action.isdigit():
+                                target_num = int(action)
+                            
+                            if target_num and 1 <= target_num <= len(enemies):
+                                target_enemy = enemies[target_num - 1]
+                                if target_enemy.is_dead:
+                                    print(f"\n  ❌ {target_enemy.name} is already defeated!")
+                                    continue
+                            else:
+                                print(f"\n  ❓ Which enemy? (1-{len(enemies)})")
+                                for i, e in enumerate(enemies, 1):
+                                    if not e.is_dead:
+                                        print(f"     [{i}] {e.name}")
+                                continue
+                        
+                        # Execute attack
+                        print(f"\n   Press Enter to attack {target_enemy.name}...")
+                        input()
+                        
+                        attack = roll_attack(character, target_enemy.armor_class, character.weapon)
+                        print(f"\n{format_attack_result(attack)}")
+                        
+                        if attack['is_crit']:
+                            damage = roll_damage(character, character.weapon, True)
+                            print(format_damage_result(damage))
+                            target_enemy.take_damage(damage['total'])
+                            result_msg = f"[ATTACK: CRITICAL HIT for {damage['total']} on {target_enemy.name}! {target_enemy.get_status()}]"
+                        elif attack['is_fumble']:
+                            result_msg = "[ATTACK: FUMBLE! The attack goes terribly wrong.]"
+                        elif attack['hit']:
+                            damage = roll_damage(character, character.weapon, False)
+                            print(format_damage_result(damage))
+                            target_enemy.take_damage(damage['total'])
+                            result_msg = f"[ATTACK: HIT for {damage['total']} on {target_enemy.name}. {target_enemy.get_status()}]"
+                        else:
+                            result_msg = f"[ATTACK: MISS on {target_enemy.name}.]"
+                        
+                        print("\n🎲 Dungeon Master:")
+                        dm_response = get_dm_response(chat, result_msg)
+                        player_acted = True
+                        player_is_defending = False
+                        
+                    elif is_defend:
+                        print("\n🛡️ You take a defensive stance! (+2 AC until your next turn)")
+                        player_is_defending = True
+                        print("\n🎲 Dungeon Master:")
+                        dm_response = get_dm_response(chat, "[PLAYER DEFENDS: Describe their defensive posture briefly.]")
+                        player_acted = True
+                        
+                    elif is_flee:
+                        print("\n🏃 You attempt to flee!")
+                        input("   Press Enter to roll escape check...")
+                        
+                        highest_dex = max(e.dex_modifier for e in alive_enemies)
+                        flee_dc = 10 + highest_dex
+                        flee_roll = random.randint(1, 20)
+                        flee_mod = character.get_ability_modifier('dexterity')
+                        flee_total = flee_roll + flee_mod
+                        mod_sign = '+' if flee_mod >= 0 else ''
+                        
+                        if flee_total >= flee_dc:
+                            print(f"\n🎯 Escape: [{flee_roll}]{mod_sign}{flee_mod} = {flee_total} vs DC {flee_dc} = ✅ ESCAPED!")
+                            print("\n🎲 Dungeon Master:")
+                            dm_response = get_dm_response(chat, "[FLEE SUCCESS: Describe the player's escape.]")
+                            print("\n🏃 You successfully fled!")
+                            print("\nCombat test complete!")
+                            return
+                        else:
+                            print(f"\n🎯 Escape: [{flee_roll}]{mod_sign}{flee_mod} = {flee_total} vs DC {flee_dc} = ❌ FAILED!")
+                            # Opportunity attacks from all enemies
+                            for opp_enemy in alive_enemies:
+                                print(f"\n   {opp_enemy.name} gets an opportunity attack!")
+                                input("   Press Enter...")
+                                enemy_atk, enemy_dmg = enemy_attack(opp_enemy, character.armor_class)
+                                print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
+                                if enemy_dmg:
+                                    character.take_damage(enemy_dmg['total'])
+                                print("\n🎲 Dungeon Master:")
+                                dm_response = get_dm_response(chat, f"[{opp_enemy.name} opportunity attack. Player HP: {character.current_hp}/{character.max_hp}]")
+                                if character.current_hp <= 0:
+                                    break
+                            player_acted = True
+                            player_is_defending = False
+                    else:
+                        print(f"\n❓ Unknown action: '{action}'")
+                        print("   Valid: attack, defend, flee, status, quit")
+            
+            # === ENEMY'S TURN ===
             else:
-                result_msg = f"[ATTACK RESULT: MISS. {enemy.get_status()}]"
-            
-            # DM narrates player attack
-            print("\n🎲 Dungeon Master:")
-            dm_response = get_dm_response(chat, result_msg)
-            
-            # Enemy counterattack if alive
-            if not enemy.is_dead:
-                print(f"\n   The {enemy.name} retaliates!")
-                input("   Press Enter...")
+                # Find the enemy object
+                current_enemy = None
+                for e in enemies:
+                    if e.name == name:
+                        current_enemy = e
+                        break
                 
-                enemy_atk, enemy_dmg = enemy_attack(enemy, character.armor_class)
-                print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
-                
-                if enemy_dmg:
-                    character.take_damage(enemy_dmg['total'])
-                    crit = " CRITICAL!" if enemy_atk['is_crit'] else ""
-                    enemy_msg = f"[ENEMY ATTACK: HIT for {enemy_dmg['total']} damage{crit}. Player HP: {character.current_hp}/{character.max_hp}]"
-                else:
-                    enemy_msg = f"[ENEMY ATTACK: MISS. Player HP: {character.current_hp}/{character.max_hp}]"
-                
-                print("\n🎲 Dungeon Master:")
-                dm_response = get_dm_response(chat, enemy_msg)
+                if current_enemy and not current_enemy.is_dead:
+                    print(f"\n   ⚔️ {current_enemy.name}'s turn (Initiative: {init_val})")
+                    input("   Press Enter...")
+                    
+                    # Apply defend bonus if player is defending
+                    effective_ac = character.armor_class + (2 if player_is_defending else 0)
+                    
+                    enemy_atk, enemy_dmg = enemy_attack(current_enemy, effective_ac)
+                    print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
+                    
+                    if enemy_dmg:
+                        character.take_damage(enemy_dmg['total'])
+                        crit = " CRITICAL!" if enemy_atk['is_crit'] else ""
+                        if player_is_defending:
+                            enemy_msg = f"[{current_enemy.name} attacks defended player: HIT for {enemy_dmg['total']}{crit}. Player HP: {character.current_hp}/{character.max_hp}]"
+                        else:
+                            enemy_msg = f"[{current_enemy.name} attacks: HIT for {enemy_dmg['total']}{crit}. Player HP: {character.current_hp}/{character.max_hp}]"
+                    else:
+                        if player_is_defending:
+                            enemy_msg = f"[{current_enemy.name} attacks defended player: MISS. Player HP: {character.current_hp}/{character.max_hp}]"
+                        else:
+                            enemy_msg = f"[{current_enemy.name} attacks: MISS. Player HP: {character.current_hp}/{character.max_hp}]"
+                    
+                    print("\n🎲 Dungeon Master:")
+                    dm_response = get_dm_response(chat, enemy_msg)
         
-        elif is_defend:
-            # Defend action - gives +2 AC for enemy's attack this round
-            print("\n🛡️ You take a defensive stance! (+2 AC this round)")
-            temp_ac_bonus = 2
-            
-            # Enemy attacks against boosted AC
-            if not enemy.is_dead:
-                print(f"\n   The {enemy.name} attacks!")
-                input("   Press Enter...")
-                
-                boosted_ac = character.armor_class + temp_ac_bonus
-                enemy_atk, enemy_dmg = enemy_attack(enemy, boosted_ac)
-                print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
-                
-                if enemy_dmg:
-                    character.take_damage(enemy_dmg['total'])
-                    enemy_msg = f"[PLAYER DEFENDED but {enemy.name} HIT for {enemy_dmg['total']} damage. Player HP: {character.current_hp}/{character.max_hp}]"
-                else:
-                    enemy_msg = f"[PLAYER DEFENDED - {enemy.name} attack DEFLECTED. Player HP: {character.current_hp}/{character.max_hp}]"
-                
-                print("\n🎲 Dungeon Master:")
-                dm_response = get_dm_response(chat, enemy_msg)
-        
-        elif is_flee:
-            # Flee action - DEX check to escape
-            print("\n🏃 You attempt to flee!")
-            input("   Press Enter to roll escape check...")
-            
-            flee_dc = 10 + enemy.dex_modifier
-            flee_roll = random.randint(1, 20)
-            flee_mod = character.get_ability_modifier('dexterity')
-            flee_total = flee_roll + flee_mod
-            
-            mod_sign = '+' if flee_mod >= 0 else ''
-            
-            if flee_total >= flee_dc:
-                print(f"\n🎯 Escape: [{flee_roll}]{mod_sign}{flee_mod} = {flee_total} vs DC {flee_dc} = ✅ ESCAPED!")
-                print("\n🎲 Dungeon Master:")
-                dm_response = get_dm_response(chat, "[FLEE: SUCCESS - Player escaped! Describe their retreat.]")
-                print("\n🏃 You successfully fled the battle!")
-                break
-            else:
-                print(f"\n🎯 Escape: [{flee_roll}]{mod_sign}{flee_mod} = {flee_total} vs DC {flee_dc} = ❌ FAILED!")
-                print(f"\n   The {enemy.name} gets an opportunity attack!")
-                input("   Press Enter...")
-                
-                enemy_atk, enemy_dmg = enemy_attack(enemy, character.armor_class)
-                print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
-                
-                if enemy_dmg:
-                    character.take_damage(enemy_dmg['total'])
-                    enemy_msg = f"[FLEE FAILED - Opportunity attack HIT for {enemy_dmg['total']}. Player HP: {character.current_hp}/{character.max_hp}]"
-                else:
-                    enemy_msg = f"[FLEE FAILED - Opportunity attack MISSED. Player HP: {character.current_hp}/{character.max_hp}]"
-                
-                print("\n🎲 Dungeon Master:")
-                dm_response = get_dm_response(chat, enemy_msg)
-        
-        else:
-            # Unrecognized action - ask player to clarify (don't skip their turn!)
-            print(f"\n❓ Unknown action: '{action}'")
-            print("   Valid commands: attack, defend, flee, status, quit")
-            print("   (Your turn is NOT skipped - try again)")
-            # Continue loop without enemy attacking - player keeps their turn
-            continue
-        
-        # Increment round after valid action (unknown actions skip via continue above)
+        # End of round
         round_num += 1
+        # Note: player_is_defending is reset at start of player's turn, not here
     
     print("\nCombat test complete!")
 
