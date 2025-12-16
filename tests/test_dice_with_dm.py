@@ -67,8 +67,8 @@ SKILL_ABILITIES = {
 }
 
 
-class TestCharacter:
-    """Simple test character."""
+class MockCharacter:
+    """Simple mock character."""
     def __init__(self):
         self.name = "Thorn"
         self.char_class = "Rogue"
@@ -235,7 +235,7 @@ def main():
     print("         (Combat/Attacks Not Implemented)")
     print("=" * 60)
     
-    character = TestCharacter()
+    character = MockCharacter()
     print(f"\nPlaying as: {character.name} ({character.race} {character.char_class})")
     print(f"DEX: +{character.get_modifier('dexterity')}, "
           f"WIS: +{character.get_modifier('wisdom')}, "

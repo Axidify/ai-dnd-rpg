@@ -384,10 +384,13 @@ def show_help(scenario_active: bool = False):
 ║  equip <item>             - Equip a weapon or armor      ║
 ║  inspect <item>           - View item details            ║
 ╠══════════════════════════════════════════════════════════╣
-║  �️ NAVIGATION                                           ║
-║  look                     - Describe current location    ║
+║  🗺️ NAVIGATION                                           ║
+║  look                     - Narrative location desc.     ║
+║  scan                     - List items, NPCs, exits      ║
 ║  exits                    - Show available exits         ║
 ║  go <direction>           - Move to a new location       ║
+║  take <item>              - Pick up an item              ║
+║  talk <npc>               - Talk to someone present      ║
 ║  (or just type: north, south, east, west, etc.)         ║
 ╠══════════════════════════════════════════════════════════╣
 ║  �💾 SAVE & LOAD                                          ║
@@ -555,6 +558,107 @@ def display_combat_narration(narration: str):
     """Display the AI-generated combat narration."""
     if narration:
         print(f"\n📖 {narration}")
+
+
+# =============================================================================
+# LOCATION NARRATION SYSTEM
+# =============================================================================
+
+LOCATION_NARRATION_PROMPT = """You are the Dungeon Master describing a location the player is exploring.
+Given the location details below, provide an immersive, narrative description.
+
+RULES:
+- Write 3-5 sentences in second person ("You see...", "Before you...")
+- Naturally weave in any items, NPCs, and exits into the description
+- Do NOT use bullet points or lists - pure narrative prose
+- Create atmosphere and mood based on the location's atmosphere field
+- If there are NPCs, briefly mention what they're doing
+- End with a subtle hint about available exits/directions
+- Do NOT mention game mechanics, HP, inventory, or stats
+- Keep it under 100 words
+
+Location Details:
+{context}
+
+Description:"""
+
+
+def build_location_context(location, is_first_visit: bool = False, events: list = None) -> dict:
+    """Build context dict for location narration.
+    
+    Args:
+        location: The Location object being described
+        is_first_visit: Whether this is the player's first time here
+        events: Any events that just triggered (optional)
+    
+    Returns:
+        Dict with all location context for AI narration
+    """
+    context = {
+        'name': location.name,
+        'description': location.description,
+        'atmosphere': location.atmosphere or "neutral",
+        'is_first_visit': is_first_visit,
+    }
+    
+    # Add items naturally
+    if location.items:
+        item_names = [item.replace("_", " ").title() for item in location.items]
+        context['items_present'] = item_names
+    
+    # Add NPCs with context
+    if location.npcs:
+        npc_names = [npc.replace("_", " ").title() for npc in location.npcs]
+        context['npcs_present'] = npc_names
+    
+    # Add exits/directions
+    if location.exits:
+        context['available_directions'] = list(location.exits.keys())
+    
+    # Add events if any triggered
+    if events:
+        event_texts = [e.narration for e in events]
+        context['events'] = event_texts
+    
+    # Add enter text for first visits
+    if is_first_visit and location.enter_text:
+        context['enter_text'] = location.enter_text
+    
+    return context
+
+
+def get_location_narration(chat, context: dict) -> str:
+    """Request AI narration for a location description."""
+    try:
+        import json
+        context_str = json.dumps(context, indent=2)
+        prompt = LOCATION_NARRATION_PROMPT.format(context=context_str)
+        
+        # Send to AI for narration
+        response = chat.send_message(prompt)
+        
+        # Clean up response
+        narration = response.text.strip()
+        
+        # Remove any markdown or extra formatting
+        if narration.startswith('"') and narration.endswith('"'):
+            narration = narration[1:-1]
+        
+        return narration
+    except Exception as e:
+        # If narration fails, return a fallback description
+        return f"You are in {context.get('name', 'an unknown location')}. {context.get('description', '')}"
+
+
+def display_location_narration(location_name: str, narration: str, exits: dict = None):
+    """Display the AI-generated location narration."""
+    print(f"\n📍 {location_name}\n")
+    print(f"  {narration}")
+    
+    # Always show exits mechanically for gameplay clarity
+    if exits:
+        exit_list = ', '.join(exits.keys())
+        print(f"\n  🚪 Exits: {exit_list}")
 
 
 def run_combat(character: Character, enemy_types: list, chat, surprise_player: bool = False) -> str:
@@ -1246,16 +1350,41 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
         # LOCATION SYSTEM COMMANDS (Phase 3.2)
         # =====================================================================
         
-        # Look command - describe current location
+        # Look command - describe current location with AI narration
         if player_input.lower() in ["look", "look around", "where am i", "location"]:
             if scenario_manager.is_active() and scenario_manager.active_scenario.location_manager:
                 loc_mgr = scenario_manager.active_scenario.location_manager
                 location = loc_mgr.get_current_location()
                 if location:
+                    # Build context for AI narration (Mechanics First)
+                    is_first = not location.visited
+                    context = build_location_context(location, is_first_visit=is_first)
+                    
+                    # Get AI narration (Narration Last)
+                    narration = get_location_narration(chat, context)
+                    
+                    # Display with consistent format
+                    display_location_narration(location.name, narration, loc_mgr.get_exits())
+                else:
+                    print("\n  (Location not set)")
+            else:
+                print("\n  (No location system active)")
+            continue
+        
+        # Scan command - show mechanical details (for players who want lists)
+        if player_input.lower() in ["scan", "survey", "examine area"]:
+            if scenario_manager.is_active() and scenario_manager.active_scenario.location_manager:
+                loc_mgr = scenario_manager.active_scenario.location_manager
+                location = loc_mgr.get_current_location()
+                if location:
                     print(f"\n  📍 {location.name}")
-                    print(f"  {location.description}")
-                    if location.atmosphere:
-                        print(f"  ({location.atmosphere})")
+                    # Show mechanical details
+                    items_display = location.get_items_display()
+                    npcs_display = location.get_npcs_display()
+                    if items_display:
+                        print(f"  {items_display}")
+                    if npcs_display:
+                        print(f"  {npcs_display}")
                     print(f"\n  {location.get_exits_display()}")
                 else:
                     print("\n  (Location not set)")
@@ -1299,23 +1428,106 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
                             break
                 
                 # Attempt to move
-                success, new_location, message = loc_mgr.move(direction)
+                success, new_location, message, events = loc_mgr.move(direction)
                 
                 if success and new_location:
-                    print(f"\n  📍 You move to: {new_location.name}")
-                    if new_location.enter_text:
-                        print(f"  {new_location.enter_text}")
-                    print(f"  {new_location.get_exits_display()}")
+                    # Check if first visit (move() marks visited, 
+                    # so check if events triggered which indicates first visit)
+                    is_first = len(events) > 0 or not new_location.visited
                     
-                    # Let DM describe the new location
-                    current_context = scenario_manager.get_dm_context()
-                    print("\n🎲 Dungeon Master:")
-                    get_dm_response(chat, f"[Player moved to {new_location.name}. Describe what they see and experience here.]", current_context)
+                    # Build context for AI narration (Mechanics First)
+                    context = build_location_context(new_location, is_first_visit=is_first, events=events)
+                    
+                    # Get AI narration (Narration Last)
+                    narration = get_location_narration(chat, context)
+                    
+                    # Display with consistent format
+                    display_location_narration(new_location.name, narration, loc_mgr.get_exits())
                 else:
                     print(f"\n  ❌ {message}")
             else:
                 # No location system - pass to DM for narrative handling
                 pass  # Fall through to DM response
+            continue
+        
+        # =====================================================================
+        # LOCATION INTERACTION COMMANDS (Phase 3.2.1)
+        # =====================================================================
+        
+        # Take command - pick up items from location
+        if player_input.lower().startswith("take ") or player_input.lower().startswith("pick up ") or player_input.lower().startswith("grab "):
+            # Extract item name
+            if player_input.lower().startswith("pick up "):
+                item_name = player_input[8:].strip()
+            elif player_input.lower().startswith("grab "):
+                item_name = player_input[5:].strip()
+            else:
+                item_name = player_input[5:].strip()
+            
+            if scenario_manager.is_active() and scenario_manager.active_scenario.location_manager:
+                loc_mgr = scenario_manager.active_scenario.location_manager
+                location = loc_mgr.get_current_location()
+                
+                if location and location.has_item(item_name):
+                    # Get the item from the database
+                    item = get_item(item_name)
+                    if item:
+                        # Remove from location
+                        location.remove_item(item_name)
+                        
+                        # Special handling for gold pouches (Phase 3.2.1)
+                        if "gold_pouch" in item_name.lower() or (item.effect and "gold pieces" in item.effect.lower()):
+                            character.gold += item.value
+                            print(f"\n  💰 You found {item.value} gold pieces!")
+                        else:
+                            # Normal item - add to inventory
+                            msg = add_item_to_inventory(character.inventory, item)
+                            print(f"\n  ✅ {msg}")
+                    else:
+                        # Item key exists in location but not in ITEMS database
+                        print(f"\n  ❓ You pick up the {item_name}, but it doesn't seem useful.")
+                        location.remove_item(item_name)
+                elif location:
+                    print(f"\n  ❌ You don't see '{item_name}' here.")
+                else:
+                    print("\n  (Location not set)")
+            else:
+                print(f"\n  ❌ You don't see '{item_name}' here.")
+            continue
+        
+        # Talk command - initiate dialogue with NPC
+        if player_input.lower().startswith("talk ") or player_input.lower().startswith("speak ") or player_input.lower().startswith("talk to ") or player_input.lower().startswith("speak to "):
+            # Extract NPC name
+            npc_name = player_input.lower()
+            for prefix in ["talk to ", "speak to ", "talk ", "speak "]:
+                if npc_name.startswith(prefix):
+                    npc_name = player_input[len(prefix):].strip()
+                    break
+            
+            if scenario_manager.is_active() and scenario_manager.active_scenario.location_manager:
+                loc_mgr = scenario_manager.active_scenario.location_manager
+                location = loc_mgr.get_current_location()
+                
+                if location and location.has_npc(npc_name):
+                    # NPC is present - let DM handle the dialogue
+                    npc_display = npc_name.replace("_", " ").title()
+                    current_context = scenario_manager.get_dm_context()
+                    print(f"\n  💬 You approach {npc_display}...")
+                    print("\n🎲 Dungeon Master:")
+                    get_dm_response(chat, f"[Player wants to talk to {npc_display}. Roleplay this NPC and initiate dialogue based on the current scenario context.]", current_context)
+                elif location:
+                    # Check if NPC name is close to any present
+                    present_npcs = [n.replace("_", " ").title() for n in location.npcs]
+                    if present_npcs:
+                        print(f"\n  ❌ You don't see '{npc_name}' here. Present: {', '.join(present_npcs)}")
+                    else:
+                        print(f"\n  ❌ There's no one here to talk to.")
+                else:
+                    print("\n  (Location not set)")
+            else:
+                # No location system - let DM handle it narratively
+                print("\n🎲 Dungeon Master:")
+                get_dm_response(chat, f"[Player wants to talk to {npc_name}. Handle this dialogue request.]", "")
             continue
         
         # Check for inventory command

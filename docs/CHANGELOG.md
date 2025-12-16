@@ -8,6 +8,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Location Narration System (Phase 3.2.1 Priority 4)** - AI-generated immersive location descriptions
+  - `build_location_context()`: Creates context dict with location, items, NPCs, events
+  - `get_location_narration()`: Requests narrative prose from AI DM
+  - `display_location_narration()`: Displays 📍 narration with consistent format
+  - `LOCATION_NARRATION_PROMPT`: Specialized prompt for atmospheric descriptions
+  - Follows "Mechanics First, Narration Last" architecture pattern
+  - Items, NPCs, and events woven naturally into prose (no bullet points)
+
+- **Location Event System (Phase 3.2.1 Priority 3)** - Dynamic events at locations
+  - `EventTrigger` enum: ON_ENTER, ON_FIRST_VISIT, ON_LOOK, ON_ITEM_TAKE
+  - `LocationEvent` dataclass: id, trigger, narration, effect, condition, one_time
+  - Location methods: `get_events_for_trigger()`, `trigger_event()`, `has_event()`, `is_event_triggered()`, `add_event()`
+  - `move()` now returns events as 4th tuple element
+  - Events passed to AI DM for contextual narration
+  - 6 Goblin Cave locations now have events (traps, discoveries, confrontations)
+
+- **Event Tests** - 16 new tests in `test_location.py` (80 total)
+  - `TestLocationEventBasics`: creation, serialization, trigger types
+  - `TestLocationEventMethods`: add/has/trigger/get events
+  - `TestLocationManagerEvents`: move integration with events
+
+- **Unified Test Runner** - `run_interactive_tests.py`
+  - Single entry point for all 8 interactive test modules
+  - Menu-driven selection with unit test + interactive modes
+  - Shop marked as "Coming Soon" placeholder
+
+- **New Commands**
+  - `scan` command: Shows mechanical list of items, NPCs, exits (for players who want details)
+  - `take <item>` now works with spaces: "take healing potion" works like "take healing_potion"
+
+### Changed
+- `look` command now generates AI narrative descriptions instead of bullet points
+- Movement to new locations triggers AI narration (with events if any)
+- Items display with friendly names: "Healing Potion" instead of "healing_potion"
+- `has_item()` and `remove_item()` now normalize spaces to underscores
+- Interactive tests updated to use new location narration system
+- Help menu updated with new navigation commands
+- Test count: 228 tests total
+
 ### Planned
 - Phase 3.3: NPCs
 

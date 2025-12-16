@@ -245,6 +245,38 @@ ITEMS = {
         stackable=True,
         value=2
     ),
+    
+    # -------------------- TREASURE ITEMS (Phase 3.2.1) --------------------
+    "gold_pouch": Item(
+        name="Gold Pouch",
+        item_type=ItemType.MISC,
+        description="A heavy leather pouch filled with gold coins.",
+        value=50,
+        effect="Contains 50 gold pieces"
+    ),
+    "gold_pouch_small": Item(
+        name="Small Gold Pouch",
+        item_type=ItemType.MISC,
+        description="A small pouch with a few gold coins.",
+        value=15,
+        effect="Contains 15 gold pieces"
+    ),
+    
+    # -------------------- SPECIAL CONSUMABLES (Phase 3.2.1) --------------------
+    "poison_vial": Item(
+        name="Poison Vial",
+        item_type=ItemType.CONSUMABLE,
+        description="A vial of goblin poison. Apply to weapon for extra damage.",
+        value=25,
+        effect="Apply to weapon: +1d4 poison damage on next hit"
+    ),
+    "antidote": Item(
+        name="Antidote",
+        item_type=ItemType.CONSUMABLE,
+        description="Cures poison and grants resistance for a short time.",
+        value=50,
+        effect="Cures poison status"
+    ),
 }
 
 

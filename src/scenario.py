@@ -4,7 +4,7 @@ Manages scenes, story progression, narrative pacing, and locations.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Callable
+from typing import Optional, List, Dict, Callable, Tuple
 from enum import Enum
 import json
 
@@ -14,6 +14,66 @@ class SceneStatus(Enum):
     LOCKED = "locked"           # Not yet accessible
     ACTIVE = "active"           # Currently playing
     COMPLETED = "completed"     # Finished
+
+
+class EventTrigger(Enum):
+    """When a location event can trigger."""
+    ON_ENTER = "on_enter"           # When player enters location
+    ON_FIRST_VISIT = "on_first_visit"  # Only on first visit
+    ON_LOOK = "on_look"             # When player uses 'look' command
+    ON_ITEM_TAKE = "on_item_take"   # When player takes a specific item
+
+
+# =============================================================================
+# LOCATION EVENT SYSTEM (Phase 3.2.1 Priority 3)
+# =============================================================================
+
+@dataclass
+class LocationEvent:
+    """
+    Represents a triggered event at a location.
+    
+    Events are one-time or repeatable occurrences that add narrative
+    and mechanical depth to locations (traps, discoveries, ambushes).
+    
+    Follows "Mechanics First, Narration Last" principle:
+    - effect: The mechanical outcome (deterministic)
+    - narration: Hint for AI DM to narrate (creative)
+    """
+    
+    id: str                         # Unique identifier (e.g., "tripwire_trap")
+    trigger: EventTrigger           # When this event fires
+    narration: str                  # Hint for AI DM ("A wire catches your foot...")
+    
+    # Optional mechanics
+    effect: Optional[str] = None    # Mechanical effect: "damage:1d4", "add_item:key"
+    condition: Optional[str] = None # Prerequisite: "has_item:torch", "skill:perception:15"
+    
+    # Behavior
+    one_time: bool = True           # Only fires once per game?
+    
+    def to_dict(self) -> dict:
+        """Serialize event definition."""
+        return {
+            "id": self.id,
+            "trigger": self.trigger.value,
+            "narration": self.narration,
+            "effect": self.effect,
+            "condition": self.condition,
+            "one_time": self.one_time
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'LocationEvent':
+        """Create event from dictionary."""
+        return cls(
+            id=data["id"],
+            trigger=EventTrigger(data["trigger"]),
+            narration=data["narration"],
+            effect=data.get("effect"),
+            condition=data.get("condition"),
+            one_time=data.get("one_time", True)
+        )
 
 
 # =============================================================================
@@ -39,9 +99,12 @@ class Location:
     atmosphere: str = ""                 # "dim lighting, rowdy crowd"
     enter_text: str = ""                 # First-time entry description
     
+    # Events (Phase 3.2.1)
+    events: List[LocationEvent] = field(default_factory=list)  # Events that can trigger here
+    
     # State (runtime)
     visited: bool = False
-    events_triggered: List[str] = field(default_factory=list)
+    events_triggered: List[str] = field(default_factory=list)  # Event IDs already triggered
     
     def get_exits_display(self) -> str:
         """Get a formatted string of available exits."""
@@ -57,7 +120,8 @@ class Location:
         return {
             "id": self.id,
             "visited": self.visited,
-            "events_triggered": self.events_triggered.copy()
+            "events_triggered": self.events_triggered.copy(),
+            "items": self.items.copy()  # Phase 3.2.1: Save picked-up items state
         }
     
     @classmethod
@@ -65,7 +129,111 @@ class Location:
         """Apply saved state to a location."""
         location.visited = state.get("visited", False)
         location.events_triggered = state.get("events_triggered", [])
+        # Restore items if saved (Phase 3.2.1)
+        if "items" in state:
+            location.items = state.get("items", [])
         return location
+    
+    def has_item(self, item_key: str) -> bool:
+        """Check if an item is present in this location.
+        
+        Normalizes spaces to underscores for user-friendly matching.
+        E.g. 'healing potion' matches 'healing_potion'.
+        """
+        normalized_key = item_key.lower().replace(" ", "_")
+        return normalized_key in [i.lower() for i in self.items]
+    
+    def remove_item(self, item_key: str) -> bool:
+        """Remove an item from this location. Returns True if removed.
+        
+        Normalizes spaces to underscores for user-friendly matching.
+        """
+        normalized_key = item_key.lower().replace(" ", "_")
+        for i, item in enumerate(self.items):
+            if item.lower() == normalized_key:
+                self.items.pop(i)
+                return True
+        return False
+    
+    def has_npc(self, npc_id: str) -> bool:
+        """Check if an NPC is present in this location."""
+        return npc_id.lower() in [n.lower() for n in self.npcs]
+    
+    def get_items_display(self) -> str:
+        """Get a formatted string of items in this location."""
+        if not self.items:
+            return ""
+        # Format item names for display (underscore → space, title case)
+        item_names = [item.replace("_", " ").title() for item in self.items]
+        return f"🎒 Items here: {', '.join(item_names)}"
+    
+    def get_npcs_display(self) -> str:
+        """Get a formatted string of NPCs in this location."""
+        if not self.npcs:
+            return ""
+        # Capitalize NPC names for display
+        npc_names = [npc.replace("_", " ").title() for npc in self.npcs]
+        return f"👤 Present: {', '.join(npc_names)}"
+    
+    # =========================================================================
+    # EVENT SYSTEM METHODS (Phase 3.2.1)
+    # =========================================================================
+    
+    def get_events_for_trigger(self, trigger: EventTrigger, is_first_visit: bool = False) -> List[LocationEvent]:
+        """
+        Get events that should fire for a given trigger.
+        
+        Args:
+            trigger: The event trigger type
+            is_first_visit: Whether this is the player's first time here
+            
+        Returns:
+            List of events that should fire (not yet triggered if one_time)
+        """
+        result = []
+        for event in self.events:
+            # Skip if already triggered and one-time
+            if event.one_time and event.id in self.events_triggered:
+                continue
+            
+            # Check trigger match
+            if event.trigger == trigger:
+                result.append(event)
+            # First visit triggers also fire on_enter events marked as first-visit
+            elif trigger == EventTrigger.ON_ENTER and event.trigger == EventTrigger.ON_FIRST_VISIT:
+                if is_first_visit:
+                    result.append(event)
+        
+        return result
+    
+    def trigger_event(self, event_id: str) -> bool:
+        """
+        Mark an event as triggered.
+        
+        Args:
+            event_id: The ID of the event to mark as triggered
+            
+        Returns:
+            True if event was found and marked, False otherwise
+        """
+        for event in self.events:
+            if event.id == event_id:
+                if event_id not in self.events_triggered:
+                    self.events_triggered.append(event_id)
+                return True
+        return False
+    
+    def has_event(self, event_id: str) -> bool:
+        """Check if a specific event exists at this location."""
+        return any(e.id == event_id for e in self.events)
+    
+    def is_event_triggered(self, event_id: str) -> bool:
+        """Check if a specific event has already been triggered."""
+        return event_id in self.events_triggered
+    
+    def add_event(self, event: LocationEvent):
+        """Add an event to this location."""
+        self.events.append(event)
 
 
 class LocationManager:
@@ -112,41 +280,62 @@ class LocationManager:
             }
         return {}
     
-    def move(self, direction: str) -> tuple[bool, Optional[Location], str]:
+    def move(self, direction: str) -> Tuple[bool, Optional[Location], str, List[LocationEvent]]:
         """
         Attempt to move in a direction.
-        Returns: (success, new_location, message)
+        
+        Returns: (success, new_location, message, triggered_events)
+            - success: Whether movement was successful
+            - new_location: The new Location object if successful
+            - message: Error message if failed
+            - triggered_events: List of events that fired on entry (empty if none)
         """
         location = self.get_current_location()
         if not location:
-            return False, None, "You are nowhere."
+            return False, None, "You are nowhere.", []
         
         # Normalize direction
         direction_lower = direction.lower().strip()
         
         # Check for matching exit
         available_exits = self.get_exits()
+        dest_id = None
         
         # Try exact match first
         if direction_lower in available_exits:
             dest_id = available_exits[direction_lower]
+        else:
+            # Try partial match
+            for exit_name, exit_dest_id in available_exits.items():
+                if direction_lower in exit_name.lower() or exit_name.lower() in direction_lower:
+                    dest_id = exit_dest_id
+                    break
+        
+        if dest_id:
+            # Check if this will be a first visit BEFORE setting current location
+            target_location = self.locations.get(dest_id)
+            is_first_visit = target_location and not target_location.visited
+            
+            # Perform the move
             new_location = self.set_current_location(dest_id)
             if new_location:
-                first_visit = not new_location.visited
-                return True, new_location, ""
-        
-        # Try partial match
-        for exit_name, dest_id in available_exits.items():
-            if direction_lower in exit_name.lower() or exit_name.lower() in direction_lower:
-                new_location = self.set_current_location(dest_id)
-                if new_location:
-                    return True, new_location, ""
+                # Get events that should fire on entry
+                events = new_location.get_events_for_trigger(
+                    EventTrigger.ON_ENTER, 
+                    is_first_visit=is_first_visit
+                )
+                
+                # Mark events as triggered
+                for event in events:
+                    new_location.trigger_event(event.id)
+                
+                return True, new_location, "", events
         
         # No valid exit found
         valid_exits = list(available_exits.keys())
         if valid_exits:
-            return False, None, f"You can't go '{direction}'. Available exits: {', '.join(valid_exits)}"
-        return False, None, "There's nowhere to go from here."
+            return False, None, f"You can't go '{direction}'. Available exits: {', '.join(valid_exits)}", []
+        return False, None, "There's nowhere to go from here.", []
     
     def get_context_for_dm(self) -> str:
         """Get location context for the AI DM."""
@@ -468,7 +657,16 @@ def create_goblin_cave_scenario() -> Scenario:
             npcs=[],
             items=["goblin_ear"],
             atmosphere="Ominous, the smell of something foul ahead",
-            enter_text="The path narrows. Crude goblin warnings hang from the trees."
+            enter_text="The path narrows. Crude goblin warnings hang from the trees.",
+            events=[
+                LocationEvent(
+                    id="goblin_warning_signs",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="Crude goblin totems and skulls on spikes line the path - a clear warning to trespassers.",
+                    effect=None,
+                    one_time=True
+                )
+            ]
         ),
         
         # === CAVE ENTRANCE SCENE LOCATIONS ===
@@ -480,7 +678,16 @@ def create_goblin_cave_scenario() -> Scenario:
             npcs=[],
             items=["torch"],
             atmosphere="Foul smell, echoing sounds from within, sense of danger",
-            enter_text="Before you looms the entrance to Darkhollow Cave."
+            enter_text="Before you looms the entrance to Darkhollow Cave.",
+            events=[
+                LocationEvent(
+                    id="cave_ambience",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="A cold wind rushes out from the cave mouth, carrying the stench of goblins and something worse.",
+                    effect=None,
+                    one_time=True
+                )
+            ]
         ),
         "cave_tunnel": Location(
             id="cave_tunnel",
@@ -510,19 +717,28 @@ def create_goblin_cave_scenario() -> Scenario:
             description="A large cavern lit by smoky torches. Goblins lounge around a central fire. Cages line the far wall - one holds a young girl!",
             exits={"back": "goblin_camp_entrance", "cages": "goblin_camp_cages", "chief": "chief_tunnel"},
             npcs=["goblins"],
-            items=["shortsword", "rations"],
+            items=["shortsword", "rations", "healing_potion", "gold_pouch_small"],
             atmosphere="Overwhelming stench, gambling goblins, a girl sobbing in a cage",
             enter_text="You enter the main goblin camp. Four goblins look up from their fire."
         ),
         "goblin_camp_shadows": Location(
             id="goblin_camp_shadows",
             name="Goblin Warren - Shadows",
-            description="A dark alcove along the cavern wall. From here you can observe the camp without being seen.",
+            description="A dark alcove along the cavern wall. From here you can observe the camp without being seen. Something glints in the corner.",
             exits={"camp": "goblin_camp_main", "cages": "goblin_camp_cages", "chief": "chief_tunnel"},
             npcs=[],
-            items=[],
+            items=["poison_vial", "dagger"],
             atmosphere="Hidden, good vantage point for surprise attack",
-            enter_text="You slip into the shadows. From here you can see the whole camp."
+            enter_text="You slip into the shadows. From here you can see the whole camp.",
+            events=[
+                LocationEvent(
+                    id="shadow_discovery",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="You find a dead goblin scout here - poisoned. Someone else is hunting these creatures.",
+                    effect=None,
+                    one_time=True
+                )
+            ]
         ),
         "goblin_camp_cages": Location(
             id="goblin_camp_cages",
@@ -532,19 +748,37 @@ def create_goblin_cave_scenario() -> Scenario:
             npcs=["lily"],
             items=["lockpicks"],
             atmosphere="Lily's quiet sobs, the clink of chains",
-            enter_text="You approach the cages. The girl's eyes light up with hope."
+            enter_text="You approach the cages. The girl's eyes light up with hope.",
+            events=[
+                LocationEvent(
+                    id="lily_found",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="Lily gasps and reaches through the bars. 'Please, help me! The chief wants to eat me!'",
+                    effect="objective:rescue_lily",
+                    one_time=True
+                )
+            ]
         ),
         
         # === BOSS CHAMBER SCENE LOCATIONS ===
         "chief_tunnel": Location(
             id="chief_tunnel",
             name="Passage to Chief's Lair",
-            description="A passage leading to the back of the cave. It's more decorated - skulls on spikes, crude paintings.",
+            description="A passage leading to the back of the cave. It's more decorated - skulls on spikes, crude paintings. An antidote vial lies forgotten in a corner.",
             exits={"camp": "goblin_camp_main", "lair": "boss_chamber"},
             npcs=[],
-            items=[],
+            items=["antidote"],
             atmosphere="More 'decorated' than the camp, clearly important",
-            enter_text="You head toward the chief's lair. The decorations grow more gruesome."
+            enter_text="You head toward the chief's lair. The decorations grow more gruesome.",
+            events=[
+                LocationEvent(
+                    id="tunnel_tripwire",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="A thin wire is stretched across the passage! It's a trap!",
+                    effect="skill_check:dex:12|damage:1d4",
+                    one_time=True
+                )
+            ]
         ),
         "boss_chamber": Location(
             id="boss_chamber",
@@ -552,9 +786,18 @@ def create_goblin_cave_scenario() -> Scenario:
             description="A large chamber dominated by a throne of bones. Chief Grotnak sits counting coins, flanked by two bodyguards.",
             exits={"escape": "chief_tunnel"},
             npcs=["grotnak", "bodyguards"],
-            items=["healing_potion", "gold"],
+            items=["healing_potion", "gold_pouch", "longsword"],
             atmosphere="Menacing, the chief's cruel eyes watching, bodyguards ready",
-            enter_text="You enter the throne room. Chief Grotnak looks up with a wicked grin."
+            enter_text="You enter the throne room. Chief Grotnak looks up with a wicked grin.",
+            events=[
+                LocationEvent(
+                    id="chief_confrontation",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="The Goblin Chief rises from his bone throne with a thunderous roar! 'You dare enter MY domain?!'",
+                    effect="start_combat:goblin_boss",
+                    one_time=True
+                )
+            ]
         ),
         
         # === RESOLUTION SCENE LOCATIONS ===

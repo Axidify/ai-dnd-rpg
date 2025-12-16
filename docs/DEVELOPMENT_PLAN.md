@@ -118,6 +118,7 @@ Milestone XP: Minor=25, Major=50, Boss=100, Adventure=150
 |------|---------|-------------|--------|
 | 3.1 | Save/Load System | JSON file for character + story progress | ✅ Complete |
 | 3.2 | Location System | Multiple rooms/areas with movement | ✅ Complete |
+| 3.2.1 | Location Enhancements | Tests, items/NPCs, events, narration | 🔄 In Progress |
 | 3.3 | NPCs | Dialogue, quests, shop functionality | ⬜ |
 
 **Save/Load System Features (3.1):**
@@ -142,9 +143,58 @@ Milestone XP: Minor=25, Major=50, Boss=100, Adventure=150
 - Location state persisted in save files (visited, current location)
 ```
 
+**Location System Enhancements (3.2.1):** 🔄 In Progress
+```
+Priority 1 - Test Coverage (HIGH): ✅ COMPLETE
+  [x] Create tests/test_location.py with comprehensive tests (80 tests)
+  [x] Test Location.to_dict() / from_state() serialization
+  [x] Test LocationManager.move() with valid/invalid directions
+  [x] Test exit filtering by available_location_ids
+  [x] Test save/load round-trip for location state
+  [x] Test LocationEvent class and event methods
+
+Priority 2 - Item/NPC Integration (MEDIUM): ✅ COMPLETE
+  [x] Display items on 'look' command
+  [x] Add 'take <item>' command for location items
+  [x] Show NPCs present in location
+  [x] Add 'talk <npc>' command for NPC dialogue
+
+Priority 3 - Location Events (MEDIUM): ✅ COMPLETE
+  [x] Created LocationEvent dataclass with EventTrigger enum
+  [x] Implement events_triggered functionality
+  [x] trigger_event(), has_event(), is_event_triggered(), add_event() methods
+  [x] get_events_for_trigger() with first-visit detection
+  [x] Updated move() to return triggered events
+  [x] AI DM receives event context for narration
+  [x] Added events to 6 Goblin Cave locations (traps, discoveries, confrontations)
+
+Priority 4 - Movement Narration (MEDIUM): ✅ COMPLETE
+  [x] LOCATION_NARRATION_PROMPT for immersive AI descriptions
+  [x] build_location_context() - gathers items, NPCs, events, atmosphere
+  [x] get_location_narration() - requests AI narrative prose
+  [x] display_location_narration() - consistent output format
+  [x] 'look' command now uses AI narration (not bullet points)
+  [x] Movement triggers AI narration with event context
+  [x] Added 'scan' command for mechanical item/NPC/exit list
+  [x] User-friendly item display ("Healing Potion" not "healing_potion")
+  [x] Normalized item matching (spaces work: "take healing potion")
+
+Priority 5 - Conditional Exits (LOW):
+  [ ] Add exit_requirements field for locked doors
+  [ ] Support key-based requirements: {"door": "has:rusty_key"}
+  [ ] Hidden passages revealed by perception checks
+
+Priority 6 - Cardinal Aliases (LOW):
+  [ ] Add direction_aliases to Location dataclass
+  [ ] Map n/s/e/w to descriptive exits
+```
+
 **Success Criteria:**
 - [x] Game state persists between sessions
 - [x] Player can navigate between locations
+- [x] Location system has comprehensive test coverage (80 tests)
+- [x] Player can interact with items/NPCs in locations
+- [x] AI generates immersive location descriptions
 - [ ] Player can interact with NPCs for quests/trading
 
 ---
@@ -171,12 +221,39 @@ Milestone XP: Minor=25, Major=50, Boss=100, Adventure=150
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
 | 5.1 | REST API Setup | FastAPI/Flask backend for game logic | ⬜ |
-| 5.2 | Authentication | User accounts, login, session management | ⬜ |
-| 5.3 | Cloud Save | Database for persistent game saves | ⬜ |
-| 5.4 | API Endpoints | Chat, character, inventory, combat endpoints | ⬜ |
+| 5.2 | JSON Data Refactor | Move items, locations, scenarios to JSON files | ⬜ |
+| 5.3 | Authentication | User accounts, login, session management | ⬜ |
+| 5.4 | Cloud Save | Database for persistent game saves | ⬜ |
+| 5.5 | API Endpoints | Chat, character, inventory, combat endpoints | ⬜ |
+
+**JSON Data Refactor Details (5.2):**
+```
+Planned Structure:
+data/
+├── items.json              # All items from ITEMS dict
+├── scenarios/
+│   └── goblin_cave/
+│       ├── scenario.json   # Metadata, scene order
+│       ├── locations.json  # All 18+ locations
+│       └── scenes.json     # Scene definitions
+
+Benefits:
+- Edit content without modifying Python code
+- Hot-reload scenarios without restart
+- Multiple scenarios as separate folders
+- Modding support for community content
+- Mobile app: download/update scenarios independently
+
+Migration Plan:
+1. Create JSON loader functions with Python fallback
+2. Export existing dicts to JSON format
+3. Add JSON validation on load
+4. Deprecate Python dicts in Phase 7
+```
 
 **Success Criteria:**
 - [ ] API accepts game commands and returns responses
+- [ ] Content stored in JSON files
 - [ ] Users can register and login
 - [ ] Game state syncs between devices
 

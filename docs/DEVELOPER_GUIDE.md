@@ -9,6 +9,7 @@ This document provides comprehensive technical documentation for developers who 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
+   - [Core Design Principle: Mechanics First, Narration Last](#core-design-principle-mechanics-first-narration-last)
 2. [Project Structure](#project-structure)
 3. [Core Components](#core-components)
 4. [AI Integration](#ai-integration)
@@ -83,6 +84,69 @@ This document provides comprehensive technical documentation for developers who 
 **Flutter Target Platforms:**
 - 📱 iOS (App Store)
 - 📱 Android (Play Store)
+
+### Core Design Principle: Mechanics First, Narration Last
+
+This is the **fundamental architectural pattern** that governs all systems in the game.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PLAYER ACTION                                │
+│         "attack goblin" / "go north" / "pick lock"              │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  STEP 1: MECHANICS LAYER (Deterministic, Python)                │
+│  ─────────────────────────────────────────────────              │
+│  • Parse command                                                │
+│  • Roll dice (if applicable)                                    │
+│  • Calculate results (damage, movement, success/fail)           │
+│  • Update game state (HP, location, inventory)                  │
+│  • Determine outcome FIRST                                      │
+│                                                                 │
+│  OUTPUT: Concrete result + context for AI                       │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  STEP 2: AI NARRATION LAYER (Creative, Gemini)                  │
+│  ─────────────────────────────────────────────────              │
+│  • Receives final results (cannot change them!)                 │
+│  • Describes what happened in vivid prose                       │
+│  • Adds atmosphere, NPC reactions, sensory details              │
+│  • Never contradicts mechanical outcome                         │
+│                                                                 │
+│  OUTPUT: Immersive narration for player                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why This Matters:**
+
+| Aspect | Mechanics Layer | AI Layer |
+|--------|-----------------|----------|
+| **Role** | Authoritative - determines outcomes | Decorative - describes outcomes |
+| **Consistency** | Deterministic, reproducible | Creative, varied |
+| **Fairness** | Rules-based, fair to player | Cannot cheat or fudge results |
+| **Testing** | Unit testable | Subjective quality |
+
+**Example: Combat Attack**
+```
+1. Player: "attack goblin"
+2. MECHANICS: Roll d20+5 = 18 vs AC 13 → HIT, Roll 1d8+3 = 7 damage
+3. AI receives: "Player hit Goblin for 7 damage (18 vs AC 13)"
+4. AI narrates: "Your blade arcs through the air, catching the goblin 
+   across the shoulder! It shrieks in pain, dark blood spattering the stones."
+```
+
+**Example: Location Movement**
+```
+1. Player: "go north"
+2. MECHANICS: Check exits → valid, Move player, Check events → first visit
+3. AI receives: "Player entered Boss Chamber (first visit). Event: chief_roars"
+4. AI narrates: "You step into the torch-lit chamber and a thunderous 
+   roar shakes the very stones..."
+```
+
+This pattern applies to: **Combat, Movement, Skill Checks, Item Interaction, NPC Dialogue, Save/Load, and all future systems.**
 - 🌐 Web (Any browser)
 - 🖥️ Windows (Downloadable)
 - 🖥️ macOS (Downloadable)
@@ -127,17 +191,21 @@ ai-dnd-rpg/
 │   └── scenario.py         # Scenario and scene management
 │
 └── tests/
+    ├── run_interactive_tests.py  # Unified test runner (all test modes)
     ├── test_character.py       # Character system tests (26 tests)
-    ├── test_combat.py           # Combat mechanics tests (28 tests)
-    ├── test_combat_with_dm.py   # Interactive combat tests
-    ├── test_dice.py             # Dice rolling tests
-    ├── test_dice_with_dm.py     # Dice + AI tests
-    ├── test_inventory.py        # Inventory system tests (35 tests)
-    ├── test_inventory_with_dm.py # Interactive inventory tests
-    ├── test_multi_enemy.py      # Multi-enemy combat tests
-    ├── test_save_system.py      # Save/Load system tests (6 tests)
-    ├── test_scenario.py         # Scenario system tests (26 tests)
-    └── test_xp_system.py        # XP and leveling tests (10 tests)
+    ├── test_combat.py          # Combat mechanics tests (31 tests)
+    ├── test_combat_with_dm.py  # Interactive combat tests (AI)
+    ├── test_dice.py            # Dice rolling manual tests (standalone)
+    ├── test_dice_with_dm.py    # Dice + AI tests
+    ├── test_inventory.py       # Inventory system tests (35 tests)
+    ├── test_inventory_with_dm.py # Interactive inventory tests (AI)
+    ├── test_location.py        # Location system tests (80 tests)
+    ├── test_location_with_dm.py # Interactive location tests (AI, 8 unit tests)
+    ├── test_multi_enemy.py     # Multi-enemy combat tests (3 tests)
+    ├── test_save_system.py     # Save/Load system tests (6 tests)
+    ├── test_scenario.py        # Scenario system tests (26 tests)
+    ├── test_xp_system.py       # XP and leveling tests (10 tests)
+    └── run_interactive_tests.py # Unified test runner for all interactive tests
 ```
 
 ### File Responsibilities
@@ -1000,6 +1068,231 @@ When player ambushes enemies:
 | `bandit` | 11 | 12 | +3 | 1d6+1 |
 | `giant_spider` | 26 | 14 | +5 | 1d8+3 |
 
+---
+
+### Location System (Phase 3.2)
+
+The location system provides a structured way to define explorable areas with items, NPCs, and navigation.
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       LOCATION FLOW                             │
+├─────────────────────────────────────────────────────────────────┤
+│  Scenario → Scene → LocationManager → Location                 │
+│                                                                 │
+│  Scene.location_ids = ["tavern_main", "tavern_bar", "street"]  │
+│  Scene.starting_location_id = "tavern_main"                    │
+│                           ↓                                     │
+│  LocationManager.set_available_locations([...])                │
+│  LocationManager.set_current_location("tavern_main")           │
+│                           ↓                                     │
+│  Player: "go door" → LocationManager.move("door")              │
+│                           ↓                                     │
+│  Location.exits = {"door": "street"}                           │
+│  → Move to "street" if in available_location_ids               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Location Dataclass (scenario.py)
+
+```python
+@dataclass
+class Location:
+    id: str                  # Unique identifier ("tavern_main")
+    name: str                # Display name ("The Rusty Dragon")
+    description: str         # Full description for AI
+    exits: Dict[str, str]    # {"door": "street", "stairs": "upstairs"}
+    npcs: List[str]          # NPC IDs present ["barkeep", "bram"]
+    items: List[str]         # Item keys that can be found ["torch", "sword"]
+    atmosphere: str          # AI guidance ("dim lighting, rowdy crowd")
+    enter_text: str          # First-time entry description
+    visited: bool            # Runtime: has player been here?
+    events_triggered: List[str]  # Runtime: one-time events fired
+```
+
+#### Location Methods (Phase 3.2.1)
+
+| Method | Description |
+|--------|-------------|
+| `get_exits_display()` | Returns "You can go: door, stairs or window" |
+| `get_items_display()` | Returns "🎒 Items here: torch, sword" |
+| `get_npcs_display()` | Returns "👤 Present: Barkeep, Bram" |
+| `has_item(item_key)` | Check if item is present (case-insensitive) |
+| `remove_item(item_key)` | Remove item when player picks it up |
+| `has_npc(npc_id)` | Check if NPC is present (case-insensitive) |
+| `to_dict()` | Serialize state for saving |
+| `from_state(location, state)` | Restore state from save |
+
+#### LocationManager (scenario.py)
+
+```python
+class LocationManager:
+    locations: Dict[str, Location]       # All registered locations
+    current_location_id: Optional[str]   # Where player is now
+    available_location_ids: List[str]    # Unlocked by current scene
+    
+    def move(direction: str) -> tuple[bool, Location, str]:
+        """Attempt to move. Returns (success, new_location, message)"""
+        
+    def get_context_for_dm() -> str:
+        """Get current location context for AI prompts"""
+```
+
+#### Player Commands (game.py)
+
+| Command | Aliases | Description |
+|---------|---------|-------------|
+| `look` | `look around`, `where am i` | Describe current location, items, NPCs |
+| `exits` | `directions`, `where can i go` | Show available exits |
+| `go <direction>` | `move`, `walk`, `head`, `enter` | Move to new location |
+| `n/s/e/w` | `north`, `south`, `east`, `west` | Cardinal direction shortcuts |
+| `take <item>` | `pick up`, `grab` | Pick up item from location |
+| `talk <npc>` | `speak`, `talk to` | Initiate dialogue with NPC |
+
+#### Adding Items to Locations
+
+Items in locations must exist in the ITEMS database (inventory.py):
+
+```python
+# 1. Ensure item exists in inventory.py ITEMS dict
+"torch": Item(
+    name="Torch",
+    item_type=ItemType.MISC,
+    description="Provides light in dark places.",
+    value=1
+)
+
+# 2. Add item key to location in scenario.py
+"tavern_main": Location(
+    id="tavern_main",
+    items=["torch", "rope"],  # Must match ITEMS keys
+    ...
+)
+```
+
+**Special: Gold Pouches**
+Items with "gold_pouch" in the name or "gold pieces" in the effect are automatically converted to character gold:
+
+```python
+"gold_pouch": Item(
+    name="Gold Pouch",
+    value=50,  # Adds 50 gold to character.gold
+    effect="Contains 50 gold pieces"
+)
+```
+
+#### Defining New Locations
+
+```python
+"new_location": Location(
+    id="new_location",           # Unique ID (snake_case)
+    name="Display Name",         # Shown to player
+    description="Long description for AI context and look command.",
+    exits={"door": "other_loc", "path": "another_loc"},
+    npcs=["npc_id"],             # Match NPCs defined elsewhere
+    items=["item_key"],          # Match ITEMS database keys
+    atmosphere="Mood/sensory details for AI",
+    enter_text="Text shown when player first enters.",
+    events=[...]                 # Optional: LocationEvent list
+)
+```
+
+#### Location Event System (Phase 3.2.1)
+
+Events trigger dynamically when players interact with locations.
+
+**EventTrigger Enum:**
+- `ON_ENTER` - Triggers every time player enters
+- `ON_FIRST_VISIT` - Only triggers on first visit
+- `ON_LOOK` - Triggers on look command
+- `ON_ITEM_TAKE` - Triggers when picking up items
+
+**Creating Events:**
+
+```python
+from scenario import LocationEvent, EventTrigger
+
+event = LocationEvent(
+    id="cave_trap",                  # Unique event ID
+    trigger=EventTrigger.ON_FIRST_VISIT,
+    narration="A tripwire! You barely spot it before stepping on it.",
+    effect="skill_check:dex:12|damage:1d4",  # Optional mechanical effect
+    condition=None,                  # Optional: condition to trigger
+    one_time=True                    # False = repeatable event
+)
+```
+
+**Using Events in Locations:**
+
+```python
+cave = Location(
+    id="cave",
+    name="Goblin Cave",
+    events=[
+        LocationEvent(
+            id="cave_discovery",
+            trigger=EventTrigger.ON_FIRST_VISIT,
+            narration="Among the bones, you notice a glint of gold.",
+            one_time=True
+        )
+    ]
+)
+```
+
+**Event Methods:**
+
+```python
+location.add_event(event)              # Add event dynamically
+location.has_event("event_id")         # Check if event exists
+location.is_event_triggered("event_id") # Check if already triggered
+location.trigger_event("event_id")     # Mark event as triggered
+location.get_events_for_trigger(       # Get applicable events
+    trigger=EventTrigger.ON_FIRST_VISIT,
+    is_first_visit=True
+)
+```
+
+**Movement Returns Events:**
+
+```python
+success, new_location, message, events = manager.move("north")
+
+if events:
+    for event in events:
+        print(f"Event: {event.narration}")
+        if event.effect:
+            # Parse and apply effect
+            pass
+```
+
+**Event Effects (Planned):**
+- `skill_check:ability:dc` - Require skill check
+- `damage:dice` - Apply damage on failure
+- `add_item:item_id` - Give item to player
+- `start_combat:enemy_id` - Begin combat
+- `objective:objective_id` - Mark objective complete
+
+#### Test Coverage
+
+Location tests are in `tests/test_location.py` (80 tests):
+- `TestLocationBasics` - Dataclass creation
+- `TestLocationExitsDisplay` - Exit formatting
+- `TestLocationSerialization` - Save/load
+- `TestLocationItemsAndNPCs` - Item/NPC methods (Phase 3.2.1)
+- `TestLocationEventBasics` - Event creation, serialization
+- `TestLocationEventMethods` - add/has/trigger/get events
+- `TestLocationManagerBasics` - Manager initialization
+- `TestLocationManagerSetters` - Set methods
+- `TestLocationManagerGetters` - Get methods, exit filtering
+- `TestLocationManagerMovement` - move() with all edge cases
+- `TestLocationManagerEvents` - move() returning events
+- `TestLocationManagerContext` - DM context generation
+- `TestLocationManagerSerialization` - Manager save/load
+
+---
+
 ### Combat Narration System
 
 The combat system integrates AI-generated narration to bring combat to life. The mechanics remain deterministic while the AI DM provides immersive descriptions.
@@ -1091,6 +1384,127 @@ display_combat_narration(narration)
 
 ---
 
+### Location Narration System
+
+The location system integrates AI-generated narration to bring exploration to life. The mechanics remain deterministic while the AI DM provides immersive descriptions.
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     PLAYER LOOKS/MOVES                          │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  MECHANICS LAYER (Deterministic)                                │
+│  • Location data retrieved                                      │
+│  • Items, NPCs, exits computed                                  │
+│  • Events triggered (if any)                                    │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  CONTEXT BUILDER: build_location_context()                      │
+│  • Gathers location name, description, atmosphere               │
+│  • Lists items with friendly names                              │
+│  • Lists NPCs present                                           │
+│  • Includes triggered events                                    │
+│  • Notes if first visit                                         │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  AI NARRATION: get_location_narration()                         │
+│  • AI receives structured context                               │
+│  • Generates immersive 3-5 sentence description                 │
+│  • Weaves items, NPCs, events naturally into prose              │
+│  • No bullet points or lists                                    │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  DISPLAY: display_location_narration()                          │
+│  • Shows location name as header                                │
+│  • Displays AI narrative                                        │
+│  • Appends exits mechanically (for gameplay clarity)            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Key Functions
+
+```python
+# LOCATION_NARRATION_PROMPT - in game.py
+# Specialized prompt for atmospheric, immersive location descriptions
+
+def build_location_context(location, is_first_visit=False, events=None) -> dict:
+    """Build context dict for location narration."""
+    # Returns dict with: name, description, atmosphere, items_present, 
+    # npcs_present, available_directions, events, enter_text
+
+def get_location_narration(chat, context: dict) -> str:
+    """Request AI narration for a location description."""
+    # Sends context to AI, returns narrative prose
+
+def display_location_narration(location_name: str, narration: str, exits: dict = None):
+    """Display the AI-generated location narration."""
+    # Prints formatted output with header, narration, and exits
+```
+
+#### Context Structure
+
+```python
+{
+    'name': 'The Rusty Dragon',        # Location display name
+    'description': 'A cozy tavern...', # Raw description for AI
+    'atmosphere': 'Warm firelight...',  # Mood/sensory details
+    'is_first_visit': True,            # First time here?
+    'items_present': ['Torch', 'Healing Potion'],  # Friendly names
+    'npcs_present': ['Barkeep', 'Bram'],           # Friendly names
+    'available_directions': ['door', 'bar'],        # Exit options
+    'events': ['You notice rustling in the shadows...'],  # If any
+    'enter_text': 'You push open the door...'      # First-visit text
+}
+```
+
+#### Example Output
+
+```
+📍 The Rusty Dragon
+
+  You push through the heavy oak door into welcoming warmth. A crackling 
+  hearth bathes worn wooden tables in dancing firelight. The gruff barkeep 
+  polishes a glass behind the counter, eyeing you with practiced indifference. 
+  In a corner booth, a worried farmer named Bram stares into his ale. A torch 
+  flickers on the wall, and you notice a healing potion on a nearby table.
+
+  🚪 Exits: door, bar
+```
+
+#### Commands
+
+| Command | Description |
+|---------|-------------|
+| `look` | AI-generated narrative description |
+| `scan` | Mechanical list of items, NPCs, exits |
+
+#### Extending Location Narration
+
+To add narration when entering a location:
+
+```python
+# 1. Build context after mechanics resolve
+context = build_location_context(
+    location=new_location,
+    is_first_visit=is_first,
+    events=triggered_events
+)
+
+# 2. Request narration from AI
+narration = get_location_narration(chat, context)
+
+# 3. Display narration
+display_location_narration(location.name, narration, exits)
+```
+
+---
+
 ## Leveling System
 
 ### XP and Level Progression
@@ -1153,6 +1567,48 @@ DM awards XP using tags in responses:
 ---
 
 ## Testing Guidelines
+
+### Running Tests
+
+**Unit Tests (228 tests total):**
+```bash
+# Run all unit tests
+python -m pytest tests/ -v
+
+# Run specific test file
+python -m pytest tests/test_location.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=src --cov-report=html
+```
+
+**Interactive Tests (require AI API key):**
+```bash
+# Unified test runner - menu-driven interface
+python tests/run_interactive_tests.py
+
+# Individual interactive tests
+python tests/test_combat_with_dm.py
+python tests/test_location_with_dm.py
+python tests/test_inventory_with_dm.py
+python tests/test_dice_with_dm.py
+```
+
+### Test Coverage Summary
+
+| Module | Tests | Description |
+|--------|-------|-------------|
+| test_character.py | 26 | Character creation, stats, XP |
+| test_combat.py | 31 | Combat mechanics, attacks |
+| test_location.py | 80 | Location system, movement, events |
+| test_location_with_dm.py | 8 | Interactive location unit tests |
+| test_inventory.py | 35 | Items, inventory management |
+| test_scenario.py | 26 | Scenarios, scenes, objectives |
+| test_xp_system.py | 10 | XP and leveling |
+| test_save_system.py | 6 | Save/load persistence |
+| test_multi_enemy.py | 3 | Multi-enemy combat |
+| test_inventory_with_dm.py | 3 | Interactive inventory unit tests |
+| **TOTAL** | **228** | All unit tests |
 
 ### Manual Testing Checklist
 
