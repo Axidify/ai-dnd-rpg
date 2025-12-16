@@ -36,6 +36,23 @@ RACES = [
     "Half-Elf"
 ]
 
+# XP Thresholds for leveling (Level Cap: 5)
+XP_THRESHOLDS = {
+    1: 0,      # Level 1: Start
+    2: 100,    # Level 2: 100 XP
+    3: 300,    # Level 3: 300 XP (total)
+    4: 600,    # Level 4: 600 XP (total)
+    5: 1000,   # Level 5: 1000 XP (total, max level)
+}
+
+# Milestone XP values
+MILESTONE_XP = {
+    'minor': 25,      # Minor accomplishment
+    'major': 50,      # Major accomplishment
+    'boss': 100,      # Defeating a boss
+    'adventure': 150, # Completing an adventure
+}
+
 
 @dataclass
 class Character:
@@ -134,6 +151,121 @@ class Character:
         }
         score = ability_map.get(ability_name.lower(), 10)
         return self.get_modifier(score)
+    
+    # =========================================================================
+    # XP AND LEVELING SYSTEM
+    # =========================================================================
+    
+    def gain_xp(self, amount: int, source: str = "") -> dict:
+        """
+        Add XP to the character and check for level up.
+        Returns dict with xp info and whether level up occurred.
+        """
+        old_xp = self.experience
+        self.experience += amount
+        
+        result = {
+            'xp_gained': amount,
+            'source': source,
+            'old_xp': old_xp,
+            'new_xp': self.experience,
+            'level_up': False,
+            'new_level': self.level,
+        }
+        
+        # Check for level up
+        if self.can_level_up():
+            result['level_up'] = True
+            result['new_level'] = self.get_next_level()
+        
+        return result
+    
+    def can_level_up(self) -> bool:
+        """Check if character has enough XP to level up."""
+        if self.level >= 5:  # Max level
+            return False
+        next_level = self.level + 1
+        required_xp = XP_THRESHOLDS.get(next_level, float('inf'))
+        return self.experience >= required_xp
+    
+    def get_next_level(self) -> int:
+        """Get the level the character would be at with current XP."""
+        for lvl in range(5, 0, -1):
+            if self.experience >= XP_THRESHOLDS.get(lvl, 0):
+                return lvl
+        return 1
+    
+    def xp_to_next_level(self) -> int:
+        """Get XP remaining until next level."""
+        if self.level >= 5:
+            return 0
+        next_threshold = XP_THRESHOLDS.get(self.level + 1, 0)
+        return max(0, next_threshold - self.experience)
+    
+    def xp_progress(self) -> tuple:
+        """Get current XP progress as (current, needed)."""
+        if self.level >= 5:
+            return (self.experience, self.experience)
+        current_threshold = XP_THRESHOLDS.get(self.level, 0)
+        next_threshold = XP_THRESHOLDS.get(self.level + 1, 0)
+        progress = self.experience - current_threshold
+        needed = next_threshold - current_threshold
+        return (progress, needed)
+    
+    def level_up(self) -> dict:
+        """
+        Level up the character with appropriate benefits.
+        Returns dict with level up details.
+        """
+        if not self.can_level_up():
+            return {'success': False, 'message': 'Not enough XP to level up'}
+        
+        old_level = self.level
+        new_level = self.get_next_level()
+        self.level = new_level
+        
+        # HP increase: roll hit die + CON modifier
+        hit_dice = {
+            "Fighter": 10, "Paladin": 10, "Ranger": 10,
+            "Barbarian": 12,
+            "Wizard": 6, "Sorcerer": 6,
+            "Rogue": 8, "Bard": 8, "Warlock": 8, "Monk": 8, "Cleric": 8, "Druid": 8
+        }
+        hit_die = hit_dice.get(self.char_class, 8)
+        con_mod = self.get_modifier(self.constitution)
+        
+        # Simplified: +2 HP per level (as per design doc)
+        hp_gain = 2
+        self.max_hp += hp_gain
+        self.current_hp = self.max_hp  # Full heal on level up
+        
+        result = {
+            'success': True,
+            'old_level': old_level,
+            'new_level': new_level,
+            'hp_gain': hp_gain,
+            'new_max_hp': self.max_hp,
+            'benefits': [],
+        }
+        
+        # Level-specific benefits
+        if new_level == 2:
+            result['benefits'].append("+1 to any stat (choose later)")
+        elif new_level == 3:
+            result['benefits'].append("Class ability unlocked!")
+        elif new_level == 4:
+            result['benefits'].append("+1 to any stat (choose later)")
+        elif new_level == 5:
+            result['benefits'].append("+1 proficiency bonus")
+            result['benefits'].append("Class ability unlocked!")
+        
+        return result
+    
+    def get_proficiency_bonus(self) -> int:
+        """Get proficiency bonus based on level."""
+        if self.level >= 5:
+            return 3
+        return 2
     
     @staticmethod
     def roll_stat() -> int:

@@ -1,4 +1,34 @@
-# TaskSync V5 Protocol
+# TaskSync V6 Protocol
+
+## VERSION 6.0 UPDATES
+- Added `discuss:` prefix for conversation mode
+- Added task type prefixes: `urgent:`, `blocked:`
+- Added `pause` and `resume` commands
+- Added `status` command for task history
+- Improved error handling with `retry:` and `failed:` signals
+- Streamlined command format
+
+---
+
+## TASK TYPE PREFIXES
+
+| Prefix | Usage | Behavior |
+|--------|-------|----------|
+| (none) | `fix the bug` | Normal task execution |
+| `discuss:` | `discuss: what should we prioritize?` | Conversation mode - give input/opinions |
+| `urgent:` | `urgent: server is down` | High priority, interrupt current work |
+| `blocked:` | `blocked: waiting on API key` | Log blocker, continue other work |
+
+## SPECIAL COMMANDS
+
+| Command | Effect |
+|---------|--------|
+| `pause` | Save current state, stop requesting tasks |
+| `resume` | Continue from saved state |
+| `status` | Show current task + recent history |
+| `stop` / `end` / `quit` | Terminate session |
+
+---
 
 **YOU ARE ABSOLUTELY FORBIDDEN FROM:**
 - Ending the chat/conversation/session for ANY reason except explicit user termination commands ("stop", "end", "terminate", "quit")
@@ -160,7 +190,18 @@ Every rule in this specification is a PRIMARY DIRECTIVE requiring absolute compl
   - Universal: `python -c "task = input('How can i help you? ')"`
 - Accept any task description through terminal input
 - Process tasks immediately upon receipt
-- Handle special commands: "none", "stop", "quit", "end", "terminate"
+- Handle special commands: "none", "stop", "quit", "end", "terminate", "pause", "resume", "status"
+
+**PRIMARY DIRECTIVE: Task Prefix Processing**:
+- **No prefix**: Normal task → Execute and request next task
+- **`discuss:`**: Conversation mode → Provide analysis/opinions, then request next task
+- **`urgent:`**: High priority → Interrupt current work, execute immediately
+- **`blocked:`**: Blocker logged → Acknowledge and request next task
+
+**PRIMARY DIRECTIVE: Special Command Handling**:
+- **`pause`**: Save current context, stop task request loop, wait for `resume`
+- **`resume`**: Restore context, continue task request loop
+- **`status`**: Report current task, recent task history, session stats
 
 **PRIMARY DIRECTIVE: Critical Process Order**:
 1. Run universal shell command for task input:
@@ -279,6 +320,104 @@ After completing any task, the agent MUST:
 ## Examples - PRIMARY DIRECTIVE COMPLIANCE
 
 <examples>
+<example>
+**Scenario**: Discuss prefix - User wants agent's opinion
+
+**Terminal input**: `discuss: what should we prioritize for the leveling system?`
+
+**Agent behavior - PRIMARY DIRECTIVE COMPLIANCE**:
+1. Recognize `discuss:` prefix → Enter conversation mode
+2. Provide thoughtful analysis and recommendations
+3. Share opinions and trade-offs
+4. After providing input, request next task via terminal
+
+**Interaction**:
+```
+Terminal: discuss: what should we prioritize for the leveling system?
+Chat: Based on the current codebase, I recommend prioritizing:
+      1. XP tracking - foundation for everything else
+      2. Level-up benefits - gives immediate player feedback
+      3. DM integration - allows natural XP rewards
+      [Analysis continues...]
+Terminal: python -c "task = input('')"
+```
+</example>
+
+<example>
+**Scenario**: Urgent prefix - Critical issue interrupts work
+
+**Terminal input**: `urgent: game crashes on combat start`
+
+**Agent behavior - PRIMARY DIRECTIVE COMPLIANCE**:
+1. Recognize `urgent:` prefix → Interrupt current work
+2. Immediately investigate and fix the issue
+3. Report resolution
+4. Request next task
+
+**Interaction**:
+```
+Terminal: urgent: game crashes on combat start
+Chat: ⚠️ URGENT: Investigating crash immediately...
+      [Debugging and fix applied]
+      Fixed: Missing import in combat.py
+Terminal: python -c "task = input('')"
+```
+</example>
+
+<example>
+**Scenario**: Pause and Resume commands
+
+**Terminal input**: `pause`
+
+**Agent behavior - PRIMARY DIRECTIVE COMPLIANCE**:
+1. Recognize `pause` command
+2. Save current task context
+3. Stop task request loop
+4. Wait for `resume` command (do NOT request tasks)
+
+**Later terminal input**: `resume`
+
+**Agent behavior**:
+1. Recognize `resume` command
+2. Restore saved context
+3. Resume task request loop immediately
+
+**Interaction**:
+```
+Terminal: pause
+Chat: ⏸️ Session paused. Context saved. Waiting for 'resume' command.
+[No task requests until resume]
+Terminal: resume  
+Chat: ▶️ Session resumed. Restoring context...
+Terminal: python -c "task = input('')"
+```
+</example>
+
+<example>
+**Scenario**: Status command
+
+**Terminal input**: `status`
+
+**Agent behavior - PRIMARY DIRECTIVE COMPLIANCE**:
+1. Report current task (if any)
+2. Show recent task history
+3. Display session statistics
+4. Request next task
+
+**Interaction**:
+```
+Terminal: status
+Chat: 📊 TaskSync Status:
+      Current: None (awaiting task)
+      Recent Tasks:
+        #25 ✅ Update documentation
+        #24 ✅ Fix surprise mechanics
+        #23 ✅ Create PR #2
+      Session: 25 tasks completed
+Terminal: python -c "task = input('')"
+```
+</example>
+
 <example>
 **Scenario**: Agent initialization and first task request
 

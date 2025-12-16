@@ -164,6 +164,22 @@ def parse_gold_rewards(dm_response: str) -> int:
     return sum(int(m) for m in matches)
 
 
+def parse_xp_rewards(dm_response: str) -> list:
+    """
+    Parse [XP: amount] or [XP: amount | source] tags from DM response.
+    Returns list of (amount, source) tuples.
+    """
+    # Pattern: [XP: 50] or [XP: 50 | Defeated the goblin boss]
+    pattern = r'\[XP:\s*(\d+)(?:\s*\|\s*([^\]]+))?\]'
+    matches = re.findall(pattern, dm_response, re.IGNORECASE)
+    results = []
+    for match in matches:
+        amount = int(match[0])
+        source = match[1].strip() if match[1] else "Milestone"
+        results.append((amount, source))
+    return results
+
+
 # =============================================================================
 # DM SYSTEM PROMPT
 # =============================================================================
@@ -251,6 +267,7 @@ COMBAT RULES:
 When the player finds items or receives rewards, use these tags:
 [ITEM: item_name] - Give an item to the player
 [GOLD: amount] - Give gold to the player
+[XP: amount] or [XP: amount | reason] - Award experience points
 
 Available items: healing_potion, greater_healing_potion, antidote, rations, torch, rope, 
 lockpicks, dagger, shortsword, longsword, greataxe, rapier, leather_armor, studded_leather,
@@ -258,8 +275,18 @@ chain_shirt, chain_mail, goblin_ear, mysterious_key, ancient_scroll
 
 Examples:
 - Player loots a chest: [ITEM: healing_potion] [GOLD: 15]
-- Quest reward: [ITEM: longsword] [GOLD: 50]
+- Quest reward: [ITEM: longsword] [GOLD: 50] [XP: 50 | Quest Complete]
 - Found in a drawer: [ITEM: torch]
+- Defeated goblin: [XP: 25 | Defeated goblin]
+- Solved puzzle: [XP: 50 | Clever solution]
+- Boss fight victory: [XP: 100 | Defeated boss]
+
+XP GUIDELINES:
+- Minor milestone (defeat weak enemy, find clue): 25 XP
+- Major milestone (solve puzzle, complete task, defeat enemy): 50 XP
+- Boss encounter or major victory: 100 XP
+- Complete adventure chapter: 150 XP
+- Max level is 5, so be measured with XP rewards
 
 ITEM RULES:
 - Only use [ITEM: name] for rewards, found items, or quest rewards
@@ -827,6 +854,45 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
             print(f"\n  ❤️  HP: {character.current_hp}/{character.max_hp} {hp_bar}")
             continue
         
+        # Check for XP/Level command
+        if player_input.lower() in ["xp", "level", "exp", "experience"]:
+            progress, needed = character.xp_progress()
+            xp_bar_filled = int((progress / needed) * 10) if needed > 0 else 10
+            xp_bar = "█" * xp_bar_filled + "░" * (10 - xp_bar_filled)
+            print(f"\n  ⭐ Level {character.level} ({character.char_class})")
+            print(f"  📊 XP: {character.experience} total")
+            if character.level < 5:
+                print(f"  📈 Progress: {xp_bar} {progress}/{needed} to Level {character.level + 1}")
+            else:
+                print(f"  🏆 MAX LEVEL REACHED!")
+            if character.can_level_up():
+                print(f"\n  🎉 Ready to level up! Type 'levelup' to advance.")
+            continue
+        
+        # Check for level up command
+        if player_input.lower() in ["levelup", "level up", "lvlup"]:
+            if not character.can_level_up():
+                if character.level >= 5:
+                    print(f"\n  🏆 You are already at max level (5)!")
+                else:
+                    xp_needed = character.xp_to_next_level()
+                    print(f"\n  ❌ Not enough XP. Need {xp_needed} more XP to reach Level {character.level + 1}.")
+                continue
+            
+            # Perform level up
+            result = character.level_up()
+            print(f"\n{'='*50}")
+            print(f"  🎉 LEVEL UP! Level {result['old_level']} → Level {result['new_level']}!")
+            print(f"{'='*50}")
+            print(f"  ❤️  +{result['hp_gain']} HP (now {result['new_max_hp']} max)")
+            if result['benefits']:
+                print(f"\n  ✨ Benefits:")
+                for benefit in result['benefits']:
+                    print(f"     • {benefit}")
+            print(f"\n  Proficiency Bonus: +{character.get_proficiency_bonus()}")
+            print(f"{'='*50}")
+            continue
+        
         # Check for progress command
         if player_input.lower() == "progress":
             if scenario_manager.is_active():
@@ -999,10 +1065,11 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
                 print("\n🎲 Dungeon Master:")
                 response = get_dm_response(chat, result_msg, current_context)
         
-        # Check for item/gold rewards from DM
+        # Check for item/gold/XP rewards from DM
         if response:
             items_given = parse_item_rewards(response)
             gold_given = parse_gold_rewards(response)
+            xp_given = parse_xp_rewards(response)
             
             reward_lines = []
             for item_name in items_given:
@@ -1014,6 +1081,16 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
             if gold_given > 0:
                 character.gold += gold_given
                 reward_lines.append(f"  💰 Received {gold_given} gold!")
+            
+            # Process XP rewards
+            for xp_amount, xp_source in xp_given:
+                xp_result = character.gain_xp(xp_amount, xp_source)
+                reward_lines.append(f"  ⭐ +{xp_amount} XP ({xp_source})")
+                
+                # Check for level up
+                if xp_result['level_up']:
+                    reward_lines.append(f"\n  🎉 LEVEL UP AVAILABLE!")
+                    reward_lines.append(f"     Type 'levelup' to level up to Level {xp_result['new_level']}!")
             
             if reward_lines:
                 print("\n✨ REWARDS:")
