@@ -9,8 +9,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Planned
-- Phase 3.2: Location System
 - Phase 3.3: NPCs
+
+---
+
+## [0.9.1] - 2024-12-16
+
+### Added
+- **Combat Narration System** - AI-generated immersive combat descriptions
+  - `build_combat_context()`: Creates context dict from attack/damage results
+  - `get_combat_narration()`: Requests narrative prose from AI DM
+  - `display_combat_narration()`: Displays 📖 narration with formatting
+  - `COMBAT_NARRATION_PROMPT`: Specialized prompt for combat narration
+  - Mechanics-first architecture: dice resolve, then AI narrates
+  - Supports hits, misses, critical hits, fumbles, and enemy attacks
+  - Contextual details: weapon, damage type, target status, kills
+
+- **Combat Narration Tests** - New test suite in `test_combat_with_dm.py`
+  - `test_combat_context_building()`: Validates context dict creation
+  - `test_display_combat_narration()`: Tests output formatting
+  - `test_combat_narration_with_ai()`: End-to-end AI narration tests
+  - `run_narration_tests()`: Runs all narration unit tests
+  - Test menu: Choose between unit tests and interactive combat
+
+### Changed
+- Combat flow now includes AI narration after each attack (player and enemy)
+- Removed hardcoded flavor text for crits/fumbles (now AI-generated)
+- `test_combat_with_dm.py` now imports game.py narration functions
+- Updated Developer Guide with Combat Narration System documentation
+
+### Technical Notes
+- Zero breaking changes: narration is purely additive
+- Mechanics layer unchanged: all 31 combat tests still pass
+- Narration fails gracefully (returns empty string on error)
+
+---
+
+## [0.9.0] - 2024-12-16
+
+### Added
+- **Phase 3.2: Location System** - Physical locations with navigation
+  - `Location` dataclass: id, name, description, exits, npcs, items, atmosphere
+  - `LocationManager`: handles movement, exit validation, AI context
+  - 18 pre-defined locations for The Goblin Cave scenario
+  - Scene → Location binding: each scene unlocks specific locations
+  - Commands: `look`, `exits`, `go <direction>`
+  - Cardinal directions: north, south, east, west (and n/s/e/w shortcuts)
+  - AI receives location context for immersive narration
+  - Location state saved/loaded with game progress
+
+### Changed
+- Scenes now have `location_ids` and `starting_location_id` fields
+- `Scenario` class includes `LocationManager` with automatic initialization
+- Save system now preserves location state (current location, visited flags)
+- Help menu updated with navigation commands
 
 ---
 

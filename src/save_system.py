@@ -679,6 +679,7 @@ def scenario_to_dict(scenario_manager) -> Optional[Dict[str, Any]]:
     - Current scenario ID and completion state
     - Current scene ID
     - All scene states (exchange_count, objectives_complete, status)
+    - Location manager state (current location, visited locations)
     
     This allows resuming a game mid-scenario at the exact point.
     """
@@ -696,11 +697,17 @@ def scenario_to_dict(scenario_manager) -> Optional[Dict[str, Any]]:
             'objectives_complete': list(scene.objectives_complete),
         }
     
+    # Serialize location manager state (Phase 3.2)
+    location_state = None
+    if scenario.location_manager:
+        location_state = scenario.location_manager.to_dict()
+    
     return {
         'id': scenario.id,
         'current_scene_id': scenario.current_scene_id,
         'is_complete': scenario.is_complete,
         'scene_states': scene_states,
+        'location_state': location_state,  # Phase 3.2
     }
 
 
@@ -712,6 +719,7 @@ def restore_scenario(scenario_manager, data: Dict[str, Any]) -> bool:
     - Scenario completion state
     - Current scene ID
     - All scene states (exchange_count, objectives_complete, status)
+    - Location manager state (current location, visited locations)
     """
     from scenario import SceneStatus
     
@@ -750,6 +758,11 @@ def restore_scenario(scenario_manager, data: Dict[str, Any]) -> bool:
             # Restore progress
             scene.exchange_count = state.get('exchange_count', 0)
             scene.objectives_complete = state.get('objectives_complete', [])
+    
+    # Restore location manager state (Phase 3.2)
+    location_state = data.get('location_state')
+    if location_state and scenario.location_manager:
+        scenario.location_manager.restore_state(location_state)
     
     return True
 
