@@ -60,6 +60,9 @@ class Character:
     current_hp: int = 10
     armor_class: int = 10
     
+    # Equipment
+    weapon: str = "longsword"  # Default weapon for combat
+    
     # Experience
     experience: int = 0
     
@@ -85,6 +88,23 @@ class Character:
         
         # AC = 10 + DEX modifier (unarmored)
         self.armor_class = 10 + dex_modifier
+        
+        # Set default weapon based on class
+        class_weapons = {
+            "Fighter": "longsword",
+            "Paladin": "longsword",
+            "Ranger": "shortbow",
+            "Barbarian": "greataxe",
+            "Wizard": "quarterstaff",
+            "Sorcerer": "dagger",
+            "Rogue": "shortsword",
+            "Bard": "shortsword",
+            "Warlock": "dagger",
+            "Monk": "quarterstaff",
+            "Cleric": "mace",
+            "Druid": "quarterstaff"
+        }
+        self.weapon = class_weapons.get(self.char_class, "longsword")
     
     @staticmethod
     def get_modifier(score: int) -> int:

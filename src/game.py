@@ -1,7 +1,7 @@
 """
 AI D&D Text RPG - Core Game (Phase 2)
 A D&D adventure where AI acts as Dungeon Master.
-Now with integrated skill checks and dice rolling!
+Now with integrated skill checks, dice rolling, and combat!
 """
 
 import os
@@ -11,6 +11,12 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from character import Character, create_character_interactive, CLASSES, RACES
 from scenario import ScenarioManager
+from combat import (
+    create_enemy, Enemy, ENEMIES, WEAPONS,
+    roll_attack, roll_damage, enemy_attack,
+    format_attack_result, format_damage_result, format_enemy_attack,
+    roll_initiative, format_initiative_roll
+)
 
 # Load environment variables from .env
 load_dotenv()
@@ -104,6 +110,15 @@ def parse_roll_request(dm_response: str) -> tuple:
     return None, None
 
 
+def parse_combat_request(dm_response: str) -> str:
+    """Parse [COMBAT: enemy_type] from DM response."""
+    pattern = r'\[COMBAT:\s*([^\]]+)\]'
+    match = re.search(pattern, dm_response, re.IGNORECASE)
+    if match:
+        return match.group(1).strip().lower()
+    return None
+
+
 # =============================================================================
 # DM SYSTEM PROMPT
 # =============================================================================
@@ -150,6 +165,26 @@ When you receive a [ROLL RESULT: ...]:
 - FAILURE: Describe the negative consequence - be honest about failures
 - NATURAL 20: Make it EPIC! Something amazing happens
 - NATURAL 1: Make it DISASTROUS! A dramatic or comedic failure
+
+## COMBAT SYSTEM
+
+When combat should begin (player attacks, enemy ambush, etc.), trigger it with:
+[COMBAT: enemy_type]
+
+Available enemies: goblin, goblin_boss, skeleton, orc, bandit, wolf
+
+Examples:
+- Player attacks a goblin: [COMBAT: goblin]
+- Ambushed by bandits: [COMBAT: bandit]
+- Wolf attacks in forest: [COMBAT: wolf]
+- Boss fight: [COMBAT: goblin_boss] or [COMBAT: orc]
+
+COMBAT RULES:
+- Only use [COMBAT: enemy_type] to START combat
+- The game system handles ALL dice rolling, damage, and mechanics
+- You will receive combat results like [COMBAT RESULT: VICTORY] or [COMBAT RESULT: DEFEAT]
+- After combat, narrate the aftermath based on the result
+- Do NOT narrate attack rolls or damage yourself - wait for results
 
 Style guidelines:
 - Use second person ("You enter the tavern...")
@@ -238,14 +273,231 @@ def show_help(scenario_active: bool = False):
 ║  help, ?                  - Show this help               ║
 ║  quit, exit, q            - Exit the game                ║
 ╠══════════════════════════════════════════════════════════╣
-║  🎲 SKILL CHECKS                                         ║
+║  🎲 SKILL CHECKS & COMBAT                                ║
 ║  The DM will automatically request rolls when needed.    ║
-║  Press Enter when prompted to roll your dice!            ║
+║  Combat triggers when you fight enemies!                 ║
+║  Combat commands: attack, defend, flee, status           ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Any other text sends your action to the Dungeon Master  ║
 ╚══════════════════════════════════════════════════════════╝
 """
     print(help_text)
+
+
+# =============================================================================
+# COMBAT INTEGRATION
+# =============================================================================
+
+def show_combat_status(character: Character, enemy: Enemy, round_num: int = 1):
+    """Display detailed combat status panel."""
+    # Player HP bar
+    hp_percent = character.current_hp / character.max_hp
+    hp_filled = int(hp_percent * 10)
+    hp_bar = "█" * hp_filled + "░" * (10 - hp_filled)
+    
+    if hp_percent > 0.75:
+        hp_color = "🟢"
+    elif hp_percent > 0.5:
+        hp_color = "🟡"
+    elif hp_percent > 0.25:
+        hp_color = "🟠"
+    else:
+        hp_color = "🔴"
+    
+    # Enemy HP bar
+    enemy_hp_percent = enemy.current_hp / enemy.max_hp
+    enemy_hp_filled = int(enemy_hp_percent * 10)
+    enemy_hp_bar = "█" * enemy_hp_filled + "░" * (10 - enemy_hp_filled)
+    
+    # Get weapon info
+    weapon_name = getattr(character, 'weapon', 'longsword').title()
+    weapon_data = WEAPONS.get(getattr(character, 'weapon', 'longsword'), {})
+    weapon_damage = weapon_data.get('damage', '1d8')
+    
+    # Enemy damage
+    enemy_damage = enemy.damage_dice
+    if enemy.damage_bonus:
+        enemy_damage += f"+{enemy.damage_bonus}"
+    
+    print()
+    print("╔" + "═" * 60 + "╗")
+    print(f"║  🗡️ COMBAT STATUS - Round {round_num}".ljust(61) + "║")
+    print("╠" + "═" * 60 + "╣")
+    print(f"║  YOU: {character.name} ({character.char_class})".ljust(61) + "║")
+    print(f"║  {hp_color} {hp_bar} {character.current_hp}/{character.max_hp} HP  |  AC: {character.armor_class}  |  {weapon_name} ({weapon_damage})".ljust(61) + "║")
+    print("╠" + "═" * 60 + "╣")
+    print(f"║  ENEMY: {enemy.name}".ljust(61) + "║")
+    print(f"║  ⚔️ {enemy_hp_bar} {enemy.current_hp}/{enemy.max_hp} HP  |  AC: {enemy.armor_class}  |  Damage: {enemy_damage}".ljust(61) + "║")
+    print("╚" + "═" * 60 + "╝")
+
+
+def run_combat(character: Character, enemy_type: str, chat) -> str:
+    """Run a combat encounter and return the result.
+    
+    Returns: 'victory', 'defeat', or 'fled'
+    """
+    # Create enemy
+    enemy = create_enemy(enemy_type)
+    if not enemy:
+        print(f"(Unknown enemy type: {enemy_type}, defaulting to goblin)")
+        enemy = create_enemy('goblin')
+    
+    print("\n" + "=" * 60)
+    print("              ⚔️ COMBAT BEGINS! ⚔️")
+    print("=" * 60)
+    
+    print(f"\nYou face a {enemy.name}!")
+    print(f"HP: {enemy.current_hp}/{enemy.max_hp}, AC: {enemy.armor_class}")
+    
+    # Roll initiative
+    print("\n" + "-" * 40)
+    input("Press Enter to roll initiative...")
+    
+    player_init = roll_initiative(character.get_ability_modifier('dexterity'))
+    print(f"\n{format_initiative_roll(character.name, player_init)}")
+    
+    enemy_init = roll_initiative(enemy.dex_modifier)
+    print(format_initiative_roll(enemy.name, enemy_init))
+    
+    player_goes_first = player_init['total'] >= enemy_init['total']
+    
+    if player_goes_first:
+        print(f"\n✨ {character.name} goes first!")
+    else:
+        print(f"\n⚡ {enemy.name} goes first!")
+    
+    print("\n" + "-" * 60)
+    print("Combat commands: 'attack', 'defend', 'flee', 'status'")
+    print("-" * 60)
+    
+    # Get weapon (default to longsword if not set)
+    weapon = getattr(character, 'weapon', 'longsword')
+    
+    # If enemy goes first, process their attack
+    if not player_goes_first:
+        print(f"\n   The {enemy.name} attacks!")
+        input("   Press Enter...")
+        
+        enemy_atk, enemy_dmg = enemy_attack(enemy, character.armor_class)
+        print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
+        
+        if enemy_dmg:
+            character.take_damage(enemy_dmg['total'])
+    
+    # Combat loop
+    round_num = 1
+    result = None
+    
+    while True:
+        if enemy.is_dead:
+            print("\n🎉 Victory!")
+            result = 'victory'
+            break
+        
+        if character.current_hp <= 0:
+            print("\n💀 You have fallen...")
+            result = 'defeat'
+            break
+        
+        show_combat_status(character, enemy, round_num)
+        action = input("\n⚔️ Combat action: ").strip().lower()
+        
+        if action == 'status':
+            continue
+        
+        # Check for attack
+        attack_words = ['attack', 'hit', 'strike', 'swing', 'slash', 'stab', 'a', 
+                        'i attack', 'fight', 'kill']
+        is_attack = any(word in action for word in attack_words) or action == 'a'
+        
+        # Check for defend
+        defend_words = ['defend', 'block', 'parry', 'dodge']
+        is_defend = any(word in action for word in defend_words)
+        
+        # Check for flee
+        flee_words = ['flee', 'run', 'escape', 'retreat']
+        is_flee = any(word in action for word in flee_words)
+        
+        if is_attack:
+            print(f"\n   Press Enter to attack the {enemy.name}...")
+            input()
+            
+            attack = roll_attack(character, enemy.armor_class, weapon)
+            print(f"\n{format_attack_result(attack)}")
+            
+            if attack['is_crit']:
+                damage = roll_damage(character, weapon, True)
+                print(format_damage_result(damage))
+                enemy.take_damage(damage['total'])
+            elif attack['hit']:
+                damage = roll_damage(character, weapon, False)
+                print(format_damage_result(damage))
+                enemy.take_damage(damage['total'])
+            
+            # Enemy counterattack if alive
+            if not enemy.is_dead:
+                print(f"\n   The {enemy.name} retaliates!")
+                input("   Press Enter...")
+                
+                enemy_atk, enemy_dmg = enemy_attack(enemy, character.armor_class)
+                print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
+                
+                if enemy_dmg:
+                    character.take_damage(enemy_dmg['total'])
+        
+        elif is_defend:
+            print("\n🛡️ You take a defensive stance! (+2 AC this round)")
+            
+            if not enemy.is_dead:
+                print(f"\n   The {enemy.name} attacks!")
+                input("   Press Enter...")
+                
+                boosted_ac = character.armor_class + 2
+                enemy_atk, enemy_dmg = enemy_attack(enemy, boosted_ac)
+                print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
+                
+                if enemy_dmg:
+                    character.take_damage(enemy_dmg['total'])
+        
+        elif is_flee:
+            print("\n🏃 You attempt to flee!")
+            input("   Press Enter to roll escape check...")
+            
+            flee_dc = 10 + enemy.dex_modifier
+            flee_roll = random.randint(1, 20)
+            flee_mod = character.get_ability_modifier('dexterity')
+            flee_total = flee_roll + flee_mod
+            
+            mod_sign = '+' if flee_mod >= 0 else ''
+            
+            if flee_total >= flee_dc:
+                print(f"\n🎯 Escape: [{flee_roll}]{mod_sign}{flee_mod} = {flee_total} vs DC {flee_dc} = ✅ ESCAPED!")
+                print("\n🏃 You successfully fled the battle!")
+                result = 'fled'
+                break
+            else:
+                print(f"\n🎯 Escape: [{flee_roll}]{mod_sign}{flee_mod} = {flee_total} vs DC {flee_dc} = ❌ FAILED!")
+                print(f"\n   The {enemy.name} gets an opportunity attack!")
+                input("   Press Enter...")
+                
+                enemy_atk, enemy_dmg = enemy_attack(enemy, character.armor_class)
+                print(f"\n{format_enemy_attack(enemy_atk, enemy_dmg)}")
+                
+                if enemy_dmg:
+                    character.take_damage(enemy_dmg['total'])
+        
+        else:
+            print(f"\n❓ Unknown action: '{action}'")
+            print("   Valid commands: attack, defend, flee, status")
+            continue
+        
+        round_num += 1
+    
+    print("\n" + "=" * 60)
+    print("              COMBAT ENDED")
+    print("=" * 60)
+    
+    return result
 
 
 def select_scenario(scenario_manager: ScenarioManager) -> None:
@@ -422,6 +674,30 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
             
             # Check if another roll is needed
             skill, dc = parse_roll_request(response)
+        
+        # Check if DM triggered combat
+        enemy_type = parse_combat_request(response)
+        if enemy_type:
+            # Run combat encounter
+            combat_result = run_combat(character, enemy_type, chat)
+            
+            # Handle combat aftermath
+            if combat_result == 'victory':
+                result_msg = f"[COMBAT RESULT: VICTORY - {character.name} defeated the enemy! HP remaining: {character.current_hp}/{character.max_hp}]"
+            elif combat_result == 'defeat':
+                result_msg = f"[COMBAT RESULT: DEFEAT - {character.name} was defeated in battle!]"
+                print("\n🎲 Dungeon Master:")
+                get_dm_response(chat, result_msg, current_context)
+                print("\n💀 GAME OVER")
+                print("Thanks for playing! Better luck next time, adventurer.")
+                break
+            else:  # fled
+                result_msg = f"[COMBAT RESULT: ESCAPED - {character.name} fled the battle! HP remaining: {character.current_hp}/{character.max_hp}]"
+            
+            # Get DM's narration of combat aftermath (unless defeated)
+            if combat_result != 'defeat':
+                print("\n🎲 Dungeon Master:")
+                response = get_dm_response(chat, result_msg, current_context)
         
         # Check for scene transitions
         if scenario_manager.is_active() and response:
