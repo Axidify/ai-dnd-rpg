@@ -594,6 +594,67 @@ When player ambushes enemies:
 
 ---
 
+## Leveling System
+
+### XP and Level Progression
+
+Characters can advance from Level 1 to Level 5:
+
+| Level | XP Threshold | Cumulative XP | Proficiency |
+|-------|-------------|---------------|-------------|
+| 1 | 0 | 0 | +2 |
+| 2 | 100 | 100 | +2 |
+| 3 | 200 | 300 | +2 |
+| 4 | 300 | 600 | +2 |
+| 5 | 400 | 1000 | +3 |
+
+### XP Reward System
+
+DM awards XP using tags in responses:
+
+| Tag Format | Description |
+|------------|-------------|
+| `[XP: 50]` | Award 50 XP |
+| `[XP: 50 \| Defeated goblin]` | Award 50 XP with reason |
+
+### Milestone XP Values
+
+| Milestone Type | XP Value |
+|----------------|----------|
+| `minor` | 25 XP |
+| `major` | 50 XP |
+| `boss` | 100 XP |
+| `adventure` | 150 XP |
+
+### Player Commands
+
+| Command | Description |
+|---------|-------------|
+| `xp`, `level` | View current level and XP progress |
+| `levelup` | Advance to next level (if eligible) |
+
+### Level Up Benefits
+
+| Level | Benefits |
+|-------|----------|
+| 2 | +2 HP, +1 stat boost |
+| 3 | +2 HP, class ability |
+| 4 | +2 HP, +1 stat boost |
+| 5 | +2 HP, class ability, +1 proficiency |
+
+### Key Functions (character.py)
+
+| Function | Purpose |
+|----------|---------|
+| `gain_xp(amount, source)` | Add XP, check level up |
+| `can_level_up()` | Check if XP threshold met |
+| `level_up()` | Apply level up benefits |
+| `xp_to_next_level()` | XP needed for next level |
+| `xp_progress()` | Progress toward next level |
+| `get_proficiency_bonus()` | Get current proficiency |
+
+---
+
 ## Testing Guidelines
 
 ### Manual Testing Checklist
