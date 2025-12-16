@@ -47,6 +47,11 @@ class TestCharacter:
         self.current_hp = 12
         self.armor_class = 14  # Chain shirt
         self.weapon = "longsword"
+        self.level = 1
+        self.experience = 0
+    
+    # XP thresholds for leveling (same as main Character class)
+    XP_THRESHOLDS = {1: 0, 2: 100, 3: 300, 4: 600, 5: 1000}
     
     def get_ability_modifier(self, ability_name):
         ability_map = {
@@ -69,6 +74,55 @@ class TestCharacter:
     def take_damage(self, amount):
         self.current_hp = max(0, self.current_hp - amount)
         return self.current_hp > 0
+    
+    def gain_xp(self, amount: int, source: str = ""):
+        """Add XP and check if level up is available."""
+        old_xp = self.experience
+        self.experience += amount
+        can_level = self.can_level_up()
+        return {
+            'old_xp': old_xp,
+            'new_xp': self.experience,
+            'gained': amount,
+            'source': source,
+            'level_up': can_level
+        }
+    
+    def can_level_up(self) -> bool:
+        """Check if character has enough XP to level up."""
+        if self.level >= 5:
+            return False
+        next_level = self.level + 1
+        return self.experience >= self.XP_THRESHOLDS.get(next_level, float('inf'))
+    
+    def xp_to_next_level(self) -> int:
+        """Return XP needed to reach next level."""
+        if self.level >= 5:
+            return 0
+        next_level = self.level + 1
+        threshold = self.XP_THRESHOLDS.get(next_level, self.experience)
+        return max(0, threshold - self.experience)
+    
+    def level_up(self) -> dict:
+        """Level up the character if eligible."""
+        if not self.can_level_up():
+            return None
+        
+        old_level = self.level
+        self.level += 1
+        
+        # Gain HP
+        con_mod = self.get_ability_modifier('constitution')
+        hp_gain = max(1, 5 + con_mod)  # Fighter uses d10, avg 5.5 -> 5
+        self.max_hp += hp_gain
+        self.current_hp += hp_gain
+        
+        return {
+            'old_level': old_level,
+            'new_level': self.level,
+            'hp_gain': hp_gain,
+            'new_max_hp': self.max_hp
+        }
 
 
 # =============================================================================
@@ -495,8 +549,48 @@ def main():
             alive_enemies = [e for e in enemies if not e.is_dead]
             if not alive_enemies:
                 print("\n🎉 Victory! All enemies defeated!")
+                
+                # Award XP based on enemies defeated
+                xp_per_enemy = {'Goblin': 25, 'Orc': 50, 'Skeleton': 25, 'Wolf': 25, 'Bandit': 50}
+                total_xp = 0
+                xp_breakdown = []
+                for e in enemies:
+                    xp_val = xp_per_enemy.get(e.name, 25)
+                    total_xp += xp_val
+                    xp_breakdown.append(f"{e.name}: {xp_val}")
+                
+                print(f"\n{'='*50}")
+                print(f"  ⭐ EXPERIENCE GAINED")
+                print(f"{'='*50}")
+                for entry in xp_breakdown:
+                    print(f"  • {entry} XP")
+                print(f"  ────────────────────────")
+                print(f"  Total: +{total_xp} XP")
+                
+                # Award XP to character
+                xp_result = character.gain_xp(total_xp, "Combat Victory")
+                print(f"  XP: {xp_result['old_xp']} → {xp_result['new_xp']}")
+                
+                # Check for level up
+                if xp_result['level_up']:
+                    print(f"\n  🎉 LEVEL UP AVAILABLE!")
+                    print(f"  Type 'levelup' to advance (or press Enter to skip)...")
+                    level_input = input("  > ").strip().lower()
+                    if level_input in ['levelup', 'level up', 'y', 'yes', '']:
+                        result = character.level_up()
+                        if result:
+                            print(f"\n  {'='*40}")
+                            print(f"  🎉 LEVEL UP! Level {result['old_level']} → {result['new_level']}!")
+                            print(f"  ❤️  +{result['hp_gain']} HP (now {result['new_max_hp']} max)")
+                            print(f"  {'='*40}")
+                else:
+                    xp_needed = character.xp_to_next_level()
+                    print(f"  Need {xp_needed} more XP to reach Level {character.level + 1}")
+                
+                print(f"{'='*50}")
+                
                 print("\n🎲 Dungeon Master:")
-                dm_response = get_dm_response(chat, f"[VICTORY: Player defeated all enemies! Narrate the victory moment. 2-3 dramatic sentences.]")
+                dm_response = get_dm_response(chat, f"[VICTORY: Player defeated all enemies! They gained {total_xp} XP. Narrate the victory moment. 2-3 dramatic sentences.]")
                 print("\nCombat test complete!")
                 return
             
