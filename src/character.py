@@ -91,6 +91,25 @@ class Character:
         """Calculate ability modifier from score."""
         return (score - 10) // 2
     
+    def get_ability_modifier(self, ability_name: str) -> int:
+        """Get the modifier for a named ability (strength, dexterity, etc.)."""
+        ability_map = {
+            'strength': self.strength,
+            'str': self.strength,
+            'dexterity': self.dexterity,
+            'dex': self.dexterity,
+            'constitution': self.constitution,
+            'con': self.constitution,
+            'intelligence': self.intelligence,
+            'int': self.intelligence,
+            'wisdom': self.wisdom,
+            'wis': self.wisdom,
+            'charisma': self.charisma,
+            'cha': self.charisma,
+        }
+        score = ability_map.get(ability_name.lower(), 10)
+        return self.get_modifier(score)
+    
     @staticmethod
     def roll_stat() -> int:
         """Roll 4d6, drop lowest (standard D&D stat generation)."""

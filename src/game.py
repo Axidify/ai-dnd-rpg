@@ -1,9 +1,12 @@
 """
-AI D&D Text RPG - Core Game (Phase 1)
+AI D&D Text RPG - Core Game (Phase 2)
 A D&D adventure where AI acts as Dungeon Master.
+Now with integrated skill checks and dice rolling!
 """
 
 import os
+import re
+import random
 from dotenv import load_dotenv
 import google.generativeai as genai
 from character import Character, create_character_interactive, CLASSES, RACES
@@ -11,6 +14,99 @@ from scenario import ScenarioManager
 
 # Load environment variables from .env
 load_dotenv()
+
+
+# =============================================================================
+# DICE SYSTEM
+# =============================================================================
+
+# Skill to ability mapping for D&D 5e
+SKILL_ABILITIES = {
+    'athletics': 'strength',
+    'acrobatics': 'dexterity',
+    'sleight_of_hand': 'dexterity',
+    'stealth': 'dexterity',
+    'arcana': 'intelligence',
+    'history': 'intelligence',
+    'investigation': 'intelligence',
+    'nature': 'intelligence',
+    'religion': 'intelligence',
+    'animal_handling': 'wisdom',
+    'insight': 'wisdom',
+    'medicine': 'wisdom',
+    'perception': 'wisdom',
+    'survival': 'wisdom',
+    'deception': 'charisma',
+    'intimidation': 'charisma',
+    'performance': 'charisma',
+    'persuasion': 'charisma',
+}
+
+
+def roll_skill_check(character: Character, skill_name: str, dc: int) -> dict:
+    """Roll a skill check using the character's stats."""
+    skill_lower = skill_name.lower().replace(' ', '_')
+    
+    # Map skill to ability, or use the skill name as ability for raw checks
+    if skill_lower in SKILL_ABILITIES:
+        ability = SKILL_ABILITIES[skill_lower]
+    else:
+        # Try direct ability check (strength, dexterity, etc.)
+        ability = skill_lower
+    
+    # Get modifier from character using the new method
+    modifier = character.get_ability_modifier(ability)
+    
+    # Roll d20
+    roll = random.randint(1, 20)
+    total = roll + modifier
+    
+    return {
+        'skill': skill_name.title(),
+        'ability': ability.upper()[:3],
+        'roll': roll,
+        'modifier': modifier,
+        'total': total,
+        'dc': dc,
+        'success': total >= dc,
+        'is_nat_20': roll == 20,
+        'is_nat_1': roll == 1,
+    }
+
+
+def format_roll_result(result: dict) -> str:
+    """Format a roll result for display."""
+    mod_sign = '+' if result['modifier'] >= 0 else ''
+    outcome = "✅ SUCCESS" if result['success'] else "❌ FAILURE"
+    
+    nat_str = ""
+    if result['is_nat_20']:
+        nat_str = " ✨ NAT 20!"
+    elif result['is_nat_1']:
+        nat_str = " 💀 NAT 1!"
+    
+    return (
+        f"🎲 {result['skill']} ({result['ability']}): "
+        f"[{result['roll']}]{mod_sign}{result['modifier']} = {result['total']} "
+        f"vs DC {result['dc']} = {outcome}{nat_str}"
+    )
+
+
+def parse_roll_request(dm_response: str) -> tuple:
+    """Parse [ROLL: skill DC X] from DM response."""
+    pattern = r'\[ROLL:\s*(\w+)\s+DC\s*(\d+)\]'
+    match = re.search(pattern, dm_response, re.IGNORECASE)
+    
+    if match:
+        skill = match.group(1)
+        dc = int(match.group(2))
+        return skill, dc
+    return None, None
+
+
+# =============================================================================
+# DM SYSTEM PROMPT
+# =============================================================================
 
 # Base system prompt that defines the AI as a Dungeon Master
 DM_SYSTEM_PROMPT_BASE = """You are an experienced Dungeon Master running a classic D&D adventure.
@@ -22,6 +118,38 @@ Your responsibilities:
 - Keep the adventure exciting and fair
 - Follow the scene context provided to guide the story
 - Progress the story naturally based on player actions
+
+## SKILL CHECK SYSTEM
+
+When a situation requires a skill check, end your narration with this EXACT format:
+[ROLL: SkillName DC X]
+
+VALID FORMATS:
+- [ROLL: Stealth DC 12]
+- [ROLL: Perception DC 15]
+- [ROLL: Investigation DC 10]
+- [ROLL: Persuasion DC 14]
+- [ROLL: Athletics DC 13]
+- [ROLL: Acrobatics DC 12]
+- [ROLL: Insight DC 11]
+- [ROLL: Arcana DC 15]
+- [ROLL: Intimidation DC 13]
+- [ROLL: Deception DC 14]
+- [ROLL: Survival DC 10]
+- [ROLL: History DC 12]
+
+IMPORTANT RULES:
+- Only use the [ROLL: Skill DC X] format - nothing else
+- Do NOT explain how to roll dice - the game system handles it automatically
+- Do NOT add extra text inside the brackets
+- Wait for the result before narrating what happens
+- Use appropriate DCs: Easy=10, Medium=13, Hard=15, Very Hard=18, Nearly Impossible=20+
+
+When you receive a [ROLL RESULT: ...]:
+- SUCCESS: Describe the positive outcome naturally
+- FAILURE: Describe the negative consequence - be honest about failures
+- NATURAL 20: Make it EPIC! Something amazing happens
+- NATURAL 1: Make it DISASTROUS! A dramatic or comedic failure
 
 Style guidelines:
 - Use second person ("You enter the tavern...")
@@ -109,6 +237,10 @@ def show_help(scenario_active: bool = False):
     help_text += """
 ║  help, ?                  - Show this help               ║
 ║  quit, exit, q            - Exit the game                ║
+╠══════════════════════════════════════════════════════════╣
+║  🎲 SKILL CHECKS                                         ║
+║  The DM will automatically request rolls when needed.    ║
+║  Press Enter when prompted to roll your dice!            ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Any other text sends your action to the Dungeon Master  ║
 ╚══════════════════════════════════════════════════════════╝
@@ -262,6 +394,34 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
         # Get DM response (streaming handles printing)
         print("\n🎲 Dungeon Master:")
         response = get_dm_response(chat, player_input, current_context)
+        
+        # Check if DM requested a skill check
+        skill, dc = parse_roll_request(response)
+        while skill and dc:
+            print(f"\n📋 DM requests: {skill.title()} check (DC {dc})")
+            input("   Press Enter to roll...")
+            
+            # Perform the roll
+            result = roll_skill_check(character, skill, dc)
+            print(f"\n{format_roll_result(result)}")
+            
+            # Build result message for DM
+            result_msg = (
+                f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = "
+                f"{'SUCCESS' if result['success'] else 'FAILURE'}"
+            )
+            if result['is_nat_20']:
+                result_msg += " (NATURAL 20!)"
+            elif result['is_nat_1']:
+                result_msg += " (NATURAL 1!)"
+            result_msg += "]"
+            
+            # Get DM's reaction to the roll
+            print(f"\n🎲 Dungeon Master:")
+            response = get_dm_response(chat, result_msg, current_context)
+            
+            # Check if another roll is needed
+            skill, dc = parse_roll_request(response)
         
         # Check for scene transitions
         if scenario_manager.is_active() and response:

@@ -9,7 +9,86 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Planned
-- Phase 2: Core Game Mechanics (Dice, Combat, Inventory)
+- Phase 2.4: Integrate combat into main game
+- Phase 3: Inventory System
+
+---
+
+## [0.5.0] - 2024-12-16
+
+### Added
+- **Phase 2.3: Combat System** - Full D&D-style turn-based combat
+  - `src/combat.py` module with complete combat mechanics
+  - **Initiative System**: d20 + DEX modifier, determines turn order
+  - **Attack Rolls**: d20 + STR/DEX + proficiency vs AC
+  - **Damage Rolls**: Weapon-specific dice + ability modifier
+  - **Critical Hits**: Natural 20 doubles damage dice
+  - **Fumbles**: Natural 1 always misses
+  
+- **Combat Actions**
+  - `attack` - Roll to hit and damage enemy
+  - `defend` - +2 AC bonus for the round
+  - `flee` - DEX check vs DC (10 + enemy DEX), opportunity attack on fail
+  - `status` - View current combat state
+
+- **Weapons System** (14 weapons)
+  - Simple: Dagger, Handaxe, Light Hammer, Mace, Quarterstaff, Sickle
+  - Martial: Longsword, Shortsword, Battleaxe, Greataxe, Greatsword, Warhammer
+  - Ranged: Shortbow, Longbow
+  - Finesse property for DEX-based attacks
+
+- **Enemies System** (6 preset enemies)
+  - Goblin, Goblin Boss, Skeleton, Orc, Bandit, Wolf
+  - Each with HP, AC, attack bonus, damage dice, DEX modifier
+
+- **Enhanced Combat UI**
+  - Detailed status panel with HP bars (visual ████░░░░)
+  - Round counter tracking
+  - Weapon damage display
+  - AC comparison info
+
+- **AI DM Combat Integration**
+  - DM narrates combat cinematically
+  - Strict output filtering (prevents DM from generating fake roll results)
+  - Victory narration on enemy defeat
+  - Death narration on player defeat
+
+- **Combat Test Suite**
+  - `tests/test_combat_with_dm.py` - Full integration test with AI DM
+  - Typo tolerance (unknown commands don't skip turns)
+
+### Changed
+- Character class now has `get_ability_modifier(ability_name)` method
+- Improved error handling for unrecognized combat commands
+
+---
+
+## [0.4.0] - 2024-12-16
+
+### Added
+- **Phase 2.1: Skill Check System** - Integrated dice rolling with AI DM
+  - Automatic dice rolling when DM requests checks
+  - DM uses `[ROLL: SkillName DC X]` format to request rolls
+  - Full D&D 5e skill-to-ability mapping (18 skills)
+  - Press Enter to roll mechanic for player engagement
+  - Natural 20 and Natural 1 special handling
+  - Visual roll results with success/failure indicators
+  
+- **New Character Method**
+  - `get_ability_modifier(ability_name)` - Get modifier by ability name
+
+- **Skill Mappings**
+  - STR: Athletics
+  - DEX: Acrobatics, Sleight of Hand, Stealth
+  - INT: Arcana, History, Investigation, Nature, Religion
+  - WIS: Animal Handling, Insight, Medicine, Perception, Survival
+  - CHA: Deception, Intimidation, Performance, Persuasion
+
+### Changed
+- Updated DM system prompt with skill check instructions
+- Game loop now parses DM responses for roll requests
+- Multiple consecutive rolls supported (DM can chain checks)
+- Help command updated with dice rolling info
 
 ---
 

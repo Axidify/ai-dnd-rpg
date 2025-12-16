@@ -1,0 +1,101 @@
+=== Combat Test Log - 2025-12-16 10:10:08 ===
+
+============================================================
+      ⚔️ AI DM + COMBAT INTEGRATION TEST ⚔️
+============================================================
+
+You are: Kira (Human Fighter)
+Wielding: Longsword
+HP: 12/12, AC: 14
+
+Opponent: Goblin
+HP: 7/7, AC: 15
+
+============================================================
+              🎯 INITIATIVE PHASE 🎯
+============================================================
+
+Press Enter to roll initiative...
+🎯 Kira Initiative: [7]+2 = 9
+🎯 Goblin Initiative: [7]+2 = 9
+
+✨ Kira goes first!
+
+╔══════════════════════════════════════╗
+║          ⚔️ TURN ORDER ⚔️            ║
+╠══════════════════════════════════════╣
+║  1. Kira (You)                       ║
+║  2. Goblin                           ║
+╚══════════════════════════════════════╝
+
+------------------------------------------------------------
+Combat commands: 'attack', 'defend', 'flee', 'status', 'quit'
+------------------------------------------------------------
+
+🎲 Dungeon Master:
+The air crackles with anticipation as you, Kira, stand ready, longsword gleaming in the dim light of the cavern. Across from you, the goblin, a scrawny creature with beady eyes and a wicked grin, brandishes a rusty shortsword. It eyes you warily, its stance low and twitchy, ready to spring.
+
+What do you do?
+
+
+==================================================
+  🟢 Kira: 12/12 HP
+  ⚔️ Goblin: healthy (7/7 HP)
+==================================================
+
+⚔️ Your action: 
+🛡️ You take a defensive stance! (+2 AC this round)
+
+   The Goblin attacks!
+   Press Enter...
+👹 Goblin attacks: [3]+4 = 7 vs your AC 16 = ❌ MISS
+
+🎲 Dungeon Master:
+The goblin lunges forward, shortsword aimed at your chest! But with a flick of your wrist, you deflect the crude blade harmlessly aside.
+What do you do?
+
+
+==================================================
+  🟢 Kira: 12/12 HP
+  ⚔️ Goblin: healthy (7/7 HP)
+==================================================
+
+⚔️ Your action: 
+==================================================
+  🟢 Kira: 12/12 HP
+  ⚔️ Goblin: healthy (7/7 HP)
+==================================================
+
+⚔️ Your action: 
+🎲 Dungeon Master:
+I need an action, Kira. Do you attack, move, or take another action?
+
+
+   ⚠️ The Goblin doesn't wait - it attacks!
+   Press Enter...
+👹 Goblin attacks: [17]+4 = 21 vs your AC 14 = ✅ HIT!
+   You take 4 damage!
+
+🎲 Dungeon Master:
+The goblin takes advantage of your hesitation, darting in to slash at your arm! A searing pain blossoms as its rusty blade finds purchase.
+
+What do you do?
+
+
+==================================================
+  🟡 Kira: 8/12 HP
+  ⚔️ Goblin: healthy (7/7 HP)
+==================================================
+
+⚔️ Your action: 
+🏃 You attempt to flee!
+   Press Enter to roll escape check...
+🎯 Escape: [12]+2 = 14 vs DC 12 = ✅ ESCAPED!
+
+🎲 Dungeon Master:
+Knowing when to disengage is a sign of a wise warrior. You leap back, creating space between yourself and the goblin. Then, you turn and sprint away, the goblin's screeching laughter echoing behind you as you disappear into the cavern's depths.
+
+
+🏃 You successfully fled the battle!
+
+Combat test complete!
