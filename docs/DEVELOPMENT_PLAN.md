@@ -1,7 +1,7 @@
 # AI D&D Text RPG - Development Plan
 
 **Project:** Text-based D&D RPG with AI Dungeon Master  
-**Status:** Phase 2 - Inventory System Complete (2.5/2.6)  
+**Status:** Phase 2 Complete - Ready for Phase 3  
 **Created:** December 15, 2025  
 
 ---
@@ -31,7 +31,7 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 
 ---
 
-### Phase 2: Core Game Mechanics 🔄 In Progress
+### Phase 2: Core Game Mechanics ✅ Complete
 **Goal:** Add actual D&D gameplay rules
 
 | Step | Feature | Description | Status |
@@ -43,7 +43,7 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 | 2.5 | Inventory System | Pick up items, use items, equip gear | ✅ Complete |
 | 2.5.1 | Multi-Enemy Combat | Fight multiple enemies with proper turn order | ✅ Complete |
 | 2.5.2 | Surprise & Advantage | Ambush attacks with surprise round and advantage | ✅ Complete |
-| 2.6 | Leveling System | Simplified XP/milestone progression (cap at level 5) | ⬜ |
+| 2.6 | Leveling System | Simplified XP/milestone progression (cap at level 5) | ✅ Complete |
 
 **Success Criteria:**
 - [x] Player can roll dice with proper modifiers
@@ -53,7 +53,18 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 - [x] Player can collect and use items
 - [x] Player can fight multiple enemies simultaneously
 - [x] Player can ambush enemies with surprise round
-- [ ] Player can level up and gain abilities
+- [x] Player can level up and gain abilities
+
+**Leveling System Features (2.6):**
+```
+- Level cap: 5
+- XP Thresholds: 0 → 100 → 300 → 600 → 1000
+- Commands: 'xp' (view progress), 'levelup' (advance)
+- DM awards XP with [XP: amount] or [XP: amount | reason]
+- Milestone XP: minor=25, major=50, boss=100, adventure=150
+- Benefits: +2 HP/level, stat boosts at L2/L4, abilities at L3/L5
+- Proficiency bonus: +2 (L1-4), +3 (L5)
+```
 
 **Multi-Enemy Combat Features (2.5.1):**
 ```
