@@ -9,8 +9,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Planned
-- Phase 2.4: Integrate combat into main game
-- Phase 3: Inventory System
+- Phase 2.6: Leveling System
+- Phase 3: World & Persistence
+
+---
+
+## [0.6.0] - 2024-12-16
+
+### Added
+- **Phase 2.5: Inventory System** - Complete item management
+  - `src/inventory.py` module with full inventory mechanics
+  
+- **Item Types**
+  - **Weapons**: Dagger, Shortsword, Longsword, Greataxe, Rapier, Quarterstaff, Mace, Longbow, Shortbow
+  - **Armor**: Leather, Studded Leather, Chain Shirt, Chain Mail, Plate
+  - **Consumables**: Healing Potion, Greater Healing Potion, Antidote, Rations
+  - **Misc**: Torch, Rope, Thieves' Tools, Bedroll
+  - **Quest Items**: Mysterious Key, Ancient Scroll, Goblin Ear
+  
+- **Inventory Commands**
+  - `inventory` / `inv` / `i` - View inventory and gold
+  - `use <item>` - Use consumable items (healing potions, etc.)
+  - `equip <item>` - Equip weapons or armor (updates stats)
+  - `inspect <item>` - View detailed item information
+
+- **DM Item Rewards**
+  - DM can give items with `[ITEM: item_name]` tag
+  - DM can give gold with `[GOLD: amount]` tag
+  - Items automatically added to player inventory
+
+- **Combat Loot**
+  - Enemies now drop loot on defeat
+  - Loot tables based on enemy type
+  - Gold drops from most humanoid enemies
+
+- **Starting Equipment**
+  - Characters start with class-appropriate gear
+  - 10-25 starting gold
+  - Basic supplies: Healing Potion, 3x Rations, 2x Torch
+  - Class gear: Fighter/Paladin/Cleric get Chain Shirt, Rogues get Thieves' Tools, etc.
+
+- **Equipment System**
+  - Armor now affects AC when equipped
+  - Weapons can be swapped mid-game
+  - Character sheet shows gold and item count
+
+---
+
+## [0.5.1] - 2024-12-16
+
+### Added
+- **Phase 2.4: Combat Integration**
+  - Combat fully integrated into main game.py
+  - DM triggers combat with `[COMBAT: enemy_type]` tag
+  - Combat results feed back to DM for narrative continuation
+  - Class-based default weapons in Character class
 
 ---
 

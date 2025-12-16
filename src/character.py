@@ -62,6 +62,11 @@ class Character:
     
     # Equipment
     weapon: str = "longsword"  # Default weapon for combat
+    equipped_armor: str = ""  # Empty = unarmored
+    
+    # Inventory
+    inventory: list = field(default_factory=list)
+    gold: int = 0
     
     # Experience
     experience: int = 0
@@ -140,7 +145,7 @@ class Character:
     @classmethod
     def create_random(cls, name: str) -> 'Character':
         """Create a character with random stats."""
-        return cls(
+        char = cls(
             name=name,
             race=random.choice(RACES),
             char_class=random.choice(CLASSES),
@@ -151,6 +156,57 @@ class Character:
             wisdom=cls.roll_stat(),
             charisma=cls.roll_stat()
         )
+        char._add_starting_equipment()
+        return char
+    
+    def _add_starting_equipment(self):
+        """Add starting equipment based on class."""
+        from inventory import get_item, add_item_to_inventory
+        
+        # All classes get basic supplies
+        self.gold = random.randint(10, 25)
+        
+        # Add healing potion
+        potion = get_item("healing_potion")
+        if potion:
+            add_item_to_inventory(self.inventory, potion)
+        
+        # Add rations
+        rations = get_item("rations")
+        if rations:
+            rations.quantity = 3
+            add_item_to_inventory(self.inventory, rations)
+        
+        # Add torch
+        torch = get_item("torch")
+        if torch:
+            torch.quantity = 2
+            add_item_to_inventory(self.inventory, torch)
+        
+        # Class-specific starting gear
+        class_gear = {
+            "Fighter": ["longsword", "chain_shirt"],
+            "Paladin": ["longsword", "chain_shirt"],
+            "Ranger": ["shortbow", "leather_armor"],
+            "Barbarian": ["greataxe", "leather_armor"],
+            "Wizard": ["quarterstaff"],
+            "Sorcerer": ["dagger"],
+            "Rogue": ["shortsword", "leather_armor", "lockpicks"],
+            "Bard": ["shortsword", "leather_armor"],
+            "Warlock": ["dagger", "leather_armor"],
+            "Monk": ["quarterstaff"],
+            "Cleric": ["mace", "chain_shirt"],
+            "Druid": ["quarterstaff", "leather_armor"],
+        }
+        
+        for item_name in class_gear.get(self.char_class, []):
+            item = get_item(item_name)
+            if item:
+                add_item_to_inventory(self.inventory, item)
+                # Auto-equip armor if it gives AC
+                if item.ac_bonus:
+                    self.equipped_armor = item.name.lower()
+                    self.armor_class += item.ac_bonus
     
     def format_modifier(self, score: int) -> str:
         """Format modifier as +X or -X."""
@@ -160,6 +216,7 @@ class Character:
     def get_stat_block(self) -> str:
         """Return a formatted character sheet."""
         hp_bar = self._get_hp_bar()
+        item_count = len(self.inventory)
         
         return f"""
 ╔══════════════════════════════════════════════════════════╗
@@ -177,6 +234,8 @@ class Character:
 ╠══════════════════════════════════════════════════════════╣
 ║  HP: {self.current_hp}/{self.max_hp}  {hp_bar:<20}  AC: {self.armor_class:<2}            ║
 ║  XP: {self.experience:<10}                                       ║
+╠══════════════════════════════════════════════════════════╣
+║  💰 Gold: {self.gold:<10}  📦 Items: {item_count:<10}              ║
 ╚══════════════════════════════════════════════════════════╝
 """
     
@@ -288,6 +347,9 @@ def create_character_interactive() -> Character:
         char_class=char_class,
         **stats
     )
+    
+    # Add starting equipment
+    character._add_starting_equipment()
     
     print("\n✨ Character created!")
     print(character.get_stat_block())

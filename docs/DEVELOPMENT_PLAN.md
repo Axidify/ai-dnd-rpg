@@ -1,7 +1,7 @@
 # AI D&D Text RPG - Development Plan
 
 **Project:** Text-based D&D RPG with AI Dungeon Master  
-**Status:** Phase 2 - Combat System Complete  
+**Status:** Phase 2 - Inventory System Complete (2.5/2.6)  
 **Created:** December 15, 2025  
 
 ---
@@ -39,16 +39,16 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 | 2.1 | Dice Rolling System | d4, d6, d8, d10, d12, d20 with modifiers | ✅ Complete |
 | 2.2 | Skill Checks | AI requests rolls, player rolls, outcome affects story | ✅ Complete |
 | 2.3 | Combat System | Turn-based, HP tracking, attack/defend/flee actions | ✅ Complete |
-| 2.4 | Combat Integration | Integrate combat into main game with AI triggers | 🔄 In Progress |
-| 2.5 | Inventory System | Pick up items, use items, equip gear | ⬜ |
+| 2.4 | Combat Integration | Integrate combat into main game with AI triggers | ✅ Complete |
+| 2.5 | Inventory System | Pick up items, use items, equip gear | ✅ Complete |
 | 2.6 | Leveling System | Simplified XP/milestone progression (cap at level 5) | ⬜ |
 
 **Success Criteria:**
 - [x] Player can roll dice with proper modifiers
 - [x] Skill checks affect story outcomes
 - [x] Player can fight an enemy and win/lose
-- [ ] Combat works seamlessly in main game
-- [ ] Player can collect and use items
+- [x] Combat works seamlessly in main game
+- [x] Player can collect and use items
 - [ ] Player can level up and gain abilities
 
 **Leveling System Design (Planned):**

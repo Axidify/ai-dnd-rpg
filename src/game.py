@@ -17,6 +17,11 @@ from combat import (
     format_attack_result, format_damage_result, format_enemy_attack,
     roll_initiative, format_initiative_roll
 )
+from inventory import (
+    get_item, add_item_to_inventory, remove_item_from_inventory,
+    find_item_in_inventory, format_inventory, format_item_details,
+    use_item, generate_loot, gold_from_enemy, Item, ItemType
+)
 
 # Load environment variables from .env
 load_dotenv()
@@ -119,6 +124,20 @@ def parse_combat_request(dm_response: str) -> str:
     return None
 
 
+def parse_item_rewards(dm_response: str) -> list:
+    """Parse [ITEM: item_name] tags from DM response."""
+    pattern = r'\[ITEM:\s*([^\]]+)\]'
+    matches = re.findall(pattern, dm_response, re.IGNORECASE)
+    return [m.strip() for m in matches]
+
+
+def parse_gold_rewards(dm_response: str) -> int:
+    """Parse [GOLD: amount] tags from DM response."""
+    pattern = r'\[GOLD:\s*(\d+)\]'
+    matches = re.findall(pattern, dm_response, re.IGNORECASE)
+    return sum(int(m) for m in matches)
+
+
 # =============================================================================
 # DM SYSTEM PROMPT
 # =============================================================================
@@ -185,6 +204,27 @@ COMBAT RULES:
 - You will receive combat results like [COMBAT RESULT: VICTORY] or [COMBAT RESULT: DEFEAT]
 - After combat, narrate the aftermath based on the result
 - Do NOT narrate attack rolls or damage yourself - wait for results
+
+## ITEM & REWARD SYSTEM
+
+When the player finds items or receives rewards, use these tags:
+[ITEM: item_name] - Give an item to the player
+[GOLD: amount] - Give gold to the player
+
+Available items: healing_potion, greater_healing_potion, antidote, rations, torch, rope, 
+lockpicks, dagger, shortsword, longsword, greataxe, rapier, leather_armor, studded_leather,
+chain_shirt, chain_mail, goblin_ear, mysterious_key, ancient_scroll
+
+Examples:
+- Player loots a chest: [ITEM: healing_potion] [GOLD: 15]
+- Quest reward: [ITEM: longsword] [GOLD: 50]
+- Found in a drawer: [ITEM: torch]
+
+ITEM RULES:
+- Only use [ITEM: name] for rewards, found items, or quest rewards
+- Gold amounts should be reasonable: small reward=5-15, medium=20-50, large=75-150
+- The game system adds items to inventory automatically
+- You'll see confirmation of what was added
 
 Style guidelines:
 - Use second person ("You enter the tavern...")
@@ -263,7 +303,11 @@ def show_help(scenario_active: bool = False):
 ║                     COMMANDS                             ║
 ╠══════════════════════════════════════════════════════════╣
 ║  stats, character, sheet  - View your character sheet    ║
-║  hp                       - Quick HP check               ║"""
+║  hp                       - Quick HP check               ║
+║  inventory, inv, i        - View your inventory          ║
+║  use <item>               - Use a consumable item        ║
+║  equip <item>             - Equip a weapon or armor      ║
+║  inspect <item>           - View item details            ║"""
     
     if scenario_active:
         help_text += """
@@ -626,6 +670,68 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
                 print("\n  (No structured scenario active - Free Play mode)")
             continue
         
+        # Check for inventory command
+        if player_input.lower() in ["inventory", "inv", "i", "items", "bag"]:
+            print(format_inventory(character.inventory, character.gold))
+            continue
+        
+        # Check for use item command
+        if player_input.lower().startswith("use "):
+            item_name = player_input[4:].strip()
+            item = find_item_in_inventory(character.inventory, item_name)
+            if not item:
+                print(f"\n  ❌ You don't have '{item_name}' in your inventory.")
+            elif item.item_type != ItemType.CONSUMABLE:
+                print(f"\n  ❌ You can't use {item.name} like that. Try 'equip' for weapons/armor.")
+            else:
+                success, msg = use_item(item, character)
+                if success:
+                    remove_item_from_inventory(character.inventory, item_name)
+                print(f"\n  {msg}")
+            continue
+        
+        # Check for equip command
+        if player_input.lower().startswith("equip "):
+            item_name = player_input[6:].strip()
+            item = find_item_in_inventory(character.inventory, item_name)
+            if not item:
+                print(f"\n  ❌ You don't have '{item_name}' in your inventory.")
+            elif item.item_type == ItemType.WEAPON:
+                character.weapon = item.name.lower()
+                print(f"\n  ⚔️ Equipped {item.name} as your weapon!")
+                if item.damage_dice:
+                    print(f"     Damage: {item.damage_dice}")
+            elif item.item_type == ItemType.ARMOR:
+                # Unequip old armor bonus first
+                if character.equipped_armor:
+                    old_armor = get_item(character.equipped_armor)
+                    if old_armor and old_armor.ac_bonus:
+                        character.armor_class -= old_armor.ac_bonus
+                # Equip new armor
+                character.equipped_armor = item.name.lower()
+                if item.ac_bonus:
+                    character.armor_class += item.ac_bonus
+                print(f"\n  🛡️ Equipped {item.name}!")
+                print(f"     AC is now: {character.armor_class}")
+            else:
+                print(f"\n  ❌ You can't equip {item.name}.")
+            continue
+        
+        # Check for inspect/examine item command
+        if player_input.lower().startswith(("inspect ", "examine ", "look at ")):
+            # Extract item name
+            for prefix in ["inspect ", "examine ", "look at "]:
+                if player_input.lower().startswith(prefix):
+                    item_name = player_input[len(prefix):].strip()
+                    break
+            item = find_item_in_inventory(character.inventory, item_name)
+            if not item:
+                # Not an item - let DM handle it
+                pass
+            else:
+                print(f"\n{format_item_details(item)}")
+                continue
+        
         # Check for help command
         if player_input.lower() in ["help", "?"]:
             show_help(scenario_manager.is_active())
@@ -683,7 +789,27 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
             
             # Handle combat aftermath
             if combat_result == 'victory':
+                # Generate loot from defeated enemy
+                loot = generate_loot(enemy_type)
+                gold_drop = gold_from_enemy(enemy_type)
+                
+                # Add loot to inventory
+                loot_lines = []
+                for item in loot:
+                    msg = add_item_to_inventory(character.inventory, item)
+                    loot_lines.append(f"  📦 {msg}")
+                
+                if gold_drop > 0:
+                    character.gold += gold_drop
+                    loot_lines.append(f"  💰 Found {gold_drop} gold!")
+                
+                if loot_lines:
+                    print("\n✨ LOOT:")
+                    for line in loot_lines:
+                        print(line)
+                
                 result_msg = f"[COMBAT RESULT: VICTORY - {character.name} defeated the enemy! HP remaining: {character.current_hp}/{character.max_hp}]"
+                
             elif combat_result == 'defeat':
                 result_msg = f"[COMBAT RESULT: DEFEAT - {character.name} was defeated in battle!]"
                 print("\n🎲 Dungeon Master:")
@@ -698,6 +824,27 @@ Set the scene according to the DM instructions. Introduce the scenario hook natu
             if combat_result != 'defeat':
                 print("\n🎲 Dungeon Master:")
                 response = get_dm_response(chat, result_msg, current_context)
+        
+        # Check for item/gold rewards from DM
+        if response:
+            items_given = parse_item_rewards(response)
+            gold_given = parse_gold_rewards(response)
+            
+            reward_lines = []
+            for item_name in items_given:
+                item = get_item(item_name)
+                if item:
+                    msg = add_item_to_inventory(character.inventory, item)
+                    reward_lines.append(f"  📦 {msg}")
+            
+            if gold_given > 0:
+                character.gold += gold_given
+                reward_lines.append(f"  💰 Received {gold_given} gold!")
+            
+            if reward_lines:
+                print("\n✨ REWARDS:")
+                for line in reward_lines:
+                    print(line)
         
         # Check for scene transitions
         if scenario_manager.is_active() and response:
