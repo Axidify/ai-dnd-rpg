@@ -15,7 +15,9 @@ AI RPG V2/
 ├── .venv/                  # Python virtual environment
 ├── README.md               # This file
 ├── requirements.txt        # Python dependencies
+├── task.py                 # TaskSync helper script
 ├── tasksync.md             # TaskSync protocol
+├── saves/                  # Game save files (auto-created)
 ├── docs/
 │   ├── CHANGELOG.md            # Version history
 │   ├── DEVELOPER_GUIDE.md      # Technical documentation
@@ -23,14 +25,26 @@ AI RPG V2/
 │   ├── FLUTTER_SETUP.md        # Flutter installation guide
 │   ├── THEME_SYSTEM_SPEC.md    # DLC-ready theme architecture
 │   └── UI_DESIGN_SPEC.md       # UI/UX specifications
-└── src/
-    ├── __init__.py         # Package initializer
-    └── game.py             # Main game logic
+├── src/
+│   ├── __init__.py         # Package initializer
+│   ├── character.py        # Character system (stats, XP, leveling)
+│   ├── combat.py           # Combat system (multi-enemy, surprise)
+│   ├── game.py             # Main game logic
+│   ├── inventory.py        # Items and inventory
+│   ├── save_system.py      # Save/Load persistence
+│   └── scenario.py         # Adventure scenarios
+└── tests/
+    ├── test_combat_with_dm.py  # Combat integration tests
+    ├── test_dice.py            # Dice rolling tests
+    ├── test_dice_with_dm.py    # Dice + AI tests
+    ├── test_multi_enemy.py     # Multi-enemy tests
+    ├── test_save_system.py     # Save/Load tests
+    └── test_xp_system.py       # XP/Leveling tests
 ```
 
 ---
 
-## Current Features (Phase 1 Complete)
+## Current Features (Phase 1-3.1 Complete)
 
 ### ✅ AI Dungeon Master
 - **Google Gemini 2.0 Flash** provides intelligent, contextual responses
@@ -46,6 +60,22 @@ AI RPG V2/
 - **Quick Start** - Random character generation available
 - **Character Sheet** - ASCII art display with all stats
 - **HP/AC Calculation** - Based on class and constitution/dexterity
+- **XP & Leveling** - Level 1-5 with milestone XP rewards
+- **Proficiency Bonus** - Scales with level (+2 to +3)
+
+### ✅ Combat System
+- **D&D 5e Rules** - Initiative, attack rolls, damage
+- **Multi-Enemy Combat** - Fight multiple enemies simultaneously
+- **Surprise Rounds** - Ambush mechanics with advantage
+- **Turn Order** - Initiative-based combat sequence
+- **Defend Action** - +2 AC bonus until next turn
+- **Flee Option** - Escape combat with DEX check
+
+### ✅ Inventory System
+- **Item Types** - Weapons, armor, consumables, quest items
+- **Equipment** - Equip weapons and armor
+- **Loot Drops** - Random loot from defeated enemies
+- **Gold Tracking** - Currency system
 
 ### ✅ Scenario System
 - **Structured Adventures** - Scenes with objectives and transitions
@@ -54,14 +84,21 @@ AI RPG V2/
 - **Progress Tracking** - See where you are in the story
 - **Pacing Control** - Minimum exchanges per scene
 
+### ✅ Save/Load System (NEW!)
+- **Save Games** - Save to numbered slots or timestamped files
+- **Load Games** - Resume from main menu or during play
+- **Persistent Progress** - Character, inventory, scenario state saved
+- **Multi-Platform Ready** - API-ready for cloud saves
+
 ### How It Works
-1. Player launches the game and creates a character
+1. Player launches the game and creates a character (or loads a save)
 2. Player selects an adventure or Free Play mode
 3. AI DM sets the scene tailored to your character
 4. Player types actions (e.g., "I search the room", "I talk to the innkeeper")
 5. AI responds with streaming text following scene guidance
-6. Story progresses through scenes based on player actions
-7. Adventure concludes with resolution scene
+6. Combat, skill checks, and loot are handled automatically
+7. Player can save progress at any time
+8. Adventure concludes with resolution scene
 
 ---
 
@@ -124,6 +161,7 @@ AI RPG V2/
 When you start the game, you can:
 1. **Create character** - Choose name, race, class, and roll stats
 2. **Quick start** - Generate a random character instantly
+3. **Load saved game** - Continue a previous adventure (if saves exist)
 
 ### In-Game Commands
 
@@ -131,6 +169,14 @@ When you start the game, you can:
 |---------|--------|
 | `stats`, `character`, `sheet` | View your character sheet |
 | `hp` | Quick HP check with visual bar |
+| `xp`, `level` | View XP progress and level |
+| `levelup` | Level up when ready |
+| `inventory`, `inv`, `i` | View your inventory |
+| `use <item>` | Use a consumable item |
+| `equip <item>` | Equip a weapon or armor |
+| `save` | Save your game |
+| `load` | Load a saved game |
+| `saves` | List all saved games |
 | `help`, `?` | Show all commands |
 | `quit`, `exit`, `q` | Exit the game gracefully |
 | Any other text | Send your action to the Dungeon Master |

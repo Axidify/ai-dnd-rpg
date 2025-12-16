@@ -9,7 +9,108 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Planned
-- Phase 3: World & Persistence
+- Phase 3.2: Location System
+- Phase 3.3: NPCs
+
+---
+
+## [0.8.2] - 2024-12-16
+
+### Added
+- **Critical Success/Failure Narration** - Enhanced skill check system
+  - Natural 20 triggers "CRITICAL SUCCESS" context for AI
+  - AI prompted to narrate legendary/epic outcomes for nat 20s
+  - Natural 1 triggers "CRITICAL FAILURE" context for AI
+  - AI prompted to narrate dramatic/comedic disasters for nat 1s
+  - Enhanced system prompt with detailed critical guidance
+
+### Changed
+- Skill check result messages now include explicit narration hints for AI
+- System prompt expanded with critical success/failure examples
+
+---
+
+## [0.8.1] - 2024-12-16
+
+### Added
+- **Comprehensive Test Suite** - 137 unit tests across all systems
+  - `test_character.py` - 26 tests (creation, modifiers, HP, healing, XP)
+  - `test_combat.py` - 28 tests (dice, enemies, attacks, initiative)
+  - `test_inventory.py` - 35 tests (items, management, consumables, loot)
+  - `test_scenario.py` - 26 tests (scenes, progression, objectives)
+  - Total coverage: 41% overall, 95% inventory, 74% character
+
+- **Interactive Inventory Test** - `test_inventory_with_dm.py`
+  - Shop system with AI merchant personalities
+  - Loot generation from defeated enemies
+  - Item use with AI narration
+  - Full inventory management testing
+
+- **Enhanced Save System Error Handling**
+  - Custom exception hierarchy (7 exception types)
+  - Data validation functions
+  - Atomic saves (temp file + rename)
+  - Input sanitization for save names
+  - Value clamping for data integrity
+  - Error logging and tracking
+
+### Changed
+- Updated `DEVELOPER_GUIDE.md` with:
+  - Starting equipment documentation
+  - Inventory system reference
+  - Error handling documentation
+  - Updated test file listing
+
+---
+
+## [0.8.0] - 2024-12-17
+
+### Added
+- **Save/Load System (Phase 3.1)** - Complete game persistence
+  - New `src/save_system.py` module
+  - Save games to numbered slots (1-3) or timestamped files
+  - Load games from main menu or during gameplay
+  - List all saved games with character info
+  - Creates `/saves/` directory automatically
+
+- **Save Data Includes**
+  - Full character state (stats, HP, XP, level)
+  - Inventory with all item details
+  - Equipped weapon and armor
+  - Gold balance
+  - Scenario progress and story flags
+  - Chat history (last 20 messages)
+
+- **In-Game Commands**
+  - `save` - Save current game to slot
+  - `load` - Load a saved game
+  - `saves` - List all saved games
+
+- **Main Menu Integration**
+  - Option [3] to load saved game on startup
+  - Shows number of available saves
+
+- **Multi-Platform Architecture**
+  - `StorageBackend` abstraction for local/cloud storage
+  - `LocalFileBackend` for CLI (current)
+  - API-ready serialization (Phase 5 compatible)
+  - JSON format compatible with Flutter (Phase 6)
+
+- **Unit Tests**
+  - New `tests/test_save_system.py`
+  - Character serialization tests
+  - Item serialization tests
+  - Full save/load cycle tests
+
+- **TaskSync Updates**
+  - File-based polling to avoid terminal timeouts
+  - `python task.py --poll` (non-blocking)
+  - `python task.py --write "task"` to queue tasks
+
+### Changed
+- Updated help menu with save/load commands
+- Updated DEVELOPER_GUIDE.md with save system documentation
+- Updated project structure in documentation
 
 ---
 

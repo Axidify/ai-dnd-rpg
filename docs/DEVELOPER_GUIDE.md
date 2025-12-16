@@ -14,10 +14,11 @@ This document provides comprehensive technical documentation for developers who 
 4. [AI Integration](#ai-integration)
 5. [Configuration System](#configuration-system)
 6. [Game Loop Logic](#game-loop-logic)
-7. [Extending the Game](#extending-the-game)
-8. [Testing Guidelines](#testing-guidelines)
-9. [Deployment](#deployment)
-10. [Troubleshooting](#troubleshooting)
+7. [Save/Load System](#saveload-system)
+8. [Extending the Game](#extending-the-game)
+9. [Testing Guidelines](#testing-guidelines)
+10. [Deployment](#deployment)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -107,14 +108,36 @@ ai-dnd-rpg/
 │   ├── THEME_SYSTEM_SPEC.md    # DLC-ready theme architecture
 │   └── UI_DESIGN_SPEC.md       # UI/UX specifications
 │
+├── saves/                  # Game save files (auto-created)
+│   └── save_*.json             # Individual save files
+│
 ├── README.md               # User-facing documentation
 ├── requirements.txt        # Python dependencies
+├── task.py                 # TaskSync task input helper
+├── task.txt                # TaskSync task queue file
 ├── tasksync.md             # Development protocol
 │
-└── src/
-    ├── __init__.py         # Package marker
-    ├── character.py        # Character system (stats, creation, display)
-    └── game.py             # Main game logic, AI integration
+├── src/
+│   ├── __init__.py         # Package marker
+│   ├── character.py        # Character system (stats, creation, XP/leveling)
+│   ├── combat.py           # Combat system (attacks, damage, multi-enemy)
+│   ├── game.py             # Main game logic, AI integration
+│   ├── inventory.py        # Item and inventory management
+│   ├── save_system.py      # Save/Load system (Phase 3.1)
+│   └── scenario.py         # Scenario and scene management
+│
+└── tests/
+    ├── test_character.py       # Character system tests (26 tests)
+    ├── test_combat.py           # Combat mechanics tests (28 tests)
+    ├── test_combat_with_dm.py   # Interactive combat tests
+    ├── test_dice.py             # Dice rolling tests
+    ├── test_dice_with_dm.py     # Dice + AI tests
+    ├── test_inventory.py        # Inventory system tests (35 tests)
+    ├── test_inventory_with_dm.py # Interactive inventory tests
+    ├── test_multi_enemy.py      # Multi-enemy combat tests
+    ├── test_save_system.py      # Save/Load system tests (6 tests)
+    ├── test_scenario.py         # Scenario system tests (26 tests)
+    └── test_xp_system.py        # XP and leveling tests (10 tests)
 ```
 
 ### File Responsibilities
@@ -122,7 +145,11 @@ ai-dnd-rpg/
 | File | Purpose | Modify When |
 |------|---------|-------------|
 | `src/game.py` | Core game logic, AI integration | Adding game features |
-| `src/character.py` | Character class, stats, creation | Adding character features |
+| `src/character.py` | Character class, stats, XP/leveling | Adding character features |
+| `src/combat.py` | Combat mechanics, multi-enemy | Modifying combat |
+| `src/inventory.py` | Items, equipment, loot | Adding items/equipment |
+| `src/save_system.py` | Save/Load persistence | Changing save format |
+| `src/scenario.py` | Story scenarios, scenes | Adding scenarios |
 | `.env` | API keys, configuration | Changing providers/models |
 | `requirements.txt` | Dependencies | Adding libraries |
 | `docs/DEVELOPMENT_PLAN.md` | Roadmap | Planning new phases |
@@ -299,6 +326,40 @@ class Character:
 - AC = 10 + DEX modifier (unarmored)
 - Modifier = (score - 10) // 2
 
+### Starting Equipment System
+
+When a character is created with `create_random()` or `create_character_interactive()`, the `_add_starting_equipment()` method is called automatically.
+
+**Universal Starting Gear (all classes):**
+
+| Item | Quantity | Purpose |
+|------|----------|--------|
+| Gold | 10-25 gp | Starting currency |
+| Healing Potion | 1 | Emergency healing |
+| Rations | 3 | Food supplies |
+| Torch | 2 | Light source |
+
+**Class-Specific Gear:**
+
+| Class | Weapon | Armor | Special |
+|-------|--------|-------|--------|
+| Fighter | Longsword | Chain Shirt | — |
+| Paladin | Longsword | Chain Shirt | — |
+| Ranger | Shortbow | Leather Armor | — |
+| Barbarian | Greataxe | Leather Armor | — |
+| Wizard | Quarterstaff | — | — |
+| Sorcerer | Dagger | — | — |
+| Rogue | Shortsword | Leather Armor | Lockpicks |
+| Bard | Shortsword | Leather Armor | — |
+| Warlock | Dagger | Leather Armor | — |
+| Monk | Quarterstaff | — | — |
+| Cleric | Mace | Chain Shirt | — |
+| Druid | Quarterstaff | Leather Armor | — |
+
+**Code Location:** `character.py` → `Character._add_starting_equipment()`
+
+**Note:** Armor is automatically equipped and AC is adjusted when adding armor with `ac_bonus`.
+
 ---
 
 ## AI Integration
@@ -339,6 +400,71 @@ chat.send_message("Player action")    # History auto-updated
 2. **Use Examples**: Show the AI what good output looks like
 3. **Set Constraints**: "Do not reveal the enemy's HP directly"
 4. **Define Behaviors**: "When player asks to roll dice, describe the result narratively"
+
+---
+
+## Inventory System
+
+The inventory system (`src/inventory.py`) manages items, equipment, and loot.
+
+### Item Types
+
+| Type | Value | Examples |
+|------|-------|----------|
+| `WEAPON` | `"weapon"` | Longsword, Dagger, Shortbow |
+| `ARMOR` | `"armor"` | Leather Armor, Chain Shirt |
+| `CONSUMABLE` | `"consumable"` | Healing Potion, Rations |
+| `QUEST` | `"quest"` | Mysterious Key, Ancient Scroll |
+| `MISC` | `"misc"` | Torch, Rope, Lockpicks |
+
+### Item Rarity
+
+| Rarity | Value | Color (UI) |
+|--------|-------|------------|
+| `COMMON` | `"common"` | White |
+| `UNCOMMON` | `"uncommon"` | Green |
+| `RARE` | `"rare"` | Blue |
+
+### Key Functions
+
+| Function | Purpose |
+|----------|---------|
+| `get_item(name)` | Get item from database by name (case-insensitive) |
+| `add_item_to_inventory(inv, item)` | Add item, stacks if stackable |
+| `remove_item_from_inventory(inv, name, qty)` | Remove item or reduce stack |
+| `find_item_in_inventory(inv, name)` | Search inventory for item |
+| `use_item(item, character)` | Use consumable on character |
+| `format_inventory(inv, gold)` | Display formatted inventory |
+| `generate_loot(enemy_name)` | Generate random loot from enemy |
+| `gold_from_enemy(enemy_name)` | Get gold drop amount |
+
+### Item Database (ITEMS)
+
+Pre-defined items in `ITEMS` dict:
+
+```python
+# Weapons
+"dagger", "shortsword", "longsword", "rapier", "greataxe"
+"quarterstaff", "mace", "shortbow", "longbow"
+
+# Armor  
+"leather_armor", "studded_leather", "chain_shirt", "chain_mail", "plate_armor"
+
+# Consumables
+"healing_potion", "greater_healing_potion", "antidote", "rations"
+
+# Quest/Misc
+"torch", "rope", "lockpicks", "bedroll", "mysterious_key", "goblin_ear"
+```
+
+### In-Game Commands
+
+| Command | Description |
+|---------|-------------|
+| `inventory`, `inv`, `i` | View inventory |
+| `use <item>` | Use consumable item |
+| `equip <item>` | Equip weapon or armor |
+| `inspect <item>` | View item details |
 
 ---
 
@@ -383,6 +509,57 @@ api_key = os.getenv("GOOGLE_API_KEY")  # Read value
 
 ---
 
+## Skill Check System
+
+The skill check system handles ability checks with critical success/failure narration.
+
+### How It Works
+
+1. **AI Requests Roll**: DM ends message with `[ROLL: SkillName DC X]`
+2. **System Rolls**: `roll_skill_check()` rolls d20 + modifier
+3. **Display Result**: Shows roll, modifier, total, and success/failure
+4. **Send Context to AI**: Enhanced context for criticals
+
+### Critical Success/Failure
+
+| Roll | Context Sent to AI | Expected Narration |
+|------|-------------------|-------------------|
+| Natural 20 | `CRITICAL SUCCESS - NATURAL 20! Narrate something EXTRAORDINARY...` | Legendary, epic, exceeds expectations |
+| Natural 1 | `CRITICAL FAILURE - NATURAL 1! Narrate a DISASTROUS or COMEDIC failure...` | Dramatic disaster, comedic mishap |
+| Normal | `SUCCESS` or `FAILURE` | Standard outcome narration |
+
+### Key Functions
+
+```python
+# game.py
+roll_skill_check(character, skill_name, dc)  # Returns result dict
+format_roll_result(result)                    # Formats for display
+parse_roll_request(dm_response)              # Parses [ROLL: ...] tags
+
+# Result dict contains:
+{
+    'skill': 'Stealth',
+    'ability': 'DEX',
+    'roll': 14,           # Raw d20 roll
+    'modifier': 3,
+    'total': 17,
+    'dc': 15,
+    'success': True,
+    'is_nat_20': False,
+    'is_nat_1': False
+}
+```
+
+### Display Format
+
+```
+🎲 Stealth (DEX): [14]+3 = 17 vs DC 15 = ✅ SUCCESS
+🎲 Athletics (STR): [1]+2 = 3 vs DC 12 = ❌ FAILURE 💀 NAT 1!
+🎲 Perception (WIS): [20]+1 = 21 vs DC 10 = ✅ SUCCESS ✨ NAT 20!
+```
+
+---
+
 ## Game Loop Logic
 
 ### State Machine (Current)
@@ -416,6 +593,237 @@ api_key = os.getenv("GOOGLE_API_KEY")  # Read value
 
 ```
 INIT → CHARACTER_CREATE → SCENARIO_SELECT → PLAYING ⇄ COMBAT → INVENTORY → SAVE/LOAD → EXIT
+```
+
+---
+
+## Save/Load System
+
+The save system (`src/save_system.py`) handles game state persistence. It's designed to be multi-platform ready for Phase 5 (Backend API) and Phase 6 (Flutter App).
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    Save/Load System                          │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────┐     ┌─────────────────┐                │
+│  │  SaveManager    │────▶│ StorageBackend  │  (abstract)    │
+│  │                 │     │                 │                │
+│  │  - save_game()  │     └────────┬────────┘                │
+│  │  - load_game()  │              │                          │
+│  │  - list_saves() │     ┌────────┴────────┐                │
+│  └─────────────────┘     │                 │                │
+│                          ▼                 ▼                │
+│              ┌─────────────────┐  ┌─────────────────┐       │
+│              │LocalFileBackend │  │ CloudBackend    │       │
+│              │   (Phase 3)     │  │   (Phase 5)     │       │
+│              │ saves/*.json    │  │  REST API       │       │
+│              └─────────────────┘  └─────────────────┘       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+#### SaveManager Class
+
+Main interface for save/load operations:
+
+```python
+from save_system import SaveManager
+
+save_manager = SaveManager()
+
+# Save game
+filepath = save_manager.save_game(
+    character,           # Required: Character object
+    scenario_manager,    # Optional: ScenarioManager
+    chat_history=None,   # Optional: List of chat messages
+    slot=1,              # Optional: 1-3 for slots, None for timestamp
+    description="My save"
+)
+
+# Load game
+result = save_manager.load_game(filepath, Character, ScenarioManager)
+character = result['character']
+scenario_manager = result['scenario_manager']
+
+# List all saves
+saves = save_manager.list_saves()
+for save in saves:
+    print(f"{save['character_name']} L{save['character_level']}")
+```
+
+#### Serialization Functions
+
+These convert game objects to/from dictionaries:
+
+| Function | Purpose |
+|----------|---------|
+| `character_to_dict(char)` | Character → JSON-ready dict |
+| `dict_to_character(data, Character)` | Dict → Character object |
+| `item_to_dict(item)` | Item → dict |
+| `dict_to_item(data)` | Dict → Item object |
+| `scenario_to_dict(manager)` | Scenario state → dict |
+| `restore_scenario(manager, data)` | Dict → Scenario state |
+
+#### Storage Backend Abstraction
+
+The `StorageBackend` abstract class allows swapping storage implementations:
+
+```python
+from save_system import StorageBackend, set_storage_backend
+
+# For Phase 5: Implement a cloud backend
+class CloudBackend(StorageBackend):
+    def save(self, save_id: str, data: dict) -> bool:
+        # POST to /api/saves/{save_id}
+        response = requests.post(f"{API_URL}/saves/{save_id}", json=data)
+        return response.ok
+    
+    def load(self, save_id: str) -> dict:
+        # GET from /api/saves/{save_id}
+        response = requests.get(f"{API_URL}/saves/{save_id}")
+        return response.json()
+    
+    def delete(self, save_id: str) -> bool:
+        # DELETE /api/saves/{save_id}
+        ...
+    
+    def list_saves(self) -> list:
+        # GET /api/saves
+        ...
+
+# Swap backend globally
+set_storage_backend(CloudBackend())
+```
+
+### Save File Format
+
+Saves are stored as JSON in `/saves/`:
+
+```json
+{
+  "version": "1.0",
+  "timestamp": "2024-12-17T14:30:00",
+  "description": "After defeating the goblin boss",
+  
+  "character": {
+    "name": "Aldric",
+    "race": "Human",
+    "char_class": "Fighter",
+    "level": 3,
+    "strength": 16,
+    "dexterity": 12,
+    "constitution": 14,
+    "intelligence": 10,
+    "wisdom": 13,
+    "charisma": 11,
+    "max_hp": 24,
+    "current_hp": 18,
+    "armor_class": 14,
+    "weapon": "longsword",
+    "equipped_armor": "chain_shirt",
+    "inventory": [...],
+    "gold": 75,
+    "experience": 350
+  },
+  
+  "scenario": {
+    "id": "goblin_cave",
+    "current_scene_index": 3,
+    "choices_made": ["helped_villager", "spared_goblin"],
+    "story_flags": {"has_key": true},
+    "completed": false
+  },
+  
+  "chat_history": [
+    {"role": "user", "content": "I attack the goblin"},
+    {"role": "model", "content": "You swing your sword..."}
+  ]
+}
+```
+
+### In-Game Commands
+
+| Command | Description |
+|---------|-------------|
+| `save` | Save game (choose slot 1-3) |
+| `load` | Load a saved game |
+| `saves` | List all saved games |
+
+### Testing
+
+Run save system tests:
+
+```bash
+cd tests
+python test_save_system.py
+```
+
+Tests cover:
+- Character serialization/deserialization
+- Item serialization/deserialization  
+- Full save/load cycle
+- Save listing functionality
+- Error handling and validation
+
+### Error Handling
+
+The save system includes comprehensive error handling with custom exceptions:
+
+**Exception Hierarchy:**
+
+| Exception | When Raised | Recovery Hint |
+|-----------|-------------|---------------|
+| `SaveSystemError` | Base class for all save errors | — |
+| `SaveFileNotFoundError` | Save file doesn't exist | Check file path, create new save |
+| `SaveFileCorruptedError` | JSON parse failed | Delete and recreate save |
+| `SaveVersionMismatchError` | Incompatible save version | Upgrade save or use compatible version |
+| `SavePermissionError` | Can't read/write file | Check file permissions |
+| `SaveValidationError` | Invalid save data | Fix or delete corrupted save |
+| `SaveDiskSpaceError` | Disk full | Free space and retry |
+
+**Validation Functions:**
+
+```python
+from save_system import validate_character_data, validate_save_data
+
+# Validate character data before loading
+errors = validate_character_data(char_dict)
+if errors:
+    print(f"Validation failed: {errors}")
+
+# Validate entire save file
+errors = validate_save_data(save_dict)
+```
+
+**Atomic Saves:**
+
+The system uses atomic saves (temp file → rename) to prevent corruption:
+1. Write to temporary file
+2. Verify file integrity
+3. Rename to final destination
+4. Only then delete temp file
+
+**Error Recovery:**
+
+```python
+from save_system import SaveManager
+
+save_manager = SaveManager()
+filepath, message = save_manager.save_game(character, scenario)
+
+if filepath:
+    print(f"Saved: {filepath}")
+else:
+    print(f"Save failed: {message}")
+    
+# Check error log
+errors = save_manager.get_last_errors()
+for error in errors:
+    print(f"  - {error}")
 ```
 
 ---
@@ -591,6 +999,67 @@ When player ambushes enemies:
 | `skeleton` | 13 | 13 | +4 | 1d6+2 |
 | `bandit` | 11 | 12 | +3 | 1d6+1 |
 | `giant_spider` | 26 | 14 | +5 | 1d8+3 |
+
+---
+
+## Leveling System
+
+### XP and Level Progression
+
+Characters can advance from Level 1 to Level 5:
+
+| Level | XP Threshold | Cumulative XP | Proficiency |
+|-------|-------------|---------------|-------------|
+| 1 | 0 | 0 | +2 |
+| 2 | 100 | 100 | +2 |
+| 3 | 200 | 300 | +2 |
+| 4 | 300 | 600 | +2 |
+| 5 | 400 | 1000 | +3 |
+
+### XP Reward System
+
+DM awards XP using tags in responses:
+
+| Tag Format | Description |
+|------------|-------------|
+| `[XP: 50]` | Award 50 XP |
+| `[XP: 50 \| Defeated goblin]` | Award 50 XP with reason |
+
+### Milestone XP Values
+
+| Milestone Type | XP Value |
+|----------------|----------|
+| `minor` | 25 XP |
+| `major` | 50 XP |
+| `boss` | 100 XP |
+| `adventure` | 150 XP |
+
+### Player Commands
+
+| Command | Description |
+|---------|-------------|
+| `xp`, `level` | View current level and XP progress |
+| `levelup` | Advance to next level (if eligible) |
+
+### Level Up Benefits
+
+| Level | Benefits |
+|-------|----------|
+| 2 | +2 HP, +1 stat boost |
+| 3 | +2 HP, class ability |
+| 4 | +2 HP, +1 stat boost |
+| 5 | +2 HP, class ability, +1 proficiency |
+
+### Key Functions (character.py)
+
+| Function | Purpose |
+|----------|---------|
+| `gain_xp(amount, source)` | Add XP, check level up |
+| `can_level_up()` | Check if XP threshold met |
+| `level_up()` | Apply level up benefits |
+| `xp_to_next_level()` | XP needed for next level |
+| `xp_progress()` | Progress toward next level |
+| `get_proficiency_bonus()` | Get current proficiency |
 
 ---
 
