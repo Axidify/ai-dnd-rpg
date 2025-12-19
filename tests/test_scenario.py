@@ -5,7 +5,8 @@ Covers: scenes, scenarios, progression, objectives, transitions.
 
 import pytest
 import sys
-sys.path.insert(0, '../src')
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from scenario import (
     Scene, SceneStatus, Scenario,
@@ -168,8 +169,9 @@ class TestObjectives:
         scenario = _create_objective_scenario()
         scenario.start()
         
-        result = scenario.complete_objective("find_treasure")
+        result, xp = scenario.complete_objective("find_treasure")
         assert result == True
+        assert xp >= 0  # XP can be 0 or more depending on objective_xp
         assert "find_treasure" in scenario.get_current_scene().objectives_complete
     
     def test_complete_invalid_objective(self):
@@ -177,8 +179,9 @@ class TestObjectives:
         scenario = _create_objective_scenario()
         scenario.start()
         
-        result = scenario.complete_objective("nonexistent")
+        result, xp = scenario.complete_objective("nonexistent")
         assert result == False
+        assert xp == 0
     
     def test_cannot_transition_without_objectives(self):
         """Test can't transition until objectives complete."""
@@ -295,8 +298,9 @@ class TestEdgeCases:
     def test_complete_objective_no_scene(self):
         """Test completing objective with no current scene."""
         scenario = _create_test_scenario()
-        result = scenario.complete_objective("test")
+        result, xp = scenario.complete_objective("test")
         assert result == False
+        assert xp == 0
     
     def test_context_when_complete(self):
         """Test DM context when scenario is complete."""
@@ -374,6 +378,84 @@ def _create_objective_scenario() -> Scenario:
     scenario.scene_order = ["objective_scene"]
     
     return scenario
+
+
+class TestGoblinCaveQuests:
+    """Tests for Goblin Cave quest integration."""
+    
+    def test_create_quests_function_exists(self):
+        """Test that create_goblin_cave_quests function exists."""
+        from scenario import create_goblin_cave_quests
+        from quest import QuestManager
+        
+        manager = QuestManager()
+        create_goblin_cave_quests(manager)
+        
+        # Check quests were registered
+        assert len(manager.available_quests) == 4
+    
+    def test_rescue_lily_quest(self):
+        """Test main quest is properly defined."""
+        from scenario import create_goblin_cave_quests
+        from quest import QuestManager
+        
+        manager = QuestManager()
+        create_goblin_cave_quests(manager)
+        
+        quest = manager.available_quests.get("rescue_lily")
+        assert quest is not None
+        assert quest.name == "Rescue Lily"
+        assert quest.giver_npc_id == "bram"
+        assert len(quest.objectives) == 3
+        assert quest.rewards.get("xp") == 100
+        assert quest.rewards.get("gold") == 50
+    
+    def test_side_quests_defined(self):
+        """Test side quests are properly defined."""
+        from scenario import create_goblin_cave_quests
+        from quest import QuestManager
+        
+        manager = QuestManager()
+        create_goblin_cave_quests(manager)
+        
+        # Check Recover Heirlooms
+        heirlooms = manager.available_quests.get("recover_heirlooms")
+        assert heirlooms is not None
+        assert heirlooms.giver_npc_id == "bram"
+        assert len(heirlooms.objectives) == 2
+        assert "rescue_lily" in heirlooms.prerequisites
+        
+        # Check Clear the Path
+        clear = manager.available_quests.get("clear_the_path")
+        assert clear is not None
+        assert clear.giver_npc_id == "barkeep"
+        assert len(clear.objectives) == 2
+        
+        # Check Chief's Treasure
+        treasure = manager.available_quests.get("chiefs_treasure")
+        assert treasure is not None
+        assert treasure.giver_npc_id == "barkeep"
+    
+    def test_quest_items_exist(self):
+        """Test quest items are in the items database."""
+        from inventory import get_item
+        
+        locket = get_item("silver_locket")
+        assert locket is not None
+        assert "Locket" in locket.name
+        
+        ring = get_item("family_ring")
+        assert ring is not None
+        assert "Ring" in ring.name
+    
+    def test_quest_items_in_storage(self):
+        """Test quest items are placed in goblin storage."""
+        scenario = create_goblin_cave_scenario()
+        storage = scenario.location_manager.locations.get("goblin_storage")
+        
+        assert storage is not None
+        assert "silver_locket" in storage.items
+        assert "family_ring" in storage.items
 
 
 if __name__ == "__main__":

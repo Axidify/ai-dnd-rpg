@@ -36,21 +36,24 @@ def show_main_menu():
     print("╠" + "═" * 62 + "╣")
     print("║" + "  UNIT TESTS (no AI required)".ljust(62) + "║")
     print("║" + "    1. Combat System Tests (31 tests)".ljust(62) + "║")
-    print("║" + "    2. Location System Tests (80 tests)".ljust(62) + "║")
+    print("║" + "    2. Location System Tests (174 tests)".ljust(62) + "║")
     print("║" + "    3. Inventory System Tests (35 tests)".ljust(62) + "║")
-    print("║" + "    4. Scenario System Tests (26 tests)".ljust(62) + "║")
-    print("║" + "    5. Run ALL Unit Tests (228 total)".ljust(62) + "║")
+    print("║" + "    4. Scenario System Tests (31 tests)".ljust(62) + "║")
+    print("║" + "    5. Shop System Tests (28 tests)".ljust(62) + "║")
+    print("║" + "    6. NPC & Reputation Tests (128 tests)".ljust(62) + "║")
+    print("║" + "    7. Run ALL Unit Tests (728 total)".ljust(62) + "║")
     print("╠" + "═" * 62 + "╣")
     print("║" + "  INTERACTIVE TESTS (with AI DM)".ljust(62) + "║")
-    print("║" + "    6. Interactive Combat".ljust(62) + "║")
-    print("║" + "    7. Interactive Dice/Skill Checks".ljust(62) + "║")
-    print("║" + "    8. Interactive Inventory (Shop: Coming Soon)".ljust(62) + "║")
-    print("║" + "    9. Interactive Location Exploration".ljust(62) + "║")
-    print("║" + "   10. Full Adventure (all systems combined)".ljust(62) + "║")
+    print("║" + "    8. Interactive Combat".ljust(62) + "║")
+    print("║" + "    9. Interactive Dice/Skill Checks".ljust(62) + "║")
+    print("║" + "   10. Interactive Inventory".ljust(62) + "║")
+    print("║" + "   11. Interactive Shop (Buy/Sell/Haggle)".ljust(62) + "║")
+    print("║" + "   12. Interactive Location Exploration".ljust(62) + "║")
+    print("║" + "   13. Full Adventure (all systems combined)".ljust(62) + "║")
     print("╠" + "═" * 62 + "╣")
     print("║" + "  NARRATION TESTS".ljust(62) + "║")
-    print("║" + "   11. Combat Narration Tests".ljust(62) + "║")
-    print("║" + "   12. Location with DM Unit Tests (8 tests)".ljust(62) + "║")
+    print("║" + "   14. Combat Narration Tests".ljust(62) + "║")
+    print("║" + "   15. Location with DM Unit Tests (8 tests)".ljust(62) + "║")
     print("╠" + "═" * 62 + "╣")
     print("║" + "    0. Exit".ljust(62) + "║")
     print("╚" + "═" * 62 + "╝")
@@ -77,6 +80,48 @@ def run_pytest_tests(test_file: str, description: str):
     return result.returncode == 0
 
 
+def run_npc_reputation_tests():
+    """Run NPC and Reputation system tests."""
+    print("\n" + "=" * 60)
+    print("  🧪 RUNNING NPC & REPUTATION TESTS")
+    print("=" * 60)
+    
+    tests_dir = os.path.dirname(__file__)
+    test_files = [
+        "test_npc.py",
+        "test_reputation.py",
+        "test_reputation_hostile.py",
+    ]
+    
+    results = []
+    for test_file in test_files:
+        test_path = os.path.join(tests_dir, test_file)
+        if os.path.exists(test_path):
+            print(f"\n  Running {test_file}...")
+            result = subprocess.run(
+                ["python", "-m", "pytest", test_path, "-v", "--tb=short"],
+                capture_output=False
+            )
+            results.append((test_file, result.returncode == 0))
+    
+    # Summary
+    print("\n" + "=" * 60)
+    print("  📊 NPC & REPUTATION TEST SUMMARY")
+    print("=" * 60)
+    
+    passed = sum(1 for _, success in results if success)
+    failed = len(results) - passed
+    
+    for test_file, success in results:
+        status = "✅" if success else "❌"
+        print(f"  {status} {test_file}")
+    
+    print(f"\n  Total: {passed} passed, {failed} failed")
+    print("=" * 60)
+    
+    return failed == 0
+
+
 def run_all_unit_tests():
     """Run all pytest unit tests."""
     print("\n" + "=" * 60)
@@ -92,6 +137,18 @@ def run_all_unit_tests():
         "test_character.py",
         "test_dice.py",
         "test_save_system.py",
+        "test_shop.py",
+        "test_npc.py",
+        "test_dialogue.py",
+        "test_xp_system.py",
+        "test_reputation.py",
+        "test_reputation_hostile.py",
+        "test_quest.py",
+        "test_traveling_merchant.py",
+        "test_multi_enemy.py",
+        "test_hostile_player.py",
+        "test_prompt_injection.py",
+        "test_flow_breaking.py",
     ]
     
     results = []
@@ -153,10 +210,9 @@ def run_interactive_dice():
 
 
 def run_interactive_inventory():
-    """Run interactive inventory test. Shop is a test prototype only."""
+    """Run interactive inventory test."""
     print("\n" + "=" * 60)
     print("  🎒 LAUNCHING INTERACTIVE INVENTORY TEST")
-    print("  ⚠️  Note: Shop feature is a prototype (not in main game yet)")
     print("=" * 60)
     
     try:
@@ -164,6 +220,384 @@ def run_interactive_inventory():
         test_inventory_with_dm.run_interactive_test()
     except Exception as e:
         print(f"\n❌ Error: {e}")
+
+
+def run_interactive_shop():
+    """Run interactive shop test with Trader Mira and AI narration."""
+    print("\n" + "=" * 60)
+    print("  🛒 LAUNCHING INTERACTIVE SHOP TEST (with AI DM)")
+    print("=" * 60)
+    print("""
+This test simulates shopping with Trader Mira at the forest clearing.
+The AI Dungeon Master will narrate your shopping experience!
+
+Available commands:
+  shop       - View Mira's wares
+  buy <item> - Purchase an item
+  sell <item> - Sell from your inventory
+  haggle     - Try to negotiate prices (CHA DC 12)
+  inventory  - View your items and gold
+  talk       - Chat with Mira (AI responds)
+  quit       - Exit the shop test
+""")
+    
+    input("Press Enter to enter the shop...")
+    
+    # Check for API key
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        print("❌ No GOOGLE_API_KEY found! Running without AI narration.")
+        ai_enabled = False
+    else:
+        genai.configure(api_key=api_key)
+        ai_enabled = True
+    
+    # Import necessary modules
+    from character import Character
+    from scenario import create_goblin_cave_npcs
+    from npc import (
+        get_merchant_at_location, format_shop_display,
+        calculate_buy_price, calculate_sell_price,
+        check_stock, decrement_stock, get_shop_inventory_for_prompt
+    )
+    from inventory import (
+        ITEMS, get_item, add_item_to_inventory, remove_item_from_inventory,
+        find_item_in_inventory, format_inventory
+    )
+    from combat import roll_dice
+    
+    # Setup character with some gold and starting items
+    character = Character()
+    character.name = "Adventurer"
+    character.gold = 150
+    character.charisma = 14  # +2 modifier for haggle tests
+    
+    # Add starting items (need to get Item objects from ITEMS dict)
+    for item_id in ["dagger", "goblin_ear", "torch"]:
+        item = get_item(item_id)
+        if item:
+            add_item_to_inventory(character.inventory, item)
+    
+    # Get merchant from scenario
+    npc_manager = create_goblin_cave_npcs()
+    merchant = get_merchant_at_location(npc_manager, "forest_clearing")
+    
+    if not merchant:
+        print("❌ Could not find Trader Mira!")
+        return
+    
+    # Setup AI chat
+    chat = None
+    if ai_enabled:
+        # Get actual inventory for prompt
+        inventory_info = get_shop_inventory_for_prompt(merchant, ITEMS)
+        
+        SHOP_DM_PROMPT = f"""You are the Dungeon Master narrating a shopping interaction in a D&D-style RPG.
+
+MERCHANT: {merchant.name}
+Description: {merchant.description}
+Personality: Friendly but business-minded, disposition {merchant.disposition}/100
+Location: Forest clearing along the path to Darkhollow
+
+{inventory_info}
+
+PLAYER: {character.name}
+Gold: {character.gold}g
+Charisma modifier: +{(character.charisma - 10) // 2}
+
+Your role:
+1. Narrate the shopping experience with atmosphere and immersion
+2. Voice Trader Mira's dialogue (she's a weathered but friendly merchant)
+3. React to purchases, sales, and haggling attempts
+4. Keep responses SHORT (2-3 sentences for actions, slightly more for conversation)
+5. Add sensory details - the forest clearing, her pack mule, goods on display
+6. Never reveal game mechanics directly - describe outcomes narratively
+
+CRITICAL RULES:
+- When asked about stock/quantities, ONLY reference the EXACT numbers above!
+- NEVER invent different quantities or item types that aren't listed!
+- If player asks "how many X do you have?" refer to the actual inventory numbers.
+- There is only ONE type of healing potion (not "lesser" or "greater" variants).
+
+When the player buys/sells/haggles, you'll be told the outcome. Narrate it colorfully.
+When the player wants to talk, engage in character as Mira."""
+        
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=SHOP_DM_PROMPT
+        )
+        chat = model.start_chat(history=[])
+        
+        # Opening narration
+        print("\n🎲 Dungeon Master:")
+        try:
+            response = chat.send_message(
+                "The adventurer approaches the merchant's stall in the forest clearing. Set the scene briefly."
+            )
+            print(f"  {response.text}")
+        except Exception as e:
+            print(f"  [AI Error: {e}]")
+            print(f"  You approach {merchant.name} at the forest clearing.")
+    else:
+        print(f"\n  📍 You approach {merchant.name} at the forest clearing.")
+        print(f"  💬 \"{merchant.get_dialogue('greeting')}\"")
+    
+    print(f"\n  💰 Your gold: {character.gold}g")
+    
+    # Track haggle state
+    haggle_state = {merchant.id: {"discount": 0.0, "increase": 0.0}}
+    
+    # Auto-display shop on entry
+    print("\n  📋 Mira's current inventory:")
+    display = format_shop_display(merchant, ITEMS, character.gold, discount=0.0, price_increase=0.0)
+    print(display)
+    
+    while True:
+        print()
+        player_input = input("  🛒 Shop > ").strip()
+        lower_input = player_input.lower()
+        
+        if lower_input in ["quit", "exit", "leave", "q"]:
+            if ai_enabled and chat:
+                print("\n🎲 Dungeon Master:")
+                try:
+                    response = chat.send_message("The adventurer is leaving the shop. Give a brief farewell from Mira.")
+                    print(f"  {response.text}")
+                except:
+                    print(f"  💬 \"{merchant.get_dialogue('farewell')}\"")
+            else:
+                print(f"\n  💬 \"{merchant.get_dialogue('farewell')}\"")
+            print("  👋 You leave the shop.")
+            break
+        
+        # Check for shop/browse commands (expanded for natural language)
+        shop_phrases = ["shop", "browse", "wares", "show", "what do you sell", 
+                        "what do you have", "items", "goods", "stock", "see wares",
+                        "show me", "display", "list"]
+        if any(phrase in lower_input for phrase in shop_phrases):
+            state = haggle_state[merchant.id]
+            display = format_shop_display(
+                merchant, ITEMS, character.gold,
+                discount=state["discount"],
+                price_increase=state["increase"]
+            )
+            print(display)
+            if ai_enabled and chat:
+                print("\n🎲 Dungeon Master:")
+                try:
+                    response = chat.send_message("The player is browsing the wares. Brief reaction from Mira (1 sentence).")
+                    print(f"  {response.text}")
+                except:
+                    pass
+            continue
+        
+        if lower_input in ["inv", "inventory", "i"]:
+            print(format_inventory(character.inventory, character.gold))
+            continue
+        
+        if lower_input.startswith("buy "):
+            item_name = player_input[4:].strip()
+            
+            # Find in merchant inventory (handle both dict and list formats)
+            matching_item_id = None
+            if isinstance(merchant.shop_inventory, dict):
+                inventory_items = list(merchant.shop_inventory.keys())
+            else:
+                inventory_items = merchant.shop_inventory
+            
+            for inv_item in inventory_items:
+                if item_name.lower() in inv_item.lower():
+                    matching_item_id = inv_item
+                    break
+            
+            if not matching_item_id:
+                print(f"  ❌ Mira doesn't sell '{item_name}'.")
+                if ai_enabled and chat:
+                    print("\n🎲 Dungeon Master:")
+                    try:
+                        response = chat.send_message(f"Player tried to buy '{item_name}' but Mira doesn't have it. Her response.")
+                        print(f"  {response.text}")
+                    except:
+                        pass
+                continue
+            
+            # Check stock
+            stock = check_stock(merchant, matching_item_id)
+            if stock == 0:
+                item = get_item(matching_item_id)
+                item_display = item.name if item else matching_item_id
+                print(f"  ❌ Mira is out of {item_display}!")
+                if ai_enabled and chat:
+                    print("\n🎲 Dungeon Master:")
+                    try:
+                        response = chat.send_message(f"Player tried to buy {item_display} but it's out of stock. Mira's apologetic response.")
+                        print(f"  {response.text}")
+                    except:
+                        pass
+                continue
+            
+            item = get_item(matching_item_id)
+            if not item:
+                print(f"  ❌ Item '{matching_item_id}' not in database.")
+                continue
+            
+            # Calculate price with modifiers
+            state = haggle_state[merchant.id]
+            base_price = calculate_buy_price(item.value, merchant.merchant_markup)
+            final_price = int(base_price * (1 - state["discount"] + state["increase"]))
+            
+            if character.gold < final_price:
+                print(f"  ❌ Not enough gold! Need {final_price}g, have {character.gold}g")
+                if ai_enabled and chat:
+                    print("\n🎲 Dungeon Master:")
+                    try:
+                        response = chat.send_message(f"Player can't afford {item.name} ({final_price}g). Mira's sympathetic but firm response.")
+                        print(f"  {response.text}")
+                    except:
+                        pass
+            else:
+                character.gold -= final_price
+                purchased_item = get_item(matching_item_id)
+                add_item_to_inventory(character.inventory, purchased_item)
+                decrement_stock(merchant, matching_item_id)
+                
+                # Show stock remaining
+                remaining = check_stock(merchant, matching_item_id)
+                if remaining == -1:
+                    print(f"  ✅ Purchased {item.name} for {final_price}g!")
+                elif remaining == 0:
+                    print(f"  ✅ Purchased {item.name} for {final_price}g! (LAST ONE!)")
+                else:
+                    print(f"  ✅ Purchased {item.name} for {final_price}g! ({remaining} left in stock)")
+                print(f"  💰 Remaining: {character.gold}g")
+                
+                if ai_enabled and chat:
+                    print("\n🎲 Dungeon Master:")
+                    try:
+                        stock_msg = ""
+                        if remaining == 0:
+                            stock_msg = " That was the last one!"
+                        elif remaining > 0:
+                            stock_msg = f" {remaining} remaining."
+                        response = chat.send_message(f"Player bought {item.name} for {final_price}g.{stock_msg} Narrate the exchange briefly.")
+                        print(f"  {response.text}")
+                    except:
+                        pass
+            continue
+        
+        if lower_input.startswith("sell "):
+            item_name = player_input[5:].strip()
+            item = find_item_in_inventory(character.inventory, item_name)
+            
+            if not item:
+                print(f"  ❌ You don't have '{item_name}' to sell.")
+                continue
+            
+            sell_price = calculate_sell_price(item.value)
+            remove_item_from_inventory(character.inventory, item_name)
+            character.gold += sell_price
+            print(f"  ✅ Sold {item.name} for {sell_price}g!")
+            print(f"  💰 Your gold: {character.gold}g")
+            if ai_enabled and chat:
+                print("\n🎲 Dungeon Master:")
+                try:
+                    response = chat.send_message(f"Player sold {item.name} for {sell_price}g. Mira's reaction to the item.")
+                    print(f"  {response.text}")
+                except:
+                    pass
+            continue
+        
+        if lower_input in ["haggle", "bargain", "negotiate"]:
+            state = haggle_state[merchant.id]
+            
+            if state["discount"] > 0:
+                print(f"  ✓ Already have a {int(state['discount']*100)}% discount!")
+                continue
+            if state["increase"] > 0:
+                print(f"  ❌ Mira won't negotiate after your failed attempt.")
+                continue
+            
+            print(f"\n  🗣️ Attempting to haggle with {merchant.name}...")
+            print("  📋 Charisma Check (DC 12)")
+            input("     Press Enter to roll...")
+            
+            roll = roll_dice("1d20")[0]
+            cha_mod = (character.charisma - 10) // 2
+            total = roll + cha_mod
+            
+            print(f"  🎲 Rolled: {roll} + {cha_mod} (CHA) = {total}")
+            
+            if total >= 12:
+                haggle_state[merchant.id]["discount"] = 0.20
+                print(f"\n  ✅ Success! 20% discount earned!")
+                if ai_enabled and chat:
+                    print("\n🎲 Dungeon Master:")
+                    try:
+                        response = chat.send_message(f"Player succeeded haggling (rolled {total} vs DC 12)! They get 20% discount. Narrate Mira reluctantly agreeing.")
+                        print(f"  {response.text}")
+                    except:
+                        print(f"  💬 \"{merchant.get_dialogue('haggle_accept') or 'Fine, you win!'}\"")
+                else:
+                    print(f"  💬 \"{merchant.get_dialogue('haggle_accept') or 'Fine, you win!'}\"")
+            else:
+                haggle_state[merchant.id]["increase"] = 0.10
+                merchant.disposition = max(0, merchant.disposition - 5)
+                print(f"\n  ❌ Failed! Prices increased by 10%!")
+                if ai_enabled and chat:
+                    print("\n🎲 Dungeon Master:")
+                    try:
+                        response = chat.send_message(f"Player failed haggling (rolled {total} vs DC 12). Mira is offended, prices go UP 10%. Narrate her annoyance.")
+                        print(f"  {response.text}")
+                    except:
+                        print(f"  💬 \"{merchant.get_dialogue('haggle_reject') or 'How insulting!'}\"")
+                else:
+                    print(f"  💬 \"{merchant.get_dialogue('haggle_reject') or 'How insulting!'}\"")
+            continue
+        
+        if lower_input.startswith("talk") or lower_input.startswith("speak") or lower_input.startswith("ask"):
+            # Extract topic if any
+            topic = player_input.split(" ", 1)[1] if " " in player_input else "general"
+            
+            if ai_enabled and chat:
+                print("\n🎲 Dungeon Master:")
+                try:
+                    response = chat.send_message(f"Player wants to talk to Mira about: {topic}. Respond as Mira in character.")
+                    print(f"  {response.text}")
+                except Exception as e:
+                    print(f"  [AI Error: {e}]")
+            else:
+                # Use static dialogue
+                if "danger" in topic.lower() or "darkhollow" in topic.lower():
+                    print(f"  💬 \"{merchant.get_dialogue('about_danger') or 'The eastern path is dangerous.'}\"")
+                elif "wares" in topic.lower() or "sell" in topic.lower():
+                    print(f"  💬 \"{merchant.get_dialogue('about_wares') or 'I have many fine goods!'}\"")
+                else:
+                    print(f"  💬 \"{merchant.get_dialogue('greeting')}\"")
+            continue
+        
+        if lower_input == "help":
+            print("""
+  Commands:
+    shop       - View merchant's wares
+    buy <item> - Purchase an item  
+    sell <item> - Sell from inventory
+    haggle     - Negotiate for discount
+    talk [topic] - Chat with Mira (AI-powered)
+    inventory  - View your items
+    quit       - Leave the shop
+""")
+            continue
+        
+        # Unknown command - let AI handle freeform input
+        if ai_enabled and chat:
+            print("\n🎲 Dungeon Master:")
+            try:
+                response = chat.send_message(f"Player action in shop: '{player_input}'. React appropriately as DM/Mira.")
+                print(f"  {response.text}")
+            except Exception as e:
+                print(f"  ❓ Unknown command. Type 'help' for commands.")
+        else:
+            print("  ❓ Unknown command. Type 'help' for commands.")
 
 
 def run_interactive_location():
@@ -531,27 +965,36 @@ if __name__ == "__main__":
                 run_pytest_tests("test_scenario.py", "Scenario System Tests")
             
             elif choice == "5":
-                run_all_unit_tests()
+                run_pytest_tests("test_shop.py", "Shop System Tests")
             
             elif choice == "6":
-                run_interactive_combat()
+                run_npc_reputation_tests()
             
             elif choice == "7":
-                run_interactive_dice()
+                run_all_unit_tests()
             
             elif choice == "8":
-                run_interactive_inventory()
+                run_interactive_combat()
             
             elif choice == "9":
-                run_interactive_location()
+                run_interactive_dice()
             
             elif choice == "10":
-                run_full_adventure()
+                run_interactive_inventory()
             
             elif choice == "11":
-                run_combat_narration_tests()
+                run_interactive_shop()
             
             elif choice == "12":
+                run_interactive_location()
+            
+            elif choice == "13":
+                run_full_adventure()
+            
+            elif choice == "14":
+                run_combat_narration_tests()
+            
+            elif choice == "15":
                 run_location_dm_tests()
             
             else:

@@ -317,6 +317,105 @@ def test_error_handling():
     print("\n✅ Error handling test PASSED")
 
 
+def test_quest_save_load():
+    """Test saving and loading quest state."""
+    print("\n" + "=" * 50)
+    print("TEST: Quest Save/Load Integration")
+    print("=" * 50)
+    
+    from quest import QuestManager
+    from scenario import create_goblin_cave_quests
+    
+    # Create quest manager and register quests
+    quest_manager = QuestManager()
+    create_goblin_cave_quests(quest_manager)
+    
+    # Modify quest state
+    quest_manager.accept_quest("rescue_lily")
+    quest_manager.on_location_entered("cave_entrance")
+    
+    print(f"Active quests: {list(quest_manager.active_quests.keys())}")
+    
+    # Serialize
+    quest_state = quest_manager.to_dict()
+    print(f"Serialized active: {list(quest_state['active_quests'].keys())}")
+    
+    # Create new manager and restore
+    new_manager = QuestManager()
+    create_goblin_cave_quests(new_manager)  # Re-register available quests
+    new_manager.restore_state(quest_state)
+    
+    print(f"Restored active: {list(new_manager.active_quests.keys())}")
+    
+    # Verify
+    assert "rescue_lily" in new_manager.active_quests
+    restored_quest = new_manager.active_quests["rescue_lily"]
+    assert restored_quest.name == "Rescue Lily"
+    
+    # Check objective progress was preserved
+    reach_cave_obj = next((o for o in restored_quest.objectives if o.id == "reach_cave"), None)
+    assert reach_cave_obj is not None
+    assert reach_cave_obj.completed, "Objective progress should be preserved"
+    
+    print("\n✅ Quest save/load test PASSED")
+    return True
+
+
+def test_party_save_load():
+    """Test saving and loading party state."""
+    print("\n" + "=" * 50)
+    print("TEST: Party Save/Load (Phase 3.3.7)")
+    print("=" * 50)
+    
+    # Import party module
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+    from party import Party, create_elira_ranger, create_marcus_mercenary
+    
+    # Create party with members
+    party = Party()
+    elira = create_elira_ranger()
+    marcus = create_marcus_mercenary()
+    
+    party.add_member(elira)
+    party.add_member(marcus)
+    
+    # Simulate some combat damage
+    elira.take_damage(5)
+    marcus.take_damage(10)
+    marcus.use_ability()  # Use Shield Wall
+    
+    print(f"Party size before save: {party.size}")
+    print(f"Elira HP: {elira.current_hp}/{elira.max_hp}")
+    print(f"Marcus HP: {marcus.current_hp}/{marcus.max_hp}")
+    print(f"Marcus ability uses remaining: {marcus.ability_uses_remaining}")
+    
+    # Serialize
+    party_dict = party.to_dict()
+    print(f"Serialized party members: {len(party_dict['members'])}")
+    
+    # Deserialize to new party
+    restored_party = Party.from_dict(party_dict)
+    
+    print(f"Restored party size: {restored_party.size}")
+    
+    # Verify members
+    restored_elira = restored_party.get_member("elira_ranger")
+    restored_marcus = restored_party.get_member("marcus_mercenary")
+    
+    assert restored_elira is not None, "Elira should be restored"
+    assert restored_marcus is not None, "Marcus should be restored"
+    assert restored_elira.current_hp == elira.current_hp, "Elira HP should match"
+    assert restored_marcus.current_hp == marcus.current_hp, "Marcus HP should match"
+    assert restored_marcus.ability_uses_remaining == marcus.ability_uses_remaining, "Ability uses should match"
+    
+    print(f"Restored Elira HP: {restored_elira.current_hp}/{restored_elira.max_hp}")
+    print(f"Restored Marcus HP: {restored_marcus.current_hp}/{restored_marcus.max_hp}")
+    
+    print("\n✅ Party save/load test PASSED")
+    return True
+
+
 def run_all_tests():
     """Run all save system tests."""
     print("\n" + "=" * 60)
@@ -330,6 +429,8 @@ def run_all_tests():
         ("Error Handling", test_error_handling),
         ("Save and Load", test_save_and_load),
         ("List Saves", test_list_saves),
+        ("Quest Save/Load", test_quest_save_load),
+        ("Party Save/Load", test_party_save_load),
     ]
     
     passed = 0

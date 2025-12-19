@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from scenario import (
     Location, LocationManager, LocationEvent, EventTrigger,
+    ExitCondition, check_exit_condition,
     create_goblin_cave_scenario
 )
 from inventory import get_item, add_item_to_inventory, Item, ItemType, ITEMS
@@ -425,6 +426,253 @@ def test_location_items_persistence():
     print("\n✅ Item persistence test passed!")
 
 
+# =============================================================================
+# CONDITIONAL EXIT TESTS (Phase 3.2.1 - Priority 5)
+# =============================================================================
+
+def create_locked_door_test_manager() -> LocationManager:
+    """Create a location manager with locked doors for testing."""
+    manager = LocationManager()
+    
+    # Main room with locked storage door
+    main_room = Location(
+        id="main_room",
+        name="Guard Post",
+        description="A small guard post with a sturdy door marked 'STORAGE'.",
+        exits={"outside": "outside", "storage": "storage"},
+        npcs=["guard"],
+        items=["storage_key", "torch"],
+        atmosphere="Musty air, flickering torchlight",
+        exit_conditions=[
+            ExitCondition(
+                exit_name="storage",
+                condition="has_item:storage_key",
+                fail_message="The storage door is locked. You need a key.",
+                consume_item=False
+            )
+        ]
+    )
+    
+    # Storage room (behind locked door)
+    storage = Location(
+        id="storage",
+        name="Storage Room",
+        description="A cramped storage room full of supplies and treasure.",
+        exits={"main room": "main_room"},
+        npcs=[],
+        items=["gold_pouch", "healing_potion", "longsword"],
+        atmosphere="Dusty shelves, the smell of old leather"
+    )
+    
+    # Outside area
+    outside = Location(
+        id="outside",
+        name="Outside",
+        description="The path outside the guard post.",
+        exits={"door": "main_room"},
+        npcs=[],
+        items=[]
+    )
+    
+    manager.add_location(main_room)
+    manager.add_location(storage)
+    manager.add_location(outside)
+    manager.set_available_locations(["main_room", "storage", "outside"])
+    manager.set_current_location("main_room")
+    
+    return manager
+
+
+def test_locked_door_blocked():
+    """Test that locked doors block movement without key."""
+    print("\n" + "=" * 60)
+    print("     LOCKED DOOR BLOCKED TEST")
+    print("=" * 60)
+    
+    manager = create_locked_door_test_manager()
+    character = MockCharacter()
+    character.inventory = []  # Empty inventory
+    
+    # Build game_state without the key
+    game_state = {
+        "character": character,
+        "inventory": type('MockInv', (), {'items': []})(),
+        "visited_locations": ["main_room"],
+        "completed_objectives": [],
+        "flags": {}
+    }
+    
+    # Try to move to storage (should fail)
+    success, new_loc, message, events = manager.move("storage", game_state)
+    
+    assert not success, "Should not be able to enter storage without key"
+    assert "locked" in message.lower() or "key" in message.lower(), f"Message should mention locked: {message}"
+    print(f"✅ Blocked: {message}")
+    
+    print("\n✅ Locked door blocked test passed!")
+
+
+def test_locked_door_opened_with_key():
+    """Test that locked doors open when player has the key."""
+    print("\n" + "=" * 60)
+    print("     LOCKED DOOR OPENED WITH KEY TEST")
+    print("=" * 60)
+    
+    manager = create_locked_door_test_manager()
+    
+    # Create mock item for key
+    class MockItem:
+        def __init__(self, name):
+            self.name = name
+    
+    class MockInventory:
+        def __init__(self):
+            self.items = [MockItem("Storage Key")]
+    
+    # Build game_state with the key
+    game_state = {
+        "inventory": MockInventory(),
+        "visited_locations": ["main_room"],
+        "completed_objectives": [],
+        "flags": {}
+    }
+    
+    # Try to move to storage (should succeed)
+    success, new_loc, message, events = manager.move("storage", game_state)
+    
+    assert success, f"Should be able to enter storage with key. Got: {message}"
+    assert new_loc.id == "storage", "Should be in storage room"
+    print(f"✅ Entered storage room: {new_loc.name}")
+    
+    # Check that exit is now permanently unlocked
+    main_room = manager.locations["main_room"]
+    assert main_room.is_exit_unlocked("storage"), "Storage exit should be unlocked"
+    print("✅ Exit is now permanently unlocked")
+    
+    print("\n✅ Locked door opened with key test passed!")
+
+
+def test_unlocked_exit_stays_open():
+    """Test that once unlocked, exits stay open even without key."""
+    print("\n" + "=" * 60)
+    print("     UNLOCKED EXIT STAYS OPEN TEST")
+    print("=" * 60)
+    
+    manager = create_locked_door_test_manager()
+    
+    # First unlock with key
+    class MockItem:
+        def __init__(self, name):
+            self.name = name
+    
+    class MockInventoryWithKey:
+        items = [MockItem("Storage Key")]
+    
+    game_state_with_key = {"inventory": MockInventoryWithKey(), "visited_locations": [], "flags": {}}
+    
+    # Unlock the door
+    success, new_loc, _, _ = manager.move("storage", game_state_with_key)
+    assert success, "Should unlock with key"
+    print("✅ First entry with key successful")
+    
+    # Go back to main room
+    manager.move("main room")
+    
+    # Now try without key
+    class MockInventoryEmpty:
+        items = []
+    
+    game_state_no_key = {"inventory": MockInventoryEmpty(), "visited_locations": [], "flags": {}}
+    
+    success, new_loc, message, _ = manager.move("storage", game_state_no_key)
+    assert success, f"Should be able to enter unlocked door without key. Got: {message}"
+    print("✅ Re-entry without key successful (door stays unlocked)")
+    
+    print("\n✅ Unlocked exit stays open test passed!")
+
+
+def test_check_exit_condition_function():
+    """Test the check_exit_condition utility function."""
+    print("\n" + "=" * 60)
+    print("     CHECK EXIT CONDITION FUNCTION TEST")
+    print("=" * 60)
+    
+    # Test has_item condition
+    class MockItem:
+        def __init__(self, name):
+            self.name = name
+    
+    class MockInv:
+        items = [MockItem("Rusty Key")]
+    
+    success, reason = check_exit_condition("has_item:rusty_key", {"inventory": MockInv()})
+    assert success, "Should pass with item in inventory"
+    print(f"✅ has_item check passed: {reason}")
+    
+    # Test gold condition
+    class MockChar:
+        gold = 100
+    
+    success, reason = check_exit_condition("gold:50", {"character": MockChar()})
+    assert success, "Should pass with enough gold"
+    print(f"✅ gold check passed: {reason}")
+    
+    success, reason = check_exit_condition("gold:200", {"character": MockChar()})
+    assert not success, "Should fail without enough gold"
+    print(f"✅ gold check failed correctly: {reason}")
+    
+    # Test visited condition
+    success, reason = check_exit_condition("visited:forest", {"visited_locations": ["forest", "cave"]})
+    assert success, "Should pass when location visited"
+    print("✅ visited check passed")
+    
+    success, reason = check_exit_condition("visited:tower", {"visited_locations": ["forest"]})
+    assert not success, "Should fail when location not visited"
+    print("✅ visited check failed correctly")
+    
+    # Test skill check returns marker
+    success, reason = check_exit_condition("skill:strength:18", {})
+    assert success, "Skill checks always return success with marker"
+    assert reason == "skill_check:strength:18", f"Should return skill check marker, got: {reason}"
+    print(f"✅ skill check returns marker: {reason}")
+    
+    print("\n✅ Check exit condition function test passed!")
+
+
+def test_goblin_cave_locked_storage():
+    """Test the locked storage room in the actual Goblin Cave scenario."""
+    print("\n" + "=" * 60)
+    print("     GOBLIN CAVE LOCKED STORAGE TEST")
+    print("=" * 60)
+    
+    # Create the real scenario
+    scenario = create_goblin_cave_scenario()
+    loc_mgr = scenario.location_manager
+    
+    # Check storage location exists
+    assert "goblin_storage" in loc_mgr.locations, "goblin_storage should exist"
+    print("✅ goblin_storage location exists")
+    
+    # Check storage_key item exists in shadows
+    shadows = loc_mgr.locations.get("goblin_camp_shadows")
+    assert shadows is not None, "goblin_camp_shadows should exist"
+    assert "storage_key" in shadows.items, f"storage_key should be in shadows, got: {shadows.items}"
+    print(f"✅ storage_key found in goblin_camp_shadows: {shadows.items}")
+    
+    # Check main camp has locked storage door
+    main_camp = loc_mgr.locations.get("goblin_camp_main")
+    assert main_camp is not None, "goblin_camp_main should exist"
+    assert "storage" in main_camp.exits, "storage exit should exist"
+    
+    storage_cond = main_camp.get_exit_condition("storage")
+    assert storage_cond is not None, "storage should have exit condition"
+    assert storage_cond.condition == "has_item:storage_key", f"Should require storage_key, got: {storage_cond.condition}"
+    print(f"✅ Storage door requires: {storage_cond.condition}")
+    print(f"✅ Fail message: {storage_cond.fail_message}")
+    
+    print("\n✅ Goblin Cave locked storage test passed!")
+
+
 def run_unit_tests():
     """Run all unit tests."""
     print("\n" + "=" * 60)
@@ -440,6 +688,12 @@ def run_unit_tests():
         ("Movement (with Events)", test_movement),
         ("Location Events", test_location_events),
         ("Item Persistence", test_location_items_persistence),
+        # Conditional Exit Tests (Phase 3.2.1 Priority 5)
+        ("Locked Door Blocked", test_locked_door_blocked),
+        ("Locked Door Opened with Key", test_locked_door_opened_with_key),
+        ("Unlocked Exit Stays Open", test_unlocked_exit_stays_open),
+        ("Check Exit Condition Function", test_check_exit_condition_function),
+        ("Goblin Cave Locked Storage", test_goblin_cave_locked_storage),
     ]
     
     passed = 0
@@ -451,6 +705,8 @@ def run_unit_tests():
             passed += 1
         except Exception as e:
             print(f"\n❌ {name} FAILED: {e}")
+            import traceback
+            traceback.print_exc()
             failed += 1
     
     print("\n" + "=" * 60)

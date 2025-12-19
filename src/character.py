@@ -160,7 +160,18 @@ class Character:
         """
         Add XP to the character and check for level up.
         Returns dict with xp info and whether level up occurred.
+        Negative values are ignored (XP cannot be lost).
         """
+        if amount <= 0:
+            return {
+                'xp_gained': 0,
+                'source': source,
+                'old_xp': self.experience,
+                'new_xp': self.experience,
+                'level_up': False,
+                'new_level': self.level,
+            }
+        
         old_xp = self.experience
         self.experience += amount
         
@@ -379,7 +390,9 @@ class Character:
         return f"[{'█' * filled}{'░' * empty}]"
     
     def take_damage(self, amount: int) -> str:
-        """Apply damage to character."""
+        """Apply damage to character. Ignores negative values (use heal instead)."""
+        if amount <= 0:
+            return f"{self.name} takes no damage."
         self.current_hp = max(0, self.current_hp - amount)
         if self.current_hp == 0:
             return f"{self.name} has fallen unconscious!"

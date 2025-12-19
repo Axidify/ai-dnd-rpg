@@ -5,7 +5,8 @@ Covers: stats, modifiers, XP/leveling, damage, healing, creation.
 
 import pytest
 import sys
-sys.path.insert(0, '../src')
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from character import (
     Character, CLASSES, RACES, XP_THRESHOLDS, MILESTONE_XP,

@@ -387,6 +387,9 @@ DM_COMBAT_PROMPT = """You are an experienced Dungeon Master narrating D&D combat
 ## YOUR ONLY JOB
 Narrate combat cinematically based on results YOU RECEIVE. You are a NARRATOR only.
 
+## COMBAT LOCATION
+This combat takes place in a dark forest clearing at dusk. The trees loom overhead, and the ground is littered with fallen leaves.
+
 ## ABSOLUTE RULES - BREAKING THESE RUINS THE GAME:
 
 🚫 NEVER EVER write these yourself:
@@ -1007,10 +1010,11 @@ def main():
                                 'target': 'escape',
                                 'weapon': 'none',
                                 'outcome': 'success',
-                                'is_player_attack': True
+                                'is_player_attack': True,
+                                'location': 'a dark forest clearing'  # Generic test location
                             }
                             import json
-                            escape_prompt = f"Narrate the player's dramatic escape from combat. 2 sentences. Context: {json.dumps(escape_ctx)}"
+                            escape_prompt = f"Narrate the player's dramatic escape from combat. 2 sentences. They flee into the nearby area. Context: {json.dumps(escape_ctx)}"
                             try:
                                 escape_narration = chat.send_message(escape_prompt).text.strip()
                                 display_combat_narration(escape_narration)

@@ -1,13 +1,22 @@
 """
-Scenario System for AI D&D Text RPG (Phase 1, Step 1.3 + Phase 3.2)
-Manages scenes, story progression, narrative pacing, and locations.
+Scenario System for AI D&D Text RPG (Phase 1, Step 1.3 + Phase 3.2 + Phase 3.3 + Phase 3.3.3 + Phase 3.3.4)
+Manages scenes, story progression, narrative pacing, locations, NPCs, quests, and shops.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Callable, Tuple
+from typing import Optional, List, Dict, Callable, Tuple, Any
 from enum import Enum
 import json
 
+from npc import NPC, NPCRole, NPCManager, Personality
+from quest import (
+    Quest, QuestObjective, QuestManager, QuestStatus, QuestType, ObjectiveType,
+    create_kill_objective, create_find_objective, create_talk_objective,
+    create_location_objective, create_collect_objective
+)
+from shop import (
+    Shop, ShopManager, ShopType, create_blacksmith_shop, create_traveling_merchant_shop
+)
 
 class SceneStatus(Enum):
     """Status of a scene."""
@@ -77,8 +86,329 @@ class LocationEvent:
 
 
 # =============================================================================
+# HIDDEN ITEM SYSTEM (Phase 3.3.5)
+# =============================================================================
+
+@dataclass
+class HiddenItem:
+    """
+    Represents a hidden item that requires a skill check to discover.
+    
+    Hidden items are not visible until the player succeeds on a skill check
+    (typically Perception or Investigation). Once discovered, they move to
+    the location's regular items list.
+    
+    Examples:
+        - Secret compartment in a desk (Investigation DC 14)
+        - Glint of metal under debris (Perception DC 12)
+        - Trap mechanism to disarm (Investigation DC 16)
+    """
+    
+    item_id: str              # The item key from ITEMS database (e.g., "enchanted_dagger")
+    skill: str                # Skill required: "perception" or "investigation"
+    dc: int                   # Difficulty class (typically 10-20)
+    hint: str = ""            # DM hint when player searches: "You notice faint scratches..."
+    found: bool = False       # Runtime state: has this been discovered?
+    
+    def to_dict(self) -> dict:
+        """Serialize hidden item for saving."""
+        return {
+            "item_id": self.item_id,
+            "skill": self.skill,
+            "dc": self.dc,
+            "hint": self.hint,
+            "found": self.found
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'HiddenItem':
+        """Create hidden item from dictionary."""
+        return cls(
+            item_id=data["item_id"],
+            skill=data["skill"],
+            dc=data["dc"],
+            hint=data.get("hint", ""),
+            found=data.get("found", False)
+        )
+
+
+# =============================================================================
+# LOCATION ATMOSPHERE SYSTEM (Phase 3.4.1)
+# =============================================================================
+
+@dataclass
+class LocationAtmosphere:
+    """
+    Atmospheric hints for the DM to create immersive location descriptions.
+    These are suggestions, not scripts - the AI weaves them into narrative.
+    
+    All fields are optional. Use what makes sense for each location.
+    The DM picks 2-3 sensory details to incorporate into descriptions.
+    """
+    
+    # Sensory palette (DM picks from these)
+    sounds: List[str] = field(default_factory=list)    # ["dripping water", "distant echoes"]
+    smells: List[str] = field(default_factory=list)    # ["musty earth", "torch smoke"]
+    textures: List[str] = field(default_factory=list)  # ["damp stone", "slippery moss"]
+    lighting: str = ""                                  # "dim torchlight", "pitch black"
+    temperature: str = ""                               # "cold and damp", "warm"
+    
+    # Mood guidance (not prescriptive emotion, just tone)
+    mood: str = ""                                      # "tense", "eerie", "welcoming"
+    danger_level: str = ""                              # "safe", "uneasy", "threatening", "deadly"
+    
+    # Approach DCs for travel menu system (Phase 3.2.1 Priority 9)
+    stealth_dc: int = 12                                # DC for stealth approach
+    perception_dc: int = 10                             # DC for cautious approach
+    
+    # Random flavor pool (small details DM can sprinkle in)
+    random_details: List[str] = field(default_factory=list)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize atmosphere for saving."""
+        return {
+            "sounds": self.sounds.copy() if self.sounds else [],
+            "smells": self.smells.copy() if self.smells else [],
+            "textures": self.textures.copy() if self.textures else [],
+            "lighting": self.lighting,
+            "temperature": self.temperature,
+            "mood": self.mood,
+            "danger_level": self.danger_level,
+            "stealth_dc": self.stealth_dc,
+            "perception_dc": self.perception_dc,
+            "random_details": self.random_details.copy() if self.random_details else []
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "LocationAtmosphere":
+        """Create atmosphere from dictionary."""
+        return cls(
+            sounds=data.get("sounds", []),
+            smells=data.get("smells", []),
+            textures=data.get("textures", []),
+            lighting=data.get("lighting", ""),
+            temperature=data.get("temperature", ""),
+            mood=data.get("mood", ""),
+            danger_level=data.get("danger_level", ""),
+            stealth_dc=data.get("stealth_dc", 12),
+            perception_dc=data.get("perception_dc", 10),
+            random_details=data.get("random_details", [])
+        )
+    
+    def get_dm_summary(self) -> str:
+        """
+        Generate a summary for inclusion in DM context.
+        Returns empty string if no atmosphere data.
+        """
+        parts = []
+        
+        if self.sounds:
+            parts.append(f"Sounds: {', '.join(self.sounds)}")
+        
+        if self.smells:
+            parts.append(f"Smells: {', '.join(self.smells)}")
+        
+        if self.textures:
+            parts.append(f"Textures: {', '.join(self.textures)}")
+        
+        if self.lighting:
+            parts.append(f"Lighting: {self.lighting}")
+        
+        if self.temperature:
+            parts.append(f"Temperature: {self.temperature}")
+        
+        if self.mood:
+            parts.append(f"Mood: {self.mood}")
+        
+        if self.danger_level:
+            parts.append(f"Danger: {self.danger_level}")
+        
+        if self.random_details:
+            parts.append(f"Details pool: {', '.join(self.random_details[:3])}...")
+        
+        return "\n".join(parts) if parts else ""
+
+
+# =============================================================================
 # LOCATION SYSTEM (Phase 3.2)
 # =============================================================================
+
+# Cardinal direction aliases (Phase 3.2.1 Priority 6)
+CARDINAL_ALIASES = {
+    "n": "north", "s": "south", "e": "east", "w": "west",
+    "ne": "northeast", "nw": "northwest", "se": "southeast", "sw": "southwest",
+    "u": "up", "d": "down"
+}
+
+def resolve_direction_alias(direction: str) -> str:
+    """
+    Resolve cardinal shorthand to full direction name.
+    
+    Examples:
+        'n' → 'north'
+        'ne' → 'northeast'
+        'north' → 'north' (unchanged)
+        'forest_path' → 'forest_path' (unchanged)
+    """
+    direction_lower = direction.lower().strip()
+    return CARDINAL_ALIASES.get(direction_lower, direction_lower)
+
+
+def normalize_travel_input(direction: str) -> str:
+    """
+    Normalize player travel input for more flexible matching.
+    
+    Strips filler words and normalizes for matching:
+    - "to the village square" → "village square"
+    - "towards the forest" → "forest"
+    - "into the cave" → "cave"
+    - "head outside" → "outside"
+    
+    Returns: Normalized direction string
+    """
+    direction_lower = direction.lower().strip()
+    
+    # Remove common travel prefixes
+    prefixes_to_strip = [
+        "to the ", "to ", "towards the ", "towards ", "toward the ", "toward ",
+        "into the ", "into ", "inside the ", "inside ", "through the ", "through ",
+        "back to the ", "back to ", "back ", "over to the ", "over to ", "over ",
+        "out to the ", "out to ", "outside to the ", "outside to ",
+        "head to the ", "head to ", "head ", "go to the ", "go to ", "go ",
+        "enter the ", "enter ", "leave for ", "leave to "
+    ]
+    
+    for prefix in prefixes_to_strip:
+        if direction_lower.startswith(prefix):
+            direction_lower = direction_lower[len(prefix):]
+            break
+    
+    return direction_lower.strip()
+
+
+def fuzzy_location_match(search_term: str, location_id: str, location_name: str) -> bool:
+    """
+    Check if search term matches a location ID or name with fuzzy matching.
+    
+    Matches:
+    - Exact match: "village_square" matches "village_square"
+    - Name match: "village square" matches location named "Village Square"
+    - Partial: "village" matches "village_square"
+    - Underscore normalization: "village square" matches "village_square"
+    
+    Returns: True if match found
+    """
+    search_clean = search_term.lower().strip()
+    id_clean = location_id.lower()
+    name_clean = location_name.lower()
+    
+    # Normalize underscores to spaces for comparison
+    search_normalized = search_clean.replace("_", " ")
+    id_normalized = id_clean.replace("_", " ")
+    
+    # Exact matches
+    if search_clean == id_clean or search_clean == name_clean:
+        return True
+    
+    # Normalized matches (underscore ↔ space)
+    if search_normalized == id_normalized or search_normalized == name_clean:
+        return True
+    
+    # Partial matches (search term contained in location name/id)
+    if search_normalized in id_normalized or search_normalized in name_clean:
+        return True
+    
+    # Reverse partial (location name contained in search - for verbose input)
+    if len(search_normalized) > 3 and (id_normalized in search_normalized or name_clean in search_normalized):
+        return True
+    
+    return False
+
+
+@dataclass 
+class ExitCondition:
+    """Defines a condition that must be met to use an exit."""
+    exit_name: str                    # Which exit this applies to
+    condition: str                    # "has_item:rusty_key", "skill:strength:15", "visited:cave_entrance"
+    fail_message: str = ""            # Custom message when blocked: "The door is locked."
+    consume_item: bool = False        # If True, the key item is consumed on use
+    
+    def to_dict(self) -> dict:
+        """Serialize for saving."""
+        return {
+            "exit_name": self.exit_name,
+            "condition": self.condition,
+            "fail_message": self.fail_message,
+            "consume_item": self.consume_item
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ExitCondition':
+        """Deserialize from saved data."""
+        return cls(
+            exit_name=data["exit_name"],
+            condition=data["condition"],
+            fail_message=data.get("fail_message", ""),
+            consume_item=data.get("consume_item", False)
+        )
+
+
+@dataclass
+class RandomEncounter:
+    """
+    Defines a random encounter that can trigger when entering a location.
+    
+    Random encounters add variety to exploration. Each time a player enters
+    a location with random encounters, there's a chance an encounter triggers.
+    
+    Follows "Mechanics First, Narration Last" principle:
+    - The chance and enemies are deterministic (roll vs threshold)
+    - The AI DM narrates the encounter introduction
+    """
+    
+    id: str                              # Unique identifier ("wolf_ambush")
+    enemies: List[str]                   # Enemy types to spawn ["wolf"] or ["wolf", "wolf"]
+    chance: int = 20                     # Percentage chance (0-100) to trigger
+    
+    # Optional conditions
+    condition: Optional[str] = None      # Prerequisite: "not_visited:goblin_camp", "has_item:meat"
+    min_visits: int = 0                  # Only triggers after N visits (0 = always eligible)
+    max_triggers: int = 1                # Max times this can trigger (1 = once, -1 = unlimited)
+    cooldown: int = 0                    # Visits before can trigger again after triggering
+    
+    # Narration hint for AI DM
+    narration: str = ""                  # "A wolf emerges from the shadows!"
+    
+    # Runtime tracking (not saved in dataclass, tracked by location)
+    # times_triggered and last_triggered are tracked in Location state
+    
+    def to_dict(self) -> dict:
+        """Serialize for scenario definition."""
+        return {
+            "id": self.id,
+            "enemies": self.enemies.copy(),
+            "chance": self.chance,
+            "condition": self.condition,
+            "min_visits": self.min_visits,
+            "max_triggers": self.max_triggers,
+            "cooldown": self.cooldown,
+            "narration": self.narration
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'RandomEncounter':
+        """Create from dictionary."""
+        return cls(
+            id=data["id"],
+            enemies=data.get("enemies", []),
+            chance=data.get("chance", 20),
+            condition=data.get("condition"),
+            min_visits=data.get("min_visits", 0),
+            max_triggers=data.get("max_triggers", 1),
+            cooldown=data.get("cooldown", 0),
+            narration=data.get("narration", "")
+        )
+
 
 @dataclass
 class Location:
@@ -91,20 +421,45 @@ class Location:
     # Navigation - maps exit names to location IDs
     exits: Dict[str, str] = field(default_factory=dict)  # {"door": "street", "stairs": "upper_floor"}
     
+    # Direction aliases (Phase 3.2.1 - Priority 6: Cardinal Aliases)
+    # Maps cardinal directions (n/s/e/w) to exit names
+    direction_aliases: Dict[str, str] = field(default_factory=dict)  # {"n": "forest_path", "e": "tavern_door"}
+    
+    # Conditional exits (Phase 3.2.1 - Priority 5)
+    exit_conditions: List[ExitCondition] = field(default_factory=list)  # Requirements for specific exits
+    
+    # Secret/Hidden Location (Phase 3.2.1 - Priority 8)
+    hidden: bool = False                 # If True, exit to this location is hidden until discovered
+    discovery_condition: str = ""        # How to reveal: "skill:perception:14", "has_item:map", etc.
+    discovery_hint: str = ""             # Hint for player: "Something seems off about this wall..."
+    
     # Contents
     npcs: List[str] = field(default_factory=list)        # NPC IDs present here
-    items: List[str] = field(default_factory=list)       # Item keys that can be found
+    items: List[str] = field(default_factory=list)       # Item keys that can be found (visible)
+    hidden_items: List[HiddenItem] = field(default_factory=list)  # Items requiring skill check to find
     
     # AI Guidance
-    atmosphere: str = ""                 # "dim lighting, rowdy crowd"
-    enter_text: str = ""                 # First-time entry description
+    atmosphere: Optional[LocationAtmosphere] = None      # Sensory/mood hints for DM
+    atmosphere_text: str = ""                            # Legacy: simple text atmosphere (deprecated)
+    enter_text: str = ""                                 # First-time entry description
     
     # Events (Phase 3.2.1)
     events: List[LocationEvent] = field(default_factory=list)  # Events that can trigger here
     
+    # Combat Encounters (Phase 3.2.2 - Fixed difficulty)
+    encounter: List[str] = field(default_factory=list)  # Fixed enemy types for this location
+    encounter_triggered: bool = False  # Whether encounter has already occurred
+    
+    # Random Encounters (Phase 3.2.1 - Priority 7)
+    random_encounters: List[RandomEncounter] = field(default_factory=list)  # Possible random encounters
+    
     # State (runtime)
     visited: bool = False
+    visit_count: int = 0                                    # Times player has entered this location
     events_triggered: List[str] = field(default_factory=list)  # Event IDs already triggered
+    unlocked_exits: List[str] = field(default_factory=list)    # Exits that have been unlocked
+    random_encounter_triggers: Dict[str, int] = field(default_factory=dict)  # encounter_id -> times triggered
+    random_encounter_last_visit: Dict[str, int] = field(default_factory=dict)  # encounter_id -> visit count when last triggered
     
     def get_exits_display(self) -> str:
         """Get a formatted string of available exits."""
@@ -120,19 +475,57 @@ class Location:
         return {
             "id": self.id,
             "visited": self.visited,
+            "visit_count": self.visit_count,  # Phase 3.2.1 Priority 7: Track visits
             "events_triggered": self.events_triggered.copy(),
-            "items": self.items.copy()  # Phase 3.2.1: Save picked-up items state
+            "items": self.items.copy(),  # Phase 3.2.1: Save picked-up items state
+            "hidden_items": [hi.to_dict() for hi in self.hidden_items],  # Phase 3.3.5: Hidden items
+            "encounter_triggered": self.encounter_triggered,  # Phase 3.2.2: Save encounter state
+            "unlocked_exits": self.unlocked_exits.copy(),  # Phase 3.2.1: Save unlocked doors
+            "random_encounter_triggers": self.random_encounter_triggers.copy(),  # Phase 3.2.1 Priority 7
+            "random_encounter_last_visit": self.random_encounter_last_visit.copy()  # Phase 3.2.1 Priority 7
         }
     
     @classmethod
     def from_state(cls, location: 'Location', state: dict) -> 'Location':
         """Apply saved state to a location."""
         location.visited = state.get("visited", False)
+        location.visit_count = state.get("visit_count", 0)  # Phase 3.2.1 Priority 7
         location.events_triggered = state.get("events_triggered", [])
         # Restore items if saved (Phase 3.2.1)
         if "items" in state:
             location.items = state.get("items", [])
+        # Restore hidden items state (Phase 3.3.5)
+        if "hidden_items" in state:
+            # Match by item_id and update found state
+            saved_hidden = {hi["item_id"]: hi for hi in state.get("hidden_items", [])}
+            for hi in location.hidden_items:
+                if hi.item_id in saved_hidden:
+                    hi.found = saved_hidden[hi.item_id].get("found", False)
+        # Restore encounter state (Phase 3.2.2)
+        location.encounter_triggered = state.get("encounter_triggered", False)
+        # Restore unlocked exits (Phase 3.2.1)
+        location.unlocked_exits = state.get("unlocked_exits", [])
+        # Restore random encounter state (Phase 3.2.1 Priority 7)
+        location.random_encounter_triggers = state.get("random_encounter_triggers", {})
+        location.random_encounter_last_visit = state.get("random_encounter_last_visit", {})
         return location
+    
+    def get_exit_condition(self, exit_name: str) -> Optional[ExitCondition]:
+        """Get the condition for a specific exit, if any."""
+        exit_lower = exit_name.lower()
+        for cond in self.exit_conditions:
+            if cond.exit_name.lower() == exit_lower:
+                return cond
+        return None
+    
+    def is_exit_unlocked(self, exit_name: str) -> bool:
+        """Check if an exit has been permanently unlocked."""
+        return exit_name.lower() in [e.lower() for e in self.unlocked_exits]
+    
+    def unlock_exit(self, exit_name: str):
+        """Permanently unlock an exit (e.g., after using a key)."""
+        if not self.is_exit_unlocked(exit_name):
+            self.unlocked_exits.append(exit_name.lower())
     
     def has_item(self, item_key: str) -> bool:
         """Check if an item is present in this location.
@@ -174,6 +567,45 @@ class Location:
         # Capitalize NPC names for display
         npc_names = [npc.replace("_", " ").title() for npc in self.npcs]
         return f"👤 Present: {', '.join(npc_names)}"
+    
+    # =========================================================================
+    # HIDDEN ITEMS SYSTEM (Phase 3.3.5)
+    # =========================================================================
+    
+    def get_undiscovered_hidden_items(self) -> List[HiddenItem]:
+        """Get all hidden items that haven't been found yet."""
+        return [hi for hi in self.hidden_items if not hi.found]
+    
+    def has_searchable_secrets(self) -> bool:
+        """Check if there are hidden items to search for."""
+        return len(self.get_undiscovered_hidden_items()) > 0
+    
+    def get_search_hints(self) -> List[str]:
+        """Get hints for undiscovered hidden items (for DM narration)."""
+        return [hi.hint for hi in self.get_undiscovered_hidden_items() if hi.hint]
+    
+    def discover_hidden_item(self, item_id: str) -> bool:
+        """
+        Mark a hidden item as discovered and add to visible items.
+        
+        Returns:
+            True if item was found and added, False if not found or already discovered
+        """
+        for hi in self.hidden_items:
+            if hi.item_id == item_id and not hi.found:
+                hi.found = True
+                # Add to visible items list
+                if hi.item_id not in self.items:
+                    self.items.append(hi.item_id)
+                return True
+        return False
+    
+    def get_hidden_item(self, item_id: str) -> Optional[HiddenItem]:
+        """Get a hidden item by ID."""
+        for hi in self.hidden_items:
+            if hi.item_id == item_id:
+                return hi
+        return None
     
     # =========================================================================
     # EVENT SYSTEM METHODS (Phase 3.2.1)
@@ -234,6 +666,167 @@ class Location:
     def add_event(self, event: LocationEvent):
         """Add an event to this location."""
         self.events.append(event)
+    
+    # =========================================================================
+    # RANDOM ENCOUNTER METHODS (Phase 3.2.1 - Priority 7)
+    # =========================================================================
+    
+    def check_random_encounter(self, game_state: dict = None) -> Optional[RandomEncounter]:
+        """
+        Check if a random encounter triggers on entering this location.
+        
+        Follows "Mechanics First" principle - deterministic roll against chance.
+        
+        Args:
+            game_state: Optional dict for checking conditions
+            
+        Returns:
+            RandomEncounter if one triggers, None otherwise
+        """
+        import random
+        
+        for encounter in self.random_encounters:
+            # Check if encounter can trigger
+            if not self._can_encounter_trigger(encounter, game_state):
+                continue
+            
+            # Roll for encounter (1-100)
+            roll = random.randint(1, 100)
+            if roll <= encounter.chance:
+                # Encounter triggers!
+                self._record_encounter_trigger(encounter)
+                return encounter
+        
+        return None
+    
+    def _can_encounter_trigger(self, encounter: RandomEncounter, game_state: dict = None) -> bool:
+        """Check if a specific encounter is eligible to trigger."""
+        
+        # Check min_visits requirement
+        if encounter.min_visits > 0 and self.visit_count < encounter.min_visits:
+            return False
+        
+        # Check max_triggers limit
+        triggers = self.random_encounter_triggers.get(encounter.id, 0)
+        if encounter.max_triggers != -1 and triggers >= encounter.max_triggers:
+            return False
+        
+        # Check cooldown (visits since last trigger)
+        if encounter.cooldown > 0:
+            last_visit = self.random_encounter_last_visit.get(encounter.id, -999)
+            visits_since = self.visit_count - last_visit
+            if visits_since < encounter.cooldown:
+                return False
+        
+        # Check condition if present
+        if encounter.condition and game_state:
+            success, _ = check_exit_condition(encounter.condition, game_state)
+            if not success:
+                return False
+        
+        return True
+    
+    def _record_encounter_trigger(self, encounter: RandomEncounter):
+        """Record that an encounter has triggered."""
+        # Increment trigger count
+        current = self.random_encounter_triggers.get(encounter.id, 0)
+        self.random_encounter_triggers[encounter.id] = current + 1
+        
+        # Record visit count when triggered (for cooldown)
+        self.random_encounter_last_visit[encounter.id] = self.visit_count
+
+
+# =============================================================================
+# CONDITION CHECKING (Phase 3.2.1 - Priority 5)
+# =============================================================================
+
+def check_exit_condition(condition: str, game_state: dict) -> Tuple[bool, str]:
+    """
+    Check if an exit condition is met.
+    
+    Args:
+        condition: Condition string like "has_item:rusty_key" or "skill:strength:15"
+        game_state: Dict with 'character' (Character object), 'inventory' (Inventory object),
+                   'visited_locations' (list of location IDs), etc.
+    
+    Returns:
+        (success, reason) - success=True if condition met, reason explains failure
+    
+    Condition formats:
+        - "has_item:<item_key>" - Player has the item in inventory
+        - "visited:<location_id>" - Player has visited this location
+        - "gold:<amount>" - Player has at least this much gold
+        - "skill:<ability>:<dc>" - Returns (True, "skill_check") to trigger a check
+        - "objective:<objective_id>" - An objective has been completed
+        - "flag:<flag_name>" - A game flag is set (for custom triggers)
+    """
+    if not condition:
+        return True, ""
+    
+    parts = condition.split(":")
+    cond_type = parts[0].lower()
+    
+    if cond_type == "has_item":
+        if len(parts) < 2:
+            return True, ""  # Malformed, pass through
+        item_key = parts[1].lower()
+        inventory = game_state.get("inventory")
+        if inventory:
+            # Check if player has the item
+            for item in inventory.items:
+                if item.name.lower().replace(" ", "_") == item_key or item_key in item.name.lower():
+                    return True, f"You use the {item.name}."
+        return False, f"You need a key or tool to pass."
+    
+    elif cond_type == "visited":
+        if len(parts) < 2:
+            return True, ""
+        location_id = parts[1].lower()
+        visited = game_state.get("visited_locations", [])
+        if location_id in [v.lower() for v in visited]:
+            return True, ""
+        return False, "You haven't discovered how to reach there yet."
+    
+    elif cond_type == "gold":
+        if len(parts) < 2:
+            return True, ""
+        try:
+            required = int(parts[1])
+            character = game_state.get("character")
+            if character and character.gold >= required:
+                return True, f"You pay {required} gold."
+            return False, f"You need {required} gold to proceed."
+        except ValueError:
+            return True, ""
+    
+    elif cond_type == "skill":
+        # Return special marker - game.py will handle the actual check
+        if len(parts) < 3:
+            return True, ""
+        ability = parts[1]
+        dc = parts[2]
+        return True, f"skill_check:{ability}:{dc}"
+    
+    elif cond_type == "objective":
+        if len(parts) < 2:
+            return True, ""
+        objective_id = parts[1]
+        completed = game_state.get("completed_objectives", [])
+        if objective_id in completed:
+            return True, ""
+        return False, "You haven't completed the required task yet."
+    
+    elif cond_type == "flag":
+        if len(parts) < 2:
+            return True, ""
+        flag_name = parts[1]
+        flags = game_state.get("flags", {})
+        if flags.get(flag_name, False):
+            return True, ""
+        return False, "Something is blocking your way."
+    
+    # Unknown condition type - pass through
+    return True, ""
 
 
 class LocationManager:
@@ -243,6 +836,7 @@ class LocationManager:
         self.locations: Dict[str, Location] = {}
         self.current_location_id: Optional[str] = None
         self.available_location_ids: List[str] = []  # Locations unlocked by current scene
+        self.discovered_secrets: List[str] = []  # Phase 3.2.1 Priority 8: Hidden locations that have been revealed
     
     def add_location(self, location: Location):
         """Register a location."""
@@ -257,6 +851,8 @@ class LocationManager:
         if location_id in self.locations:
             self.current_location_id = location_id
             location = self.locations[location_id]
+            # Increment visit count (Phase 3.2.1 Priority 7)
+            location.visit_count += 1
             if not location.visited:
                 location.visited = True
             return location
@@ -269,49 +865,145 @@ class LocationManager:
         return None
     
     def get_exits(self) -> Dict[str, str]:
-        """Get available exits from current location."""
+        """Get available exits from current location.
+        
+        Filters out:
+        - Exits to locations not in available_location_ids
+        - Exits to hidden locations that haven't been discovered (Phase 3.2.1 Priority 8)
+        """
         location = self.get_current_location()
         if location:
-            # Filter exits to only show available locations
-            return {
-                exit_name: dest_id 
-                for exit_name, dest_id in location.exits.items()
-                if dest_id in self.available_location_ids
-            }
+            result = {}
+            for exit_name, dest_id in location.exits.items():
+                # Check if destination is available in current scene
+                if dest_id not in self.available_location_ids:
+                    continue
+                    
+                # Check if destination is hidden (Phase 3.2.1 Priority 8)
+                dest_location = self.locations.get(dest_id)
+                if dest_location and dest_location.hidden:
+                    # Only show if discovered
+                    if dest_id not in self.discovered_secrets:
+                        continue
+                
+                result[exit_name] = dest_id
+            return result
         return {}
     
-    def move(self, direction: str) -> Tuple[bool, Optional[Location], str, List[LocationEvent]]:
+    def move(self, direction: str, game_state: dict = None) -> Tuple[bool, Optional[Location], str, List[LocationEvent]]:
         """
         Attempt to move in a direction.
+        
+        Args:
+            direction: Direction or exit name to move toward. Supports:
+                       - Cardinal aliases: n/s/e/w
+                       - Exit names: "tavern", "outside"
+                       - Natural language: "to the village square", "towards the forest"
+                       - Destination matching: "village square" matches exit leading to village_square
+            game_state: Optional dict with 'character', 'inventory', 'visited_locations' 
+                       for checking exit conditions (locked doors, skill checks, etc.)
         
         Returns: (success, new_location, message, triggered_events)
             - success: Whether movement was successful
             - new_location: The new Location object if successful
-            - message: Error message if failed
+            - message: Error message if failed, or special commands like "skill_check:strength:15"
             - triggered_events: List of events that fired on entry (empty if none)
         """
         location = self.get_current_location()
         if not location:
             return False, None, "You are nowhere.", []
         
-        # Normalize direction
+        # Reject empty or whitespace-only direction
+        if not direction or not direction.strip():
+            return False, None, "You need to specify a direction.", []
+        
+        # Normalize direction (expand n → north, strip filler words)
         direction_lower = direction.lower().strip()
+        expanded_direction = resolve_direction_alias(direction_lower)
+        normalized_direction = normalize_travel_input(direction_lower)
         
         # Check for matching exit
         available_exits = self.get_exits()
         dest_id = None
+        matched_exit_name = None
         
-        # Try exact match first
-        if direction_lower in available_exits:
-            dest_id = available_exits[direction_lower]
-        else:
-            # Try partial match
+        # Phase 3.2.1 Priority 6: Check direction_aliases first
+        # If player typed 'n' or 'north', check if location has alias mapping
+        if location.direction_aliases:
+            # Check if the expanded direction (e.g., "north") maps to an exit
+            if expanded_direction in location.direction_aliases:
+                alias_target = location.direction_aliases[expanded_direction]
+                if alias_target in available_exits:
+                    dest_id = available_exits[alias_target]
+                    matched_exit_name = alias_target
+            # Also check original shorthand (e.g., "n")
+            elif direction_lower in location.direction_aliases:
+                alias_target = location.direction_aliases[direction_lower]
+                if alias_target in available_exits:
+                    dest_id = available_exits[alias_target]
+                    matched_exit_name = alias_target
+        
+        # If no alias matched, try exact exit name match
+        if not dest_id:
+            if direction_lower in available_exits:
+                dest_id = available_exits[direction_lower]
+                matched_exit_name = direction_lower
+            elif normalized_direction in available_exits:
+                # Try normalized (stripped filler words)
+                dest_id = available_exits[normalized_direction]
+                matched_exit_name = normalized_direction
+            else:
+                # Try partial match on exit name
+                # Require at least 3 characters to avoid false positives like "in" matching "tavern"
+                for exit_name, exit_dest_id in available_exits.items():
+                    exit_lower = exit_name.lower()
+                    # Only do partial matching for search terms >= 3 chars
+                    if len(normalized_direction) >= 3:
+                        if normalized_direction in exit_lower or exit_lower in normalized_direction:
+                            dest_id = exit_dest_id
+                            matched_exit_name = exit_name
+                            break
+        
+        # NEW: Destination-based matching - match against where exits lead
+        # Allows "go to village square" to work even if exit is named "outside"
+        if not dest_id:
             for exit_name, exit_dest_id in available_exits.items():
-                if direction_lower in exit_name.lower() or exit_name.lower() in direction_lower:
-                    dest_id = exit_dest_id
-                    break
+                dest_location = self.locations.get(exit_dest_id)
+                if dest_location:
+                    # Check if normalized direction matches destination
+                    if fuzzy_location_match(normalized_direction, exit_dest_id, dest_location.name):
+                        dest_id = exit_dest_id
+                        matched_exit_name = exit_name
+                        break
         
-        if dest_id:
+        if dest_id and matched_exit_name:
+            # Phase 3.2.1 Priority 6: Check exit conditions
+            exit_cond = location.get_exit_condition(matched_exit_name)
+            if exit_cond and not location.is_exit_unlocked(matched_exit_name):
+                # Check if condition is met
+                if game_state:
+                    success, reason = check_exit_condition(exit_cond.condition, game_state)
+                    if not success:
+                        # Condition not met - blocked
+                        fail_msg = exit_cond.fail_message or reason or "You can't go that way."
+                        return False, None, fail_msg, []
+                    elif reason.startswith("skill_check:"):
+                        # Skill check needed - return special message for game.py to handle
+                        return False, None, reason, []
+                    else:
+                        # Condition met - unlock the exit
+                        location.unlock_exit(matched_exit_name)
+                        # If consume_item is True, remove the key from inventory
+                        if exit_cond.consume_item and exit_cond.condition.startswith("has_item:"):
+                            item_key = exit_cond.condition.split(":")[1]
+                            # The actual removal happens in game.py since we don't have inventory methods here
+                            # We'll add a marker to the message
+                            reason = f"CONSUME_ITEM:{item_key}|{reason}"
+                else:
+                    # No game_state provided, can't check conditions
+                    fail_msg = exit_cond.fail_message or "Something blocks your path."
+                    return False, None, fail_msg, []
+            
             # Check if this will be a first visit BEFORE setting current location
             target_location = self.locations.get(dest_id)
             is_first_visit = target_location and not target_location.visited
@@ -337,6 +1029,23 @@ class LocationManager:
             return False, None, f"You can't go '{direction}'. Available exits: {', '.join(valid_exits)}", []
         return False, None, "There's nowhere to go from here.", []
     
+    def check_random_encounter(self, game_state: dict = None) -> Optional[RandomEncounter]:
+        """
+        Check if a random encounter triggers at the current location.
+        
+        Should be called after successful movement to a new location.
+        
+        Args:
+            game_state: Optional dict for checking encounter conditions
+            
+        Returns:
+            RandomEncounter if one triggers, None otherwise
+        """
+        location = self.get_current_location()
+        if location and location.random_encounters:
+            return location.check_random_encounter(game_state)
+        return None
+    
     def get_context_for_dm(self) -> str:
         """Get location context for the AI DM."""
         location = self.get_current_location()
@@ -354,6 +1063,19 @@ Atmosphere: {location.atmosphere}
         if location.items:
             context += f"\nItems here: {', '.join(location.items)}"
         
+        # Phase 3.2.2: Fixed encounter info for predictable difficulty
+        if location.encounter and not location.encounter_triggered:
+            enemy_counts = {}
+            for enemy in location.encounter:
+                enemy_counts[enemy] = enemy_counts.get(enemy, 0) + 1
+            encounter_desc = ", ".join([f"{count} {name}{'s' if count > 1 else ''}" for name, count in enemy_counts.items()])
+            combat_tag = ", ".join(location.encounter)
+            context += f"\n\n⚔️ FIXED ENCOUNTER (not yet triggered): {encounter_desc}"
+            context += f"\nWhen combat starts here, you MUST use EXACTLY: [COMBAT: {combat_tag}]"
+            context += f"\nDo NOT vary the enemy count - this ensures fair, balanced difficulty."
+        elif location.encounter and location.encounter_triggered:
+            context += f"\n\n✓ Encounter already completed at this location."
+        
         return context
     
     def to_dict(self) -> dict:
@@ -361,6 +1083,7 @@ Atmosphere: {location.atmosphere}
         return {
             "current_location_id": self.current_location_id,
             "available_location_ids": self.available_location_ids.copy(),
+            "discovered_secrets": self.discovered_secrets.copy(),  # Phase 3.2.1 Priority 8
             "location_states": {
                 loc_id: loc.to_dict() 
                 for loc_id, loc in self.locations.items()
@@ -371,12 +1094,154 @@ Atmosphere: {location.atmosphere}
         """Restore state from saved data."""
         self.current_location_id = state.get("current_location_id")
         self.available_location_ids = state.get("available_location_ids", [])
+        self.discovered_secrets = state.get("discovered_secrets", [])  # Phase 3.2.1 Priority 8
         
         # Restore individual location states
         location_states = state.get("location_states", {})
         for loc_id, loc_state in location_states.items():
             if loc_id in self.locations:
                 Location.from_state(self.locations[loc_id], loc_state)
+    
+    # =========================================================================
+    # SECRET DISCOVERY SYSTEM (Phase 3.2.1 - Priority 8)
+    # =========================================================================
+    
+    def discover_secret(self, location_id: str) -> bool:
+        """
+        Mark a hidden location as discovered.
+        
+        Args:
+            location_id: The ID of the hidden location to reveal
+            
+        Returns:
+            True if location was hidden and is now discovered, False otherwise
+        """
+        location = self.locations.get(location_id)
+        if not location or not location.hidden:
+            return False
+        
+        if location_id not in self.discovered_secrets:
+            self.discovered_secrets.append(location_id)
+            return True
+        return False  # Already discovered
+    
+    def is_secret_discovered(self, location_id: str) -> bool:
+        """Check if a hidden location has been discovered."""
+        return location_id in self.discovered_secrets
+    
+    def get_hidden_exits(self) -> Dict[str, str]:
+        """
+        Get exits that are currently hidden (not discovered).
+        
+        Returns:
+            Dict mapping exit name to destination location ID for hidden exits
+        """
+        location = self.get_current_location()
+        if not location:
+            return {}
+        
+        hidden = {}
+        for exit_name, dest_id in location.exits.items():
+            if dest_id not in self.available_location_ids:
+                continue
+            
+            dest_location = self.locations.get(dest_id)
+            if dest_location and dest_location.hidden:
+                if dest_id not in self.discovered_secrets:
+                    hidden[exit_name] = dest_id
+        
+        return hidden
+    
+    def get_discovery_hints(self) -> List[str]:
+        """
+        Get discovery hints for any hidden exits from current location.
+        
+        Returns:
+            List of hint strings for hidden locations
+        """
+        hints = []
+        hidden_exits = self.get_hidden_exits()
+        
+        for exit_name, dest_id in hidden_exits.items():
+            dest_location = self.locations.get(dest_id)
+            if dest_location and dest_location.discovery_hint:
+                hints.append(dest_location.discovery_hint)
+        
+        return hints
+    
+    def check_discovery(self, location_id: str, game_state: dict = None) -> Tuple[bool, str]:
+        """
+        Check if discovery conditions are met for a hidden location.
+        
+        Condition formats supported:
+        - "skill:perception:14" - Requires perception skill check DC 14
+        - "has_item:map" - Requires player has specific item
+        - "level:5" - Requires player level 5+
+        - "visited:cave_entrance" - Requires visiting another location first
+        
+        Args:
+            location_id: The hidden location to check discovery for
+            game_state: Dict with 'character', 'inventory', 'visited_locations'
+            
+        Returns:
+            (can_discover, requirement_message)
+            - can_discover: True if conditions met or no condition
+            - requirement_message: String describing what's needed (e.g., "skill_check:perception:14")
+        """
+        location = self.locations.get(location_id)
+        if not location:
+            return False, "Location not found."
+        
+        if not location.hidden:
+            return True, ""  # Not hidden, always accessible
+        
+        if location_id in self.discovered_secrets:
+            return True, ""  # Already discovered
+        
+        if not location.discovery_condition:
+            return True, ""  # No condition, always discoverable
+        
+        condition = location.discovery_condition
+        
+        # Parse condition
+        if condition.startswith("skill:"):
+            # Format: "skill:perception:14"
+            parts = condition.split(":")
+            if len(parts) == 3:
+                skill = parts[1]
+                dc = parts[2]
+                return False, f"skill_check:{skill}:{dc}"
+            return False, "Invalid skill condition."
+        
+        elif condition.startswith("has_item:"):
+            # Format: "has_item:treasure_map"
+            item_key = condition.split(":")[1] if ":" in condition else ""
+            if game_state and "inventory" in game_state:
+                inventory = game_state["inventory"]
+                if hasattr(inventory, "has_item") and inventory.has_item(item_key):
+                    return True, ""
+            return False, f"Requires item: {item_key.replace('_', ' ')}"
+        
+        elif condition.startswith("level:"):
+            # Format: "level:5"
+            required_level = int(condition.split(":")[1]) if ":" in condition else 1
+            if game_state and "character" in game_state:
+                character = game_state["character"]
+                if hasattr(character, "level") and character.level >= required_level:
+                    return True, ""
+            return False, f"Requires level {required_level}+"
+        
+        elif condition.startswith("visited:"):
+            # Format: "visited:cave_entrance"
+            required_location = condition.split(":")[1] if ":" in condition else ""
+            if game_state and "visited_locations" in game_state:
+                if required_location in game_state["visited_locations"]:
+                    return True, ""
+            prereq = self.locations.get(required_location)
+            prereq_name = prereq.name if prereq else required_location
+            return False, f"Must first visit: {prereq_name}"
+        
+        return True, ""  # Unknown condition type, allow by default
 
 
 # =============================================================================
@@ -401,6 +1266,7 @@ class Scene:
     
     # Objectives (optional)
     objectives: List[str] = field(default_factory=list)
+    objective_xp: Dict[str, int] = field(default_factory=dict)  # Phase 3.2.2: XP per objective
     
     # Transition
     transition_hint: str = ""       # What triggers moving to next scene
@@ -435,14 +1301,19 @@ class Scenario:
     # Location System (Phase 3.2)
     location_manager: Optional[LocationManager] = field(default=None)
     
+    # NPC System (Phase 3.3)
+    npc_manager: Optional[NPCManager] = field(default=None)
+    
     # Runtime state
     current_scene_id: Optional[str] = None
     is_complete: bool = False
     
     def __post_init__(self):
-        """Initialize location manager if not provided."""
+        """Initialize location manager and NPC manager if not provided."""
         if self.location_manager is None:
             self.location_manager = LocationManager()
+        if self.npc_manager is None:
+            self.npc_manager = NPCManager()
     
     def _setup_scene_locations(self, scene: Scene):
         """Set up locations for a scene."""
@@ -478,14 +1349,20 @@ class Scenario:
         if scene:
             scene.exchange_count += 1
     
-    def complete_objective(self, objective_id: str) -> bool:
-        """Mark an objective as complete. Returns True if valid."""
+    def complete_objective(self, objective_id: str) -> tuple:
+        """
+        Mark an objective as complete. 
+        Returns (success: bool, xp_reward: int).
+        Phase 3.2.2: Now returns XP to award.
+        """
         scene = self.get_current_scene()
         if scene and objective_id in scene.objectives:
             if objective_id not in scene.objectives_complete:
                 scene.objectives_complete.append(objective_id)
-            return True
-        return False
+                xp = scene.objective_xp.get(objective_id, 0)
+                return True, xp
+            return True, 0  # Already complete, no XP
+        return False, 0
     
     def can_transition(self) -> bool:
         """Check if current scene can transition to next."""
@@ -588,6 +1465,455 @@ PACING:
 # PREDEFINED SCENARIO: The Goblin Cave
 # =============================================================================
 
+def create_goblin_cave_npcs() -> NPCManager:
+    """
+    Create and return NPCManager with all NPCs for the Goblin Cave scenario.
+    
+    This is a scenario-specific factory function. Each scenario/DLC should
+    define its own NPC factory function to create its unique NPCs.
+    
+    Pattern for new scenarios:
+        def create_my_scenario_npcs() -> NPCManager:
+            manager = NPCManager()
+            manager.add_npc(NPC(id="...", name="...", ...))
+            return manager
+    """
+    manager = NPCManager()
+    
+    # =========================================================================
+    # TAVERN NPCs
+    # =========================================================================
+    
+    bram = NPC(
+        id="bram",
+        name="Bram",
+        description="A panicked farmer in his 40s with bloodshot eyes from sleepless nights. "
+                   "His daughter Lily was kidnapped by goblins, and trauma has made his memory unreliable.",
+        role=NPCRole.QUEST_GIVER,
+        location_id="tavern_main",
+        dialogue={
+            "greeting": "Please, you have to help me! The goblins - they took my Lily!",
+            "quest": "They came at night - a whole swarm of them! Or... or maybe just a few, but they moved "
+                    "so fast in the dark. Dragged her off toward Darkhollow Cave. "
+                    "I'll give you everything I have - 50 gold - just bring her back safely!",
+            "about_goblins": "*wrings hands nervously* Wicked little creatures. I saw six or seven... "
+                           "maybe more? It was dark, I could barely see. They moved like shadows, like wolves. "
+                           "Or was it four? I can't... I can't remember clearly.",
+            "about_lily": "She's only sixteen. Strong-willed, like her mother was. She'll be fighting them, I know it. "
+                         "*voice cracks* She has to be okay. She HAS to be.",
+            "about_cave": "Darkhollow Cave, half a day east through the Whisperwood. Dark place. Bad reputation. "
+                         "*shudders* The villagers tell stories about it. I never believed them until now.",
+            "farewell": "*grabs player's arm* Please hurry. Every moment they have her... I can't bear it."
+        },
+        disposition=30,  # Desperate and hopeful toward player
+        quests=["rescue_lily"],
+        personality=Personality(
+            traits=["desperate", "loving father", "unreliable witness", "prone to panic"],
+            speech_style="fragmented, interrupts himself, repeats key points",
+            voice_notes="voice trembles and cracks, speaks rapidly when emotional",
+            motivations=["save daughter Lily", "keep family safe"],
+            fears=["losing Lily forever", "goblins returning", "being helpless"],
+            quirks=["wrings hands when anxious", "grabs listener's arm for emphasis", "contradicts his own numbers"],
+            secrets=["only saw 3-4 goblins but panic made him think there were more", 
+                    "blames himself for not being home that night"]
+        )
+    )
+    manager.add_npc(bram)
+    
+    barkeep = NPC(
+        id="barkeep",
+        name="Barkeep",
+        description="A stout, graying man with a watchful eye. He knows all the village gossip "
+                   "and has heard tales from travelers passing through.",
+        role=NPCRole.INFO,
+        location_id="tavern_main",
+        dialogue={
+            "greeting": "What'll it be, traveler?",
+            "about_goblins": "Those goblins have been getting bolder lately. Used to stay in their caves, "
+                           "but now they're raiding farms. Something's stirred them up.",
+            "about_cave": "Darkhollow Cave? Bad place. Old stories say it goes deep, connects to tunnels "
+                         "that run under the mountains. Goblins have nested there for generations.",
+            "about_village": "Small farming community. Good folk, but not fighters. When trouble comes, "
+                           "they pray for adventurers like yourself.",
+            "about_rumors": "Word is the goblins have a new chief. Bigger, smarter than the rest. "
+                          "Some travelers went missing on the east road last month.",
+            "farewell": "Safe travels. And watch your back in those woods."
+        },
+        disposition=0,  # Neutral
+        personality=Personality(
+            traits=["observant", "pragmatic", "discreet", "worldly-wise"],
+            speech_style="measured and calm, never wastes words",
+            voice_notes="low gravelly voice, pauses before answering sensitive questions",
+            motivations=["keep tavern running", "protect villagers", "gather useful information"],
+            fears=["village being destroyed", "trouble that's bad for business"],
+            quirks=["wipes glasses while talking", "glances at door when discussing danger", 
+                   "lowers voice for rumors"],
+            secrets=["knows more about the goblins than he lets on", 
+                    "has a hidden cellar in case the village is attacked"]
+        )
+    )
+    manager.add_npc(barkeep)
+    
+    # Marcus the Mercenary - Recruitable Fighter
+    marcus = NPC(
+        id="marcus",
+        name="Marcus",
+        description="A weathered sellsword with a scarred face and a well-maintained greatsword. "
+                   "He sits alone at a corner table, nursing a drink and watching the room.",
+        role=NPCRole.RECRUITABLE,
+        location_id="tavern_main",
+        dialogue={
+            "greeting": "Looking for muscle? I'm between jobs. Name's Marcus.",
+            "about_self": "Twenty years as a mercenary. Fought in the Border Wars, the Siege of Blackgate, "
+                         "dozen smaller conflicts. I've killed more men than I care to remember.",
+            "about_goblins": "Goblins are easy prey if you know what you're doing. Quick, cowardly, "
+                           "but dangerous in numbers. They fight dirty.",
+            "about_work": "My last employer couldn't pay. That's why I'm here, drinking away the last "
+                         "of my coin. If you've got gold, I've got steel.",
+            "recruit_accept": "Twenty-five gold and we have a deal. My sword is yours until the job's done.",
+            "recruit_decline": "Convince me you're worth my time, or come back with coin. I don't work for free.",
+            "farewell": "You know where to find me. The offer stands."
+        },
+        disposition=-5,  # Gruff, needs convincing
+        is_recruitable=True,
+        recruitment_condition="gold:25",  # OR logic: gold OR high charisma
+        personality=Personality(
+            traits=["gruff", "pragmatic", "experienced", "weary", "professional"],
+            speech_style="direct and blunt, military precision, no wasted words",
+            voice_notes="deep gravelly voice, speaks slowly and deliberately",
+            motivations=["find steady work", "earn enough to retire", "stay alive"],
+            fears=["dying poor and forgotten", "becoming what he's fought against"],
+            quirks=["sharpens sword while talking", "checks exits when entering rooms", 
+                   "never sits with back to door"],
+            secrets=["deserted from army after war crimes he couldn't stomach",
+                    "has a daughter in distant city he sends money to"]
+        )
+    )
+    manager.add_npc(marcus)
+    
+    # =========================================================================
+    # FOREST NPCs (Recruitable)
+    # =========================================================================
+    
+    elira = NPC(
+        id="elira",
+        name="Elira",
+        description="A tall, lean elf woman with sharp eyes and a longbow across her back. "
+                   "She moves with the quiet grace of a hunter. Her expression is grim, vengeful.",
+        role=NPCRole.RECRUITABLE,
+        location_id="forest_clearing",
+        dialogue={
+            "greeting": "You're heading to Darkhollow? So am I. Those goblins killed my brother.",
+            "about_self": "I'm a ranger. I've been tracking this clan for three weeks. They ambushed a patrol "
+                         "from my village. My brother was with them.",
+            "about_goblins": "There's about a dozen in the main cave. But I've seen signs of more in the tunnels. "
+                           "They're organized now. That's unusual for goblins.",
+            "about_cave": "I've scouted the entrance. Two guards, usually drunk. "
+                         "We could take them quietly if we work together.",
+            "recruit_accept": "A fellow hunter? Very well. But understand - I'm not leaving until every last goblin pays.",
+            "recruit_decline": "I work alone. Unless... you can prove you're worth trusting.",
+            "farewell": "We'll meet again at the cave. Don't slow me down."
+        },
+        disposition=10,  # Slightly guarded but hopeful
+        is_recruitable=True,
+        recruitment_condition="skill:charisma:12",
+        personality=Personality(
+            traits=["vengeful", "skilled", "guarded", "grief-stricken", "deadly calm"],
+            speech_style="clipped and direct, no pleasantries, tactical focus",
+            voice_notes="cold and controlled, but voice tightens when mentioning brother",
+            motivations=["avenge brother's death", "eliminate the goblin threat"],
+            fears=["failing to avenge brother", "letting emotions compromise the mission"],
+            quirks=["touches bow when talking about combat", "scans surroundings constantly",
+                   "refuses to smile"],
+            secrets=["secretly fears she's becoming consumed by vengeance",
+                    "brother was trying to negotiate peace when killed"]
+        )
+    )
+    manager.add_npc(elira)
+    
+    # =========================================================================
+    # CAVE NPCs
+    # =========================================================================
+    
+    # Shade the Rogue - Recruitable, found hiding in shadows
+    shade = NPC(
+        id="shade",
+        name="Shade",
+        description="A hooded figure barely visible in the darkness. Quick eyes glint from beneath the cowl, "
+                   "and a pair of daggers hang at their belt.",
+        role=NPCRole.RECRUITABLE,
+        location_id="goblin_camp_shadows",
+        dialogue={
+            "greeting": "So... you noticed me. Impressive. Most don't until it's too late.",
+            "about_self": "Names are dangerous things to share in my line of work. Call me Shade. "
+                         "I'm here for my own reasons.",
+            "about_goblins": "These vermin stole something from my employer. I intend to retrieve it. "
+                           "Our goals may align... temporarily.",
+            "about_stealth": "I've been watching them for hours. The guards change every two hours, "
+                           "the chief sleeps light, and there's a back passage they don't guard well.",
+            "recruit_accept": "An alliance of convenience. I watch your back, you watch mine. "
+                            "But don't expect me to stick around after we're done here.",
+            "recruit_decline": "You'll need to prove you can move quietly before I trust you at my back. "
+                             "Too many have gotten me caught before.",
+            "farewell": "I'll be watching. If you survive, perhaps we'll talk again."
+        },
+        disposition=-10,  # Suspicious, hard to win over
+        is_recruitable=True,
+        recruitment_condition="skill:charisma:14",  # Hard to convince
+        personality=Personality(
+            traits=["mysterious", "calculating", "observant", "distrustful", "efficient"],
+            speech_style="soft whispers, careful word choice, never reveals more than necessary",
+            voice_notes="barely audible, pauses often as if listening for danger",
+            motivations=["complete the mission", "survive", "uncover secrets"],
+            fears=["betrayal", "being exposed", "losing the shadows"],
+            quirks=["disappears mid-conversation", "appears from unexpected directions", 
+                   "never makes eye contact for long"],
+            secrets=["assassin sent to kill the goblin chief for political reasons",
+                    "has killed before and will again if necessary"]
+        )
+    )
+    manager.add_npc(shade)
+    
+    lily = NPC(
+        id="lily",
+        name="Lily",
+        description="A young woman of sixteen with dirty clothes and a defiant expression. "
+                   "Despite her captivity, her spirit is unbroken.",
+        role=NPCRole.INFO,
+        location_id="goblin_camp_main",  # She's in a cage here
+        dialogue={
+            "greeting": "You came! Father sent you, didn't he?",
+            "about_escape": "They keep the key on the big one's belt. The chief. He's in the back chamber.",
+            "about_goblins": "There's so many of them. But at night, most of them sleep. That's when I've seen chances...",
+            "about_chief": "He's different from the others. Bigger, smarter. He speaks Common! "
+                         "I heard him talking about 'the tunnels' and 'the others below.'",
+            "farewell": "Please be careful. And thank you."
+        },
+        disposition=50,  # Grateful and hopeful
+        personality=Personality(
+            traits=["brave", "resourceful", "observant", "hopeful despite fear"],
+            speech_style="whispered urgency, quick to share useful info",
+            voice_notes="hushed and hurried, glances at guards frequently",
+            motivations=["escape captivity", "see father again", "help rescuers succeed"],
+            fears=["being moved deeper into caves", "rescuers getting killed"],
+            quirks=["grips cage bars when speaking", "listens for goblin footsteps mid-sentence"],
+            secrets=["overheard goblins talking about 'something bigger' in the deep tunnels",
+                    "has been secretly loosening a bar in her cage"]
+        )
+    )
+    manager.add_npc(lily)
+    
+    # =========================================================================
+    # MERCHANT NPCs (Phase 3.3.3 - Shop System)
+    # =========================================================================
+    
+    gavin = NPC(
+        id="gavin",
+        name="Gavin the Blacksmith",
+        description="A burly man in his fifties with a soot-stained leather apron and arms like tree trunks. "
+                   "His forge-roughened hands are surprisingly gentle with his craft.",
+        role=NPCRole.MERCHANT,
+        location_id="blacksmith_shop",
+        dialogue={
+            "greeting": "*wipes hands on apron* Welcome to me forge! Looking for steel?",
+            "about_weapons": "Everything I make is battle-tested. Not like that mass-produced city rubbish. "
+                           "Each blade has character.",
+            "about_armor": "Good armor's like good ale - worth every coin. I've saved more lives "
+                         "with me anvil than any healer.",
+            "about_goblins": "*scowls* Nasty business. If you're heading to Darkhollow, you'll want "
+                           "proper equipment. Those little blighters are vicious.",
+            "about_lily": "Bram's girl? Sweet child. I hope someone finds her. *sets down hammer* "
+                        "Tell you what - help rescue her, and I'll give you a discount.",
+            "haggle_success": "*chuckles* Sharp tongue you've got. Fine, I can work with that price.",
+            "haggle_fail": "*frowns* I've got a business to run. Price is what it is.",
+            "farewell": "May your steel stay sharp and your armor hold true!"
+        },
+        disposition=10,  # Neutral-friendly, business-like
+        personality=Personality(
+            traits=["gruff", "honest", "proud of craft", "protective of village"],
+            speech_style="direct, occasional forge metaphors, northern accent",
+            voice_notes="deep gravelly voice, rhythmic like hammer strikes",
+            motivations=["run a successful business", "protect the village", "craft the finest steel"],
+            fears=["seeing young people die with poor equipment", "the village falling to threats"],
+            quirks=["taps anvil when thinking", "judges people by their weapon maintenance"],
+            secrets=["served as a soldier decades ago", "hides a masterwork sword under the forge for emergencies"]
+        )
+    )
+    manager.add_npc(gavin)
+    
+    return manager
+
+
+def create_goblin_cave_quests(quest_manager: QuestManager) -> None:
+    """
+    Create and register quests for the Goblin Cave scenario.
+    
+    Phase 3.3.4: Quest System Implementation
+    
+    Quests:
+    - Rescue Lily (Main Quest): Save the farmer's daughter
+    - Recover Heirlooms (Side Quest): Find stolen family items
+    - Clear the Path (Side Quest): Eliminate threats on the forest road
+    """
+    
+    # =========================================================================
+    # MAIN QUEST: Rescue Lily
+    # =========================================================================
+    rescue_lily = Quest(
+        id="rescue_lily",
+        name="Rescue Lily",
+        description="Farmer Bram's daughter Lily has been kidnapped by goblins and taken to Darkhollow Cave. Find her and bring her home safely.",
+        giver_npc_id="bram",
+        quest_type=QuestType.MAIN,
+        objectives=[
+            create_location_objective(
+                "reach_cave",
+                "Enter Darkhollow Cave",
+                "cave_entrance"
+            ),
+            create_talk_objective(
+                "find_lily",
+                "Find and rescue Lily",
+                "lily"
+            ),
+            create_location_objective(
+                "return_lily",
+                "Return Lily to the village",
+                "tavern_celebration"
+            )
+        ],
+        rewards={
+            "xp": 100,
+            "gold": 50,
+            "items": ["healing_potion"]
+        }
+    )
+    quest_manager.register_quest(rescue_lily)
+    
+    # =========================================================================
+    # SIDE QUEST: Recover Heirlooms
+    # =========================================================================
+    recover_heirlooms = Quest(
+        id="recover_heirlooms",
+        name="Recover the Family Heirlooms",
+        description="The goblins also stole family heirlooms during their raid - a silver locket and Bram's father's ring. Search the goblin lair to find them.",
+        giver_npc_id="bram",
+        quest_type=QuestType.MINOR,
+        objectives=[
+            create_find_objective(
+                "find_locket",
+                "Find the silver locket",
+                "silver_locket"
+            ),
+            create_find_objective(
+                "find_ring",
+                "Find the family ring",
+                "family_ring"
+            )
+        ],
+        rewards={
+            "xp": 50,
+            "gold": 25
+        },
+        prerequisites=["rescue_lily"]  # Must accept main quest first
+    )
+    quest_manager.register_quest(recover_heirlooms)
+    
+    # =========================================================================
+    # SIDE QUEST: Clear the Path
+    # =========================================================================
+    clear_path = Quest(
+        id="clear_the_path",
+        name="Clear the Path",
+        description="Wolves and goblins have been threatening travelers on the road to Darkhollow. Eliminate them to make the path safer.",
+        giver_npc_id="barkeep",
+        quest_type=QuestType.SIDE,
+        objectives=[
+            create_kill_objective(
+                "kill_wolves",
+                "Eliminate wolves on the forest path",
+                "wolf",
+                count=2
+            ),
+            create_kill_objective(
+                "kill_goblins",
+                "Clear goblins from the cave",
+                "goblin",
+                count=6
+            )
+        ],
+        rewards={
+            "xp": 75,
+            "gold": 30
+        }
+    )
+    quest_manager.register_quest(clear_path)
+    
+    # =========================================================================
+    # SIDE QUEST: The Chief's Treasure
+    # =========================================================================
+    chiefs_treasure = Quest(
+        id="chiefs_treasure",
+        name="The Chief's Treasure",
+        description="Rumors say Chief Grotnak has amassed quite a hoard. Defeat him and claim the treasure for yourself.",
+        giver_npc_id="barkeep",
+        quest_type=QuestType.SIDE,
+        objectives=[
+            create_kill_objective(
+                "defeat_chief",
+                "Defeat Chief Grotnak",
+                "goblin_chief",
+                count=1
+            ),
+            create_location_objective(
+                "find_treasure",
+                "Discover the treasure nook",
+                "treasure_nook"
+            )
+        ],
+        rewards={
+            "xp": 100,
+            "gold": 100
+        }
+    )
+    quest_manager.register_quest(chiefs_treasure)
+
+
+def create_goblin_cave_shops(shop_manager: ShopManager) -> None:
+    """
+    Create and register shops for the Goblin Cave scenario.
+    
+    Phase 3.3.3: Shop System Implementation
+    
+    Shops:
+    - Gavin's Forge (Blacksmith): Weapons and armor
+    """
+    
+    # =========================================================================
+    # GAVIN'S FORGE - Blacksmith Shop
+    # =========================================================================
+    gavins_forge = create_blacksmith_shop(
+        id="gavins_forge",
+        name="Gavin's Forge",
+        owner_npc_id="gavin",
+        location_id="blacksmith_shop",
+        weapons={
+            "dagger": -1,           # Unlimited stock
+            "shortsword": 3,        # Limited stock
+            "longsword": 2,
+            "handaxe": 3,
+            "club": -1,             # Unlimited
+        },
+        armor={
+            "leather_armor": 2,
+            "chain_shirt": 1,
+            "shield": 3,
+        },
+        markup=1.15  # Fair prices for a village blacksmith
+    )
+    shop_manager.add_shop(gavins_forge)
+
+
 def create_goblin_cave_scenario() -> Scenario:
     """Create the first starter scenario: The Goblin Cave."""
     
@@ -600,11 +1926,21 @@ def create_goblin_cave_scenario() -> Scenario:
         "tavern_main": Location(
             id="tavern_main",
             name="The Rusty Dragon - Main Room",
-            description="A cozy common room with a crackling hearth. Wooden tables are scattered about, some occupied by locals nursing their drinks.",
+            description="A cozy common room with a crackling hearth. Wooden tables are scattered about, some occupied by locals nursing their drinks. A bar runs along one wall where a gruff barkeep polishes mugs.",
             exits={"bar": "tavern_bar", "outside": "village_square"},
-            npcs=["bram", "locals"],
+            direction_aliases={"n": "bar", "north": "bar", "s": "outside", "south": "outside"},
+            npcs=["bram", "locals", "barkeep"],
             items=["torch"],
-            atmosphere="Warm firelight, murmured conversations, smell of ale and stew",
+            atmosphere=LocationAtmosphere(
+                sounds=["crackling hearth", "murmured conversations", "clinking tankards", "occasional laughter", "creaking floorboards"],
+                smells=["wood smoke", "spilled ale", "roasting meat", "pipe tobacco"],
+                textures=["worn wooden tables", "sticky ale rings", "rough-hewn chairs"],
+                lighting="warm firelight casting dancing shadows",
+                temperature="comfortably warm from the hearth",
+                mood="welcoming with undercurrents of worry",
+                danger_level="safe",
+                random_details=["a cat dozing by the fire", "a farmer's muddy boots by the door", "a wanted poster curling on the wall", "scratches on the floor from moved furniture"]
+            ),
             enter_text="You push through the tavern door, warmth washing over you."
         ),
         "tavern_bar": Location(
@@ -612,20 +1948,33 @@ def create_goblin_cave_scenario() -> Scenario:
             name="The Rusty Dragon - Bar",
             description="A worn wooden bar with a gruff but friendly barkeep polishing mugs. Bottles line the shelves behind.",
             exits={"main room": "tavern_main"},
+            direction_aliases={"s": "main room", "south": "main room"},
             npcs=["barkeep"],
             items=[],
-            atmosphere="Clinking glasses, the barkeep's watchful eye",
+            atmosphere_text="Clinking glasses, the barkeep's watchful eye",
             enter_text="You approach the bar. The barkeep nods in greeting."
         ),
         "village_square": Location(
             id="village_square",
             name="Village Square",
-            description="A small village square with a well at the center. A few shops line the edges, mostly closed at this hour.",
-            exits={"tavern": "tavern_main", "east road": "forest_path"},
+            description="A small village square with a well at the center. Most shops are closed for the evening, but warm light and the clang of a hammer spill from the blacksmith's forge to the west.",
+            exits={"tavern": "tavern_main", "east road": "forest_path", "forge": "blacksmith_shop"},
+            direction_aliases={"n": "tavern", "north": "tavern", "e": "east road", "east": "east road", "w": "forge", "west": "forge", "blacksmith": "forge", "in": "forge", "inside": "forge", "enter": "forge"},
             npcs=[],
             items=[],
-            atmosphere="Quiet evening, distant sounds of village life winding down",
-            enter_text="You step out into the cool evening air of the village square."
+            atmosphere_text="Quiet evening, the rhythmic clang of a hammer from the forge, distant sounds of village life",
+            enter_text="You step out into the cool evening air of the village square. The blacksmith's forge glows nearby to the west."
+        ),
+        "blacksmith_shop": Location(
+            id="blacksmith_shop",
+            name="Blacksmith's Forge",
+            description="A warm, smoky forge with an anvil at the center. Weapons and armor hang on the walls, and the heat from the furnace fills the small shop.",
+            exits={"outside": "village_square", "square": "village_square"},
+            direction_aliases={"e": "outside", "east": "outside"},
+            npcs=["gavin"],
+            items=[],
+            atmosphere_text="Heat from the forge, the smell of hot metal and coal, rhythmic hammering",
+            enter_text="You step into the warmth of the forge."
         ),
         
         # === JOURNEY SCENE LOCATIONS ===
@@ -634,29 +1983,68 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Forest Path",
             description="A winding dirt path through an ancient forest. Autumn leaves crunch underfoot.",
             exits={"village": "village_square", "deeper": "forest_clearing", "east": "forest_clearing"},
+            direction_aliases={"w": "village", "west": "village", "e": "deeper", "east": "deeper"},
             npcs=[],
             items=[],
-            atmosphere="Dappled sunlight, bird calls, rustling leaves",
-            enter_text="The village fades behind as you enter the forest."
+            atmosphere_text="Dappled sunlight, bird calls, rustling leaves",
+            enter_text="The village fades behind as you enter the forest.",
+            # Phase 3.2.1 Priority 7: Random encounters
+            random_encounters=[
+                RandomEncounter(
+                    id="wolf_ambush",
+                    enemies=["wolf"],
+                    chance=20,  # 20% chance on each visit
+                    max_triggers=2,  # Can happen twice per playthrough
+                    cooldown=3,  # Must wait 3 visits before can happen again
+                    narration="A hungry wolf emerges from the underbrush, teeth bared!"
+                )
+            ]
         ),
         "forest_clearing": Location(
             id="forest_clearing",
             name="Forest Clearing",
             description="A small clearing where the path forks. An old signpost points east toward 'Darkhollow'.",
-            exits={"back": "forest_path", "east": "darkhollow_approach", "cave": "darkhollow_approach"},
-            npcs=["merchant"],  # Random encounter possibility
+            exits={"back": "forest_path", "east": "darkhollow_approach", "cave": "darkhollow_approach", "hidden path": "secret_cave"},
+            direction_aliases={"w": "back", "west": "back", "e": "east", "east": "east"},
+            npcs=[],
             items=["rations"],
-            atmosphere="Birds go quiet here. An uneasy stillness.",
+            atmosphere_text="Birds go quiet here. An uneasy stillness.",
             enter_text="You emerge into a clearing. The trees seem to lean away from the eastern path."
+        ),
+        # === SECRET LOCATION (Phase 3.2.1 - Priority 8) ===
+        "secret_cave": Location(
+            id="secret_cave",
+            name="Hidden Hollow",
+            description="A small natural cave hidden behind overgrown vines. It's cool and quiet inside, clearly undisturbed for years.",
+            exits={"out": "forest_clearing", "exit": "forest_clearing"},
+            direction_aliases={"w": "out", "west": "out"},
+            npcs=[],
+            items=["ancient_amulet", "healing_potion", "gold_coins"],
+            atmosphere_text="Peaceful, ancient, the scent of old magic",
+            enter_text="You push through the vines and discover a hidden hollow. Treasure glints in the dim light!",
+            # Hidden location - requires perception to discover
+            hidden=True,
+            discovery_condition="skill:perception:14",
+            discovery_hint="The vines along the cliff face seem unusually thick in one spot...",
+            events=[
+                LocationEvent(
+                    id="secret_discovery",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="This hollow has been hidden for decades! Old adventurer's gear lies scattered about, including some valuable items.",
+                    effect=None,
+                    one_time=True
+                )
+            ]
         ),
         "darkhollow_approach": Location(
             id="darkhollow_approach",
             name="Approach to Darkhollow",
             description="The forest grows darker and more twisted. Goblin signs become visible - crude markers, bones hanging from branches.",
             exits={"back": "forest_clearing", "cave": "cave_entrance"},
+            direction_aliases={"w": "back", "west": "back", "e": "cave", "east": "cave"},
             npcs=[],
             items=["goblin_ear"],
-            atmosphere="Ominous, the smell of something foul ahead",
+            atmosphere_text="Ominous, the smell of something foul ahead",
             enter_text="The path narrows. Crude goblin warnings hang from the trees.",
             events=[
                 LocationEvent(
@@ -675,9 +2063,19 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Darkhollow Cave Entrance",
             description="A gaping maw in the rocky hillside. Goblin totems flank the entrance, and bones litter the ground.",
             exits={"forest": "darkhollow_approach", "enter cave": "cave_tunnel", "inside": "cave_tunnel"},
+            direction_aliases={"w": "forest", "west": "forest", "e": "enter cave", "east": "enter cave", "d": "enter cave", "down": "enter cave"},
             npcs=[],
             items=["torch"],
-            atmosphere="Foul smell, echoing sounds from within, sense of danger",
+            atmosphere=LocationAtmosphere(
+                sounds=["wind moaning through the cave mouth", "distant dripping", "faint echoes", "the occasional bone crunching underfoot"],
+                smells=["decay", "goblin musk", "damp earth", "rotting meat"],
+                textures=["rough stone", "slippery moss near entrance", "scattered bones", "crude goblin carvings"],
+                lighting="daylight fading into oppressive darkness",
+                temperature="cold air flowing from within",
+                mood="foreboding",
+                danger_level="threatening",
+                random_details=["a human skull on a spike", "claw marks on the entrance stones", "old torch stubs ground into the dirt", "a tattered cloak caught on a rock"]
+            ),
             enter_text="Before you looms the entrance to Darkhollow Cave.",
             events=[
                 LocationEvent(
@@ -694,10 +2092,22 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Dark Tunnel",
             description="A narrow passage descending into darkness. The walls are slick with moisture. Distant goblin chatter echoes ahead.",
             exits={"outside": "cave_entrance", "deeper": "goblin_camp_entrance", "forward": "goblin_camp_entrance"},
+            direction_aliases={"w": "outside", "west": "outside", "u": "outside", "up": "outside", "e": "deeper", "east": "deeper", "d": "deeper", "down": "deeper"},
             npcs=[],
             items=[],
-            atmosphere="Pitch black without light, dripping water, echoing sounds",
-            enter_text="You descend into the darkness. The light fades behind you."
+            atmosphere_text="Pitch black without light, dripping water, echoing sounds",
+            enter_text="You descend into the darkness. The light fades behind you.",
+            # Phase 3.2.1 Priority 7: Random encounters
+            random_encounters=[
+                RandomEncounter(
+                    id="giant_spider",
+                    enemies=["giant_spider"],
+                    chance=25,  # 25% chance
+                    max_triggers=1,  # Only once
+                    min_visits=1,  # Not on first entry
+                    narration="A massive spider drops from the ceiling, blocking your path!"
+                )
+            ]
         ),
         
         # === GOBLIN CAMP SCENE LOCATIONS ===
@@ -706,36 +2116,79 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Goblin Warren - Entrance",
             description="The tunnel opens into a larger cavern. Firelight flickers ahead, and you can see goblin shadows moving.",
             exits={"tunnel": "cave_tunnel", "camp": "goblin_camp_main", "sneak left": "goblin_camp_shadows"},
+            direction_aliases={"w": "tunnel", "west": "tunnel", "e": "camp", "east": "camp", "n": "sneak left", "north": "sneak left"},
             npcs=[],
             items=[],
-            atmosphere="Goblin stench, crackling fire ahead, guttural voices",
+            atmosphere_text="Goblin stench, crackling fire ahead, guttural voices",
             enter_text="The passage widens. You see the goblin camp ahead."
         ),
         "goblin_camp_main": Location(
             id="goblin_camp_main",
             name="Goblin Warren - Main Camp",
-            description="A large cavern lit by smoky torches. Goblins lounge around a central fire. Cages line the far wall - one holds a young girl!",
-            exits={"back": "goblin_camp_entrance", "cages": "goblin_camp_cages", "chief": "chief_tunnel"},
+            description="A large cavern lit by smoky torches. Four goblins lounge around a central fire. Cages line the far wall - one holds a young girl! A sturdy door to the side is marked 'STORAGE'.",
+            exits={"back": "goblin_camp_entrance", "cages": "goblin_camp_cages", "chief": "chief_tunnel", "storage": "goblin_storage"},
+            direction_aliases={"w": "back", "west": "back", "e": "cages", "east": "cages", "n": "chief", "north": "chief", "s": "storage", "south": "storage"},
             npcs=["goblins"],
             items=["shortsword", "rations", "healing_potion", "gold_pouch_small"],
-            atmosphere="Overwhelming stench, gambling goblins, a girl sobbing in a cage",
-            enter_text="You enter the main goblin camp. Four goblins look up from their fire."
+            atmosphere=LocationAtmosphere(
+                sounds=["guttural goblin chatter", "crackling campfire", "dice rattling", "distant sobbing", "chains clinking"],
+                smells=["unwashed bodies", "burnt meat", "smoke", "fear sweat"],
+                textures=["greasy pelts on the ground", "crude bone dice", "smoky air stinging eyes"],
+                lighting="flickering torchlight, deep shadows in corners",
+                temperature="uncomfortably warm from the fire",
+                mood="chaotic and dangerous",
+                danger_level="deadly",
+                random_details=["a goblin picking its teeth with a bone", "stolen village goods piled haphazardly", "crude drawings of violence on the walls", "a half-eaten rat on a plate"]
+            ),
+            enter_text="You enter the main goblin camp. Four goblins look up from their fire.",
+            # Phase 3.2.2: Fixed encounter for predictable difficulty (4 goblins)
+            encounter=["goblin", "goblin", "goblin", "goblin"],
+            # Phase 3.2.1 Priority 5: Locked storage door
+            exit_conditions=[
+                ExitCondition(
+                    exit_name="storage",
+                    condition="has_item:storage_key",
+                    fail_message="The storage door is locked. You need a key.",
+                    consume_item=False  # Key can be reused
+                )
+            ]
         ),
         "goblin_camp_shadows": Location(
             id="goblin_camp_shadows",
             name="Goblin Warren - Shadows",
             description="A dark alcove along the cavern wall. From here you can observe the camp without being seen. Something glints in the corner.",
             exits={"camp": "goblin_camp_main", "cages": "goblin_camp_cages", "chief": "chief_tunnel"},
+            direction_aliases={"s": "camp", "south": "camp", "e": "cages", "east": "cages", "n": "chief", "north": "chief"},
             npcs=[],
-            items=["poison_vial", "dagger"],
-            atmosphere="Hidden, good vantage point for surprise attack",
+            items=["poison_vial", "dagger", "storage_key"],
+            atmosphere_text="Hidden, good vantage point for surprise attack",
             enter_text="You slip into the shadows. From here you can see the whole camp.",
             events=[
                 LocationEvent(
                     id="shadow_discovery",
                     trigger=EventTrigger.ON_FIRST_VISIT,
-                    narration="You find a dead goblin scout here - poisoned. Someone else is hunting these creatures.",
+                    narration="You find a dead goblin scout here - poisoned. Someone else is hunting these creatures. A brass key hangs from his belt.",
                     effect=None,
+                    one_time=True
+                )
+            ]
+        ),
+        "goblin_storage": Location(
+            id="goblin_storage",
+            name="Goblin Warren - Storage Room",
+            description="A cramped storage room full of stolen goods. Barrels of food, crates of weapons, and a locked chest in the corner.",
+            exits={"camp": "goblin_camp_main"},
+            direction_aliases={"n": "camp", "north": "camp"},
+            npcs=[],
+            items=["healing_potion", "healing_potion", "gold_pouch", "shortsword", "leather_armor", "silver_locket", "family_ring"],
+            atmosphere_text="Musty, piles of stolen village goods, potential treasure",
+            enter_text="The storage door creaks open. You've found the goblins' loot stash!",
+            events=[
+                LocationEvent(
+                    id="storage_discovery",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="You recognize some of the stolen goods - supplies from the village! There's enough here to make looting worthwhile. You spot something glinting - family heirlooms perhaps?",
+                    effect="xp:25",
                     one_time=True
                 )
             ]
@@ -745,9 +2198,10 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Goblin Warren - Prisoner Cages",
             description="Crude iron cages along the wall. A young girl (Lily) cowers in one, her eyes wide with fear and hope.",
             exits={"camp": "goblin_camp_main"},
+            direction_aliases={"w": "camp", "west": "camp"},
             npcs=["lily"],
             items=["lockpicks"],
-            atmosphere="Lily's quiet sobs, the clink of chains",
+            atmosphere_text="Lily's quiet sobs, the clink of chains",
             enter_text="You approach the cages. The girl's eyes light up with hope.",
             events=[
                 LocationEvent(
@@ -766,9 +2220,10 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Passage to Chief's Lair",
             description="A passage leading to the back of the cave. It's more decorated - skulls on spikes, crude paintings. An antidote vial lies forgotten in a corner.",
             exits={"camp": "goblin_camp_main", "lair": "boss_chamber"},
+            direction_aliases={"s": "camp", "south": "camp", "n": "lair", "north": "lair"},
             npcs=[],
             items=["antidote"],
-            atmosphere="More 'decorated' than the camp, clearly important",
+            atmosphere_text="More 'decorated' than the camp, clearly important",
             enter_text="You head toward the chief's lair. The decorations grow more gruesome.",
             events=[
                 LocationEvent(
@@ -783,18 +2238,64 @@ def create_goblin_cave_scenario() -> Scenario:
         "boss_chamber": Location(
             id="boss_chamber",
             name="Chief Grotnak's Throne Room",
-            description="A large chamber dominated by a throne of bones. Chief Grotnak sits counting coins, flanked by two bodyguards.",
-            exits={"escape": "chief_tunnel"},
+            description="A large chamber dominated by a throne of bones. Chief Grotnak sits counting coins, flanked by two goblin bodyguards.",
+            exits={"escape": "chief_tunnel", "hidden alcove": "treasure_nook"},
+            direction_aliases={"s": "escape", "south": "escape"},
             npcs=["grotnak", "bodyguards"],
             items=["healing_potion", "gold_pouch", "longsword"],
-            atmosphere="Menacing, the chief's cruel eyes watching, bodyguards ready",
+            # Hidden treasure under the throne (Phase 3.3.5)
+            hidden_items=[
+                HiddenItem(
+                    item_id="chiefs_medallion",
+                    skill="investigation",
+                    dc=14,
+                    hint="Something glints beneath the throne of bones..."
+                )
+            ],
+            atmosphere=LocationAtmosphere(
+                sounds=["Grotnak's low chuckling", "coins clinking", "bodyguards shifting their weight", "dripping from stalactites"],
+                smells=["blood", "wet fur", "smoke from braziers", "the chief's rancid breath"],
+                textures=["bones underfoot", "cold stone walls", "oily torchlight on metal"],
+                lighting="dramatic torchlight, the throne casting long shadows",
+                temperature="cold with hot braziers",
+                mood="menacing confrontation",
+                danger_level="deadly",
+                random_details=["trophies from fallen adventurers on the walls", "a crude map scratched into the floor", "the chief's rusted crown askew", "bodyguards' yellow eyes following every movement"]
+            ),
             enter_text="You enter the throne room. Chief Grotnak looks up with a wicked grin.",
+            # Phase 3.2.2: Fixed boss encounter (chief + 1 bodyguard - balanced)
+            encounter=["goblin_boss", "goblin"],
             events=[
                 LocationEvent(
                     id="chief_confrontation",
                     trigger=EventTrigger.ON_FIRST_VISIT,
                     narration="The Goblin Chief rises from his bone throne with a thunderous roar! 'You dare enter MY domain?!'",
                     effect="start_combat:goblin_boss",
+                    one_time=True
+                )
+            ]
+        ),
+        # === SECRET LOCATION (Phase 3.2.1 - Priority 8) ===
+        "treasure_nook": Location(
+            id="treasure_nook",
+            name="Chief's Secret Stash",
+            description="A cramped alcove hidden behind a false panel in the wall. The chief's personal treasure hoard!",
+            exits={"out": "boss_chamber", "back": "boss_chamber"},
+            direction_aliases={"s": "out", "south": "out"},
+            npcs=[],
+            items=["enchanted_dagger", "ruby_ring", "gold_pile", "rare_scroll"],
+            atmosphere_text="Dusty, glittering, the smell of wealth hoarded over years",
+            enter_text="You squeeze through the hidden passage into the chief's secret stash!",
+            # Hidden location - requires investigation after combat
+            hidden=True,
+            discovery_condition="skill:investigation:12",
+            discovery_hint="One section of the wall behind the throne looks different from the rest...",
+            events=[
+                LocationEvent(
+                    id="treasure_found",
+                    trigger=EventTrigger.ON_FIRST_VISIT,
+                    narration="The chief was hoarding more than you realized! Piles of gold and magical items fill this cramped space.",
+                    effect=None,
                     one_time=True
                 )
             ]
@@ -806,9 +2307,10 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Cave Exit",
             description="Daylight streams through the cave entrance. Fresh air replaces the goblin stench.",
             exits={"outside": "return_path"},
+            direction_aliases={"w": "outside", "west": "outside"},
             npcs=["lily"],
             items=[],
-            atmosphere="Relief, fresh air, sense of accomplishment",
+            atmosphere_text="Relief, fresh air, sense of accomplishment",
             enter_text="You emerge from the cave into blessed sunlight."
         ),
         "return_path": Location(
@@ -816,9 +2318,10 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Return Journey",
             description="The forest path back to the village. The journey feels lighter now.",
             exits={"village": "village_return"},
+            direction_aliases={"w": "village", "west": "village"},
             npcs=["lily"],
             items=[],
-            atmosphere="Lighter mood, Lily's grateful chatter",
+            atmosphere_text="Lighter mood, Lily's grateful chatter",
             enter_text="The journey home begins. Lily walks beside you, still shaken but safe."
         ),
         "village_return": Location(
@@ -828,7 +2331,7 @@ def create_goblin_cave_scenario() -> Scenario:
             exits={"tavern": "tavern_celebration"},
             npcs=["bram", "villagers"],
             items=[],
-            atmosphere="Cheering crowds, tearful reunion",
+            atmosphere_text="Cheering crowds, tearful reunion",
             enter_text="The village erupts in cheers as you return with Lily!"
         ),
         "tavern_celebration": Location(
@@ -838,7 +2341,7 @@ def create_goblin_cave_scenario() -> Scenario:
             exits={},
             npcs=["bram", "barkeep", "villagers"],
             items=[],
-            atmosphere="Celebration, gratitude, hints of future adventures",
+            atmosphere_text="Celebration, gratitude, hints of future adventures",
             enter_text="The tavern welcomes you as a hero. Bram approaches with tears in his eyes."
         )
     }
@@ -860,19 +2363,29 @@ His daughter Lily was taken by goblins who raided their farm last night.
 He offers the family's savings (50 gold) as reward.
 The goblin lair is in Darkhollow Cave, a half-day's journey east.
 Let the player ask questions, gather information from locals.
-When player agrees to help, describe them leaving the tavern.
+
+IMPORTANT - WHEN PLAYER ACCEPTS THE QUEST:
+- Give the [XP: ...] reward
+- Give any items (torch, etc.)
+- Describe Bram's relief and gratitude
+- END YOUR RESPONSE in the tavern
+- DO NOT narrate the journey - the player will navigate using 'go' commands
+- Suggest the player can explore the village or head east toward the forest
 
 LOCATION NOTES:
 - Player starts in main room, can explore bar or go outside
 - Bram is in the main room
 - Barkeep has gossip if asked
+- Player uses 'go outside' to leave tavern to village_square
+- Player uses 'go east' from village to start the journey
 """,
             min_exchanges=3,
             objectives=["meet_bram", "accept_quest"],
+            objective_xp={"meet_bram": 10, "accept_quest": 15},  # Phase 3.2.2: Objective XP
             transition_hint="Player accepts the quest and prepares to leave",
             next_scene_id="journey",
             # Location System
-            location_ids=["tavern_main", "tavern_bar", "village_square"],
+            location_ids=["tavern_main", "tavern_bar", "village_square", "blacksmith_shop", "forest_path"],
             starting_location_id="tavern_main"
         ),
         
@@ -901,7 +2414,7 @@ LOCATION NOTES:
             transition_hint="Player arrives at Darkhollow Cave entrance",
             next_scene_id="cave_entrance",
             # Location System
-            location_ids=["village_square", "forest_path", "forest_clearing", "darkhollow_approach"],
+            location_ids=["village_square", "blacksmith_shop", "forest_path", "forest_clearing", "darkhollow_approach", "secret_cave"],
             starting_location_id="forest_path"
         ),
         
@@ -926,6 +2439,7 @@ LOCATION NOTES:
 """,
             min_exchanges=2,
             objectives=["examine_entrance"],
+            objective_xp={"examine_entrance": 15},  # Phase 3.2.2: Objective XP
             transition_hint="Player enters the cave",
             next_scene_id="goblin_camp",
             # Location System
@@ -937,20 +2451,24 @@ LOCATION NOTES:
             id="goblin_camp",
             name="The Goblin Warren",
             description="A goblin encampment deep in the cave",
-            setting="A large cavern lit by smoky torches. 4-5 goblins lounge around a fire. Cages line the far wall. The smell is overwhelming.",
+            setting="A large cavern lit by smoky torches. Exactly 4 goblins lounge around a fire. Cages line the far wall. The smell is overwhelming.",
             mood="tense, combat-ready",
             dm_instructions="""
 The player enters a main cavern with:
-- 4-5 goblins (distracted, gambling, eating)
+- EXACTLY 4 goblins (distracted, gambling, eating) - DO NOT vary this number
 - A cage with a young girl (Lily, scared but alive)
 - Tunnels leading deeper (to the chief's chamber)
 - Crude fortifications (overturnable tables, weapon racks)
 
 Let the player choose their approach:
 - Stealth: Sneak past or to ambush position (go to shadows location)
-- Combat: Fight the goblins
+- Combat: Fight the goblins - USE EXACTLY [COMBAT: goblin, goblin, goblin, goblin]
 - Distraction: Create diversion
 - Negotiation: (Very hard, goblins are hostile)
+
+⚠️ FIXED ENCOUNTER: When combat occurs at goblin_camp_main, you MUST use:
+[COMBAT: goblin, goblin, goblin, goblin]
+Do NOT add or remove enemies - this ensures fair, balanced gameplay.
 
 Resolve the encounter. If player frees Lily, she says the chief has more prisoners.
 Chief is in the back chamber with the treasure.
@@ -958,15 +2476,16 @@ Chief is in the back chamber with the treasure.
 LOCATION NOTES:
 - goblin_camp_entrance: can see camp, plan approach
 - goblin_camp_shadows: stealth position for surprise
-- goblin_camp_main: direct confrontation
+- goblin_camp_main: direct confrontation (4 goblins)
 - goblin_camp_cages: where Lily is held
 """,
             min_exchanges=3,
             objectives=["deal_with_goblins", "find_lily"],
+            objective_xp={"deal_with_goblins": 25, "find_lily": 50},  # Phase 3.2.2: Combat XP separate
             transition_hint="Player either clears the camp or sneaks through to the chief's chamber",
             next_scene_id="boss_chamber",
             # Location System
-            location_ids=["cave_tunnel", "goblin_camp_entrance", "goblin_camp_main", "goblin_camp_shadows", "goblin_camp_cages", "chief_tunnel"],
+            location_ids=["cave_tunnel", "goblin_camp_entrance", "goblin_camp_main", "goblin_camp_shadows", "goblin_camp_cages", "chief_tunnel", "goblin_storage"],
             starting_location_id="goblin_camp_entrance"
         ),
         
@@ -974,15 +2493,19 @@ LOCATION NOTES:
             id="boss_chamber",
             name="Chief Grotnak's Lair",
             description="The goblin chief's personal chamber",
-            setting="A larger chamber with a crude throne made of bones. A brutish goblin chief sits counting coins. Two goblin bodyguards flank him.",
+            setting="A larger chamber with a crude throne made of bones. A brutish goblin chief sits counting coins. Exactly two goblin bodyguards flank him.",
             mood="climactic, dangerous, decisive",
             dm_instructions="""
 BOSS ENCOUNTER: Chief Grotnak
 - Larger, meaner, smarter than regular goblins
-- Has 2 goblin bodyguards
+- Has EXACTLY 2 goblin bodyguards (not more, not less)
 - Sits on bone throne with a chest of stolen treasure nearby
 - If player has Lily, he might threaten her
 - If player caused commotion earlier, he's prepared
+
+⚠️ FIXED ENCOUNTER: When combat starts, you MUST use:
+[COMBAT: goblin_boss, goblin, goblin]
+Do NOT add or remove enemies - this ensures fair, balanced gameplay.
 
 This is the climax! Make it dramatic:
 - Describe his menacing appearance
@@ -994,14 +2517,15 @@ Treasure includes: gold, a minor magic item, personal effects from victims.
 
 LOCATION NOTES:
 - chief_tunnel: approach, can hear him counting coins
-- boss_chamber: the confrontation
+- boss_chamber: the confrontation (1 boss + 2 bodyguards)
 """,
             min_exchanges=3,
             objectives=["defeat_chief"],
+            objective_xp={"defeat_chief": 50},  # Phase 3.2.2: Victory objective XP
             transition_hint="Chief Grotnak is defeated",
             next_scene_id="resolution",
             # Location System
-            location_ids=["goblin_camp_main", "chief_tunnel", "boss_chamber"],
+            location_ids=["goblin_camp_main", "chief_tunnel", "boss_chamber", "treasure_nook"],
             starting_location_id="chief_tunnel"
         ),
         
@@ -1045,6 +2569,9 @@ LOCATION NOTES:
     for loc in locations.values():
         location_manager.add_location(loc)
     
+    # Create NPC manager with Goblin Cave NPCs (Phase 3.3)
+    npc_manager = create_goblin_cave_npcs()
+    
     scenario = Scenario(
         id="goblin_cave",
         name="The Goblin Cave",
@@ -1053,7 +2580,8 @@ LOCATION NOTES:
         estimated_duration="20-40 minutes",
         scenes=scenes,
         scene_order=["tavern", "journey", "cave_entrance", "goblin_camp", "boss_chamber", "resolution"],
-        location_manager=location_manager
+        location_manager=location_manager,
+        npc_manager=npc_manager
     )
     
     return scenario

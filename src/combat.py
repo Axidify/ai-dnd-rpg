@@ -5,7 +5,7 @@ Handles attack rolls, damage, and combat encounters.
 
 import random
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from character import Character
 
 
@@ -40,6 +40,73 @@ WEAPONS = {
 
 
 # =============================================================================
+# CLASS-APPROPRIATE WEAPON POOLS (Phase 3.2.2)
+# =============================================================================
+
+# Weapons appropriate for each class when dropped as loot
+CLASS_WEAPON_POOLS = {
+    "Fighter": ["longsword", "greatsword", "warhammer", "greataxe"],
+    "Paladin": ["longsword", "warhammer", "greatsword", "mace"],
+    "Ranger": ["shortbow", "longbow", "shortsword", "light_crossbow"],
+    "Barbarian": ["greataxe", "greatsword", "warhammer", "handaxe"],
+    "Wizard": ["quarterstaff", "dagger"],
+    "Sorcerer": ["quarterstaff", "dagger"],
+    "Rogue": ["shortsword", "dagger", "rapier"],
+    "Bard": ["rapier", "shortsword", "dagger"],
+    "Warlock": ["quarterstaff", "dagger"],
+    "Monk": ["quarterstaff", "shortsword"],
+    "Cleric": ["mace", "warhammer", "quarterstaff"],
+    "Druid": ["quarterstaff", "spear"],
+}
+
+# Quality tiers with drop rates and stat bonuses
+# Rolls 1-100: Common 1-60, Uncommon 61-85, Rare 86-97, Epic 98-100
+QUALITY_TIERS = {
+    "Common": {"max_roll": 60, "bonus": 0, "prefix": ""},
+    "Uncommon": {"max_roll": 85, "bonus": 1, "prefix": "Fine "},
+    "Rare": {"max_roll": 97, "bonus": 2, "prefix": "Superior "},
+    "Epic": {"max_roll": 100, "bonus": 3, "prefix": "Legendary "},
+}
+
+
+def roll_quality_tier() -> Tuple[str, dict]:
+    """Roll for weapon quality tier. Returns (tier_name, tier_data)."""
+    roll = random.randint(1, 100)
+    for tier_name, tier_data in QUALITY_TIERS.items():
+        if roll <= tier_data["max_roll"]:
+            return tier_name, tier_data
+    return "Common", QUALITY_TIERS["Common"]
+
+
+def generate_class_weapon(player_class: str) -> Tuple[str, str, int]:
+    """
+    Generate a class-appropriate weapon with random quality.
+    
+    Args:
+        player_class: The player's character class
+        
+    Returns:
+        Tuple of (weapon_id, display_name, bonus)
+        - weapon_id: Base weapon type (e.g., "longsword")
+        - display_name: Full name with quality (e.g., "Superior Longsword")
+        - bonus: Stat bonus from quality tier (0-3)
+    """
+    # Get weapon pool for class, default to Fighter weapons
+    weapon_pool = CLASS_WEAPON_POOLS.get(player_class, CLASS_WEAPON_POOLS["Fighter"])
+    
+    # Pick random weapon from pool
+    base_weapon = random.choice(weapon_pool)
+    
+    # Roll quality tier
+    tier_name, tier_data = roll_quality_tier()
+    
+    # Build display name (e.g., "Fine Longsword" or just "Longsword" for Common)
+    display_name = f"{tier_data['prefix']}{base_weapon.replace('_', ' ').title()}"
+    
+    return base_weapon, display_name, tier_data["bonus"]
+
+
+# =============================================================================
 # ENEMY CLASS
 # =============================================================================
 
@@ -53,18 +120,32 @@ class Enemy:
     damage_dice: str
     damage_bonus: int = 0
     dex_modifier: int = 2  # For initiative
+    xp_reward: int = 25    # XP awarded when defeated (Phase 3.2.2)
+    loot: List[str] = field(default_factory=list)  # Phase 3.2.2: Fixed loot drops
+    gold_drop: int = 0     # Phase 3.2.2: Fixed gold drop
     current_hp: int = field(init=False)
-    is_dead: bool = False
+    _is_dead: bool = field(default=False, repr=False)  # Internal flag, use property
     initiative: int = 0
     
     def __post_init__(self):
         self.current_hp = self.max_hp
     
+    @property
+    def is_dead(self) -> bool:
+        """Check if enemy is dead (HP <= 0)."""
+        return self.current_hp <= 0
+    
+    @is_dead.setter
+    def is_dead(self, value: bool):
+        """Allow setting is_dead for compatibility (sets internal flag)."""
+        self._is_dead = value
+    
     def take_damage(self, damage: int) -> str:
         """Apply damage to enemy. Returns status message."""
+        if damage <= 0:
+            return f"{self.name} takes no damage."
         self.current_hp = max(0, self.current_hp - damage)
         if self.current_hp == 0:
-            self.is_dead = True
             return f"{self.name} falls!"
         else:
             return f"{self.name} takes {damage} damage! ({self.current_hp}/{self.max_hp} HP)"
@@ -90,15 +171,28 @@ class Enemy:
 # PRESET ENEMIES
 # =============================================================================
 
+# XP and Loot values balanced for the Goblin Cave scenario:
+# - Players should reach ~Level 2 by boss fight (100 XP needed)
+# - 4 goblins at camp = 100 XP (25 each)
+# - Boss + 2 bodyguards = 150 XP (100 boss + 25 each minion)
+# - Total combat XP: 250 XP (enough for Level 2, progress to Level 3)
+#
+# Loot distribution (Phase 3.2.2 - Fixed for balance):
+# - Regular enemies: Small gold, maybe 1 common item (25% of goblins)
+# - Boss enemies: Good gold, guaranteed useful item
+
 ENEMIES = {
     'goblin': Enemy(
         name="Goblin",
-        max_hp=7,
-        armor_class=15,
-        attack_bonus=4,
+        max_hp=5,           # Lowered for balance (was 7)
+        armor_class=12,     # Lowered for balance (was 15)
+        attack_bonus=3,     # Lowered for balance (was 4)
         damage_dice="1d6",
-        damage_bonus=2,
-        dex_modifier=2
+        damage_bonus=1,     # Lowered for balance (was 2)
+        dex_modifier=2,
+        xp_reward=25,      # Minor enemy
+        loot=[],           # Basic goblins drop nothing (gold only)
+        gold_drop=3        # 3 gold per goblin
     ),
     'goblin_boss': Enemy(
         name="Goblin Boss",
@@ -107,7 +201,10 @@ ENEMIES = {
         attack_bonus=5,
         damage_dice="1d8",
         damage_bonus=3,
-        dex_modifier=2
+        dex_modifier=2,
+        xp_reward=100,                       # Boss enemy
+        loot=["healing_potion", "shortsword"],  # Guaranteed useful loot
+        gold_drop=20                         # Good gold drop
     ),
     'skeleton': Enemy(
         name="Skeleton",
@@ -116,7 +213,10 @@ ENEMIES = {
         attack_bonus=4,
         damage_dice="1d6",
         damage_bonus=2,
-        dex_modifier=2
+        dex_modifier=2,
+        xp_reward=25,      # Minor enemy
+        loot=[],           # Undead carry nothing
+        gold_drop=0        # No gold
     ),
     'orc': Enemy(
         name="Orc",
@@ -125,7 +225,10 @@ ENEMIES = {
         attack_bonus=5,
         damage_dice="1d12",
         damage_bonus=3,
-        dex_modifier=1
+        dex_modifier=1,
+        xp_reward=50,                # Medium enemy
+        loot=["rations"],            # Orcs carry food
+        gold_drop=8                  # Moderate gold
     ),
     'bandit': Enemy(
         name="Bandit",
@@ -134,16 +237,34 @@ ENEMIES = {
         attack_bonus=3,
         damage_dice="1d6",
         damage_bonus=1,
-        dex_modifier=1
+        dex_modifier=1,
+        xp_reward=25,                # Minor enemy
+        loot=["lockpicks"],          # Bandits carry tools
+        gold_drop=10                 # Stolen gold
     ),
     'wolf': Enemy(
         name="Wolf",
-        max_hp=11,
-        armor_class=13,
+        max_hp=8,           # Lowered for balance (was 11)
+        armor_class=11,     # Lowered for balance (was 13)
         attack_bonus=4,
         damage_dice="2d4",
         damage_bonus=2,
-        dex_modifier=2
+        dex_modifier=2,
+        xp_reward=25,      # Minor enemy
+        loot=[],           # Animals don't carry items
+        gold_drop=0        # No gold
+    ),
+    'giant_spider': Enemy(
+        name="Giant Spider",
+        max_hp=18,          # Lowered for balance (was 26)
+        armor_class=13,     # Lowered for balance (was 14)
+        attack_bonus=4,     # Lowered for balance (was 5)
+        damage_dice="1d8",
+        damage_bonus=2,     # Lowered for balance (was 3)
+        dex_modifier=3,
+        xp_reward=50,      # Moderate enemy
+        loot=["poison_vial"],  # Venom can be harvested
+        gold_drop=0        # Animals don't carry gold
     ),
 }
 
@@ -159,9 +280,66 @@ def create_enemy(enemy_type: str) -> Optional[Enemy]:
             attack_bonus=template.attack_bonus,
             damage_dice=template.damage_dice,
             damage_bonus=template.damage_bonus,
-            dex_modifier=template.dex_modifier
+            dex_modifier=template.dex_modifier,
+            xp_reward=template.xp_reward,  # Phase 3.2.2: Include XP reward
+            loot=template.loot.copy(),     # Phase 3.2.2: Fixed loot drops
+            gold_drop=template.gold_drop   # Phase 3.2.2: Fixed gold drop
         )
     return None
+
+
+def get_enemy_xp(enemy_type: str) -> int:
+    """Get XP reward for an enemy type. Returns 0 if unknown."""
+    if enemy_type.lower() in ENEMIES:
+        return ENEMIES[enemy_type.lower()].xp_reward
+    return 0
+
+
+def get_enemy_loot(enemy_type: str) -> tuple:
+    """
+    Get fixed loot for an enemy type (Phase 3.2.2).
+    Returns (loot_items: List[str], gold: int).
+    """
+    if enemy_type.lower() in ENEMIES:
+        enemy = ENEMIES[enemy_type.lower()]
+        return enemy.loot.copy(), enemy.gold_drop
+    return [], 0
+
+
+def get_enemy_loot_for_class(enemy_type: str, player_class: str) -> tuple:
+    """
+    Get loot for an enemy type with class-appropriate weapon drops (Phase 3.2.2).
+    
+    Replaces generic weapon drops (like "shortsword") with class-appropriate
+    weapons of random quality.
+    
+    Args:
+        enemy_type: The type of enemy (e.g., "goblin_boss")
+        player_class: The player's character class (e.g., "Fighter")
+        
+    Returns:
+        Tuple of (loot_items: List[str], gold: int)
+        - loot_items now contains class-appropriate weapon names with quality
+    """
+    # Get base loot
+    loot, gold = get_enemy_loot(enemy_type)
+    
+    # List of base weapon IDs that should be replaced with class weapons
+    replaceable_weapons = ["shortsword", "longsword", "dagger", "mace", 
+                          "quarterstaff", "greataxe", "shortbow", "longbow"]
+    
+    # Process each loot item
+    processed_loot = []
+    for item in loot:
+        if item.lower() in replaceable_weapons:
+            # Replace with class-appropriate weapon
+            base_weapon, display_name, bonus = generate_class_weapon(player_class)
+            processed_loot.append(display_name)
+        else:
+            # Keep non-weapon items as-is
+            processed_loot.append(item)
+    
+    return processed_loot, gold
 
 
 # =============================================================================
