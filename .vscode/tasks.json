@@ -1,0 +1,47 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "🎮 Start Backend",
+			"type": "shell",
+			"command": "${workspaceFolder}/.venv/Scripts/python.exe",
+			"args": ["src/api_server.py"],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "fullstack"
+			}
+		},
+		{
+			"label": "🌐 Start Frontend",
+			"type": "shell",
+			"command": "C:\\flutter\\bin\\flutter.bat",
+			"args": ["run", "-d", "chrome"],
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"group": "fullstack"
+			}
+		},
+		{
+			"label": "🔥 Full Stack",
+			"dependsOn": ["🎮 Start Backend", "🌐 Start Frontend"],
+			"dependsOrder": "parallel",
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}

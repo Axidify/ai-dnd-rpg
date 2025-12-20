@@ -1,36 +1,17 @@
+ *  Executing task: Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd "D:\Vibecoding\AI RPG V2"; .venv\Scripts\python.exe src/api_server.py'; Start-Sleep -Seconds 2; cd "D:\Vibecoding\AI RPG V2\frontend"; C:\flutter\bin\flutter.bat run -d chrome 
 
-🎲 Dungeon Master:
-Refusing to be defeated by the chaotic scene, you decide to conduct one final, meticulous search. You ignore the wider clearing and focus entirely on the wreckage of the cart itself. You g
-cart itself. You get down on your hands and knees, sifting through the spilled grain, turning over broken pieces of barrel, and carefully pushing aside the torn canvas, lg small, anything ooking for anything small, anything dropped and forgotten in the heat of the raid.
+Set-Location : A positional parameter cannot be found that accepts argument 'RPG'.
+At line:1 char:161
++ ... ; Start-Sleep -Seconds 2; cd D:\Vibecoding\AI RPG V2\frontend; C:\flu ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Set-Location], ParameterBindingException   
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.SetLoc 
+   ationCommand
+ 
+Error: No pubspec.yaml file found.
+This command should be run from the root of your Flutter project.
 
-[ROLL: Investigation DC 13]
+ *  The terminal process "C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -Command Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd "D:\Vibecoding\AI RPG V2"; .venv\Scripts\python.exe src/api_server.py'; Start-Sleep -Seconds 2; cd "D:\Vibecoding\AI RPG V2\frontend"; C:\flutter\bin\flutter.bat run -d chrome" terminated with exit code: 1. 
+ *  Terminal will be reused by tasks, press any key to close it. 
 
-📋 DM requests: Investigation check (DC 13)
-   Press Enter to roll...
 
-🎲 Investigation (INT): [16]+1 = 17 vs DC 13 = ✅ SUCCESS
-
-🎲 Dungeon Master:
-This time, your methodical approach pays off. As you sift through a pile of spilled grain and broken pottery near the cart's axle, your fingers brush against something hard and smooth. Yourd and smooth. You dig away the debris and unearth a small, sturdy wooden box, overlooked in the chaos. It's not locked.
-
-Inside, nestled on a bed of faded velvet, is a small, corked vial filled with a shimmering crimson liquid. It feels cool to the touch and hums with a faint, restorative energy. It seems thnergy. It seems the merchants had an emergency potion that the goblins completely missed in their violent haste.
-
-Tucking the fortunate discovery away, you feel slightly better prepared for the dangers ahead. The path east still calls, leading deeper into the dark woods toward the cave.ve.
-
-[ITEM: healing_potion]
-
-✨ REWARDS:
-  📦 Added 1x Healing Potion (now have 2)
-
-⚔️  Your action: look around try to see or hear what else is nearby
-
-🎲 Dungeon Master:                                                                                                                                                        ged what you could
-You give the clearing one final, exhaustive scan, but it's clear there are no more secrets to uncover. You have dispatched the ambushers, searched their bodies, and salvaged what you could from the wreckage of the cart. The chaotic scene has offered up all it's going to.
-                                                                                                                                                                          oute east, leading
-The metallic scent of blood hangs in the air, a stark reminder of the violence that occurred here. The only thing left now is the path forward. It continues its winding route east, leading deeper into the shadows of the woods and closer to the goblins' lair.
-
-⚔️  Your action: head deeper
-
-  ❌ You can't go 'deeper'. Available exits: village
-
-⚔️  Your action:

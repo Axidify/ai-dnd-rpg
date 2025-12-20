@@ -410,6 +410,164 @@ class RandomEncounter:
         )
 
 
+# =============================================================================
+# Phase 4.5: Interactive World Map Data Structures
+# =============================================================================
+
+@dataclass
+class MapNode:
+    """Visual map representation of a location."""
+    
+    location_id: str                # References Location.id
+    x: float                        # Normalized X coordinate (0-1)
+    y: float                        # Normalized Y coordinate (0-1)
+    icon: str                       # Display icon (emoji or icon ID)
+    label: str                      # Display label
+    
+    # Visual State
+    is_current: bool = False        # Player is here
+    is_visited: bool = False        # Has been visited (full color)
+    is_visible: bool = True         # Not hidden by fog of war
+    is_accessible: bool = True      # Can travel to (not locked)
+    
+    # Status Indicators
+    danger_level: str = "safe"      # safe/uneasy/threatening/deadly
+    has_shop: bool = False          # Show shop icon overlay
+    has_quest: bool = False         # Show quest marker overlay
+    has_npc: bool = False           # Show NPC indicator overlay
+    
+    def to_dict(self) -> dict:
+        """Serialize for API/save."""
+        return {
+            "location_id": self.location_id,
+            "x": self.x,
+            "y": self.y,
+            "icon": self.icon,
+            "label": self.label,
+            "is_current": self.is_current,
+            "is_visited": self.is_visited,
+            "is_visible": self.is_visible,
+            "is_accessible": self.is_accessible,
+            "danger_level": self.danger_level,
+            "has_shop": self.has_shop,
+            "has_quest": self.has_quest,
+            "has_npc": self.has_npc
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'MapNode':
+        """Create from dictionary."""
+        return cls(
+            location_id=data["location_id"],
+            x=data.get("x", 0.0),
+            y=data.get("y", 0.0),
+            icon=data.get("icon", "🏠"),
+            label=data.get("label", ""),
+            is_current=data.get("is_current", False),
+            is_visited=data.get("is_visited", False),
+            is_visible=data.get("is_visible", True),
+            is_accessible=data.get("is_accessible", True),
+            danger_level=data.get("danger_level", "safe"),
+            has_shop=data.get("has_shop", False),
+            has_quest=data.get("has_quest", False),
+            has_npc=data.get("has_npc", False)
+        )
+
+
+@dataclass
+class MapConnection:
+    """Visual line between two map nodes."""
+    
+    from_id: str                    # Source location ID
+    to_id: str                      # Destination location ID
+    is_bidirectional: bool = True   # Arrow on both ends?
+    is_visible: bool = True         # Show this connection?
+    is_locked: bool = False         # Dashed line for locked exits
+    travel_time: str = ""           # Optional: "5 min", "1 hour"
+    
+    def to_dict(self) -> dict:
+        """Serialize for API."""
+        return {
+            "from_id": self.from_id,
+            "to_id": self.to_id,
+            "is_bidirectional": self.is_bidirectional,
+            "is_visible": self.is_visible,
+            "is_locked": self.is_locked,
+            "travel_time": self.travel_time
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'MapConnection':
+        """Create from dictionary."""
+        return cls(
+            from_id=data["from_id"],
+            to_id=data["to_id"],
+            is_bidirectional=data.get("is_bidirectional", True),
+            is_visible=data.get("is_visible", True),
+            is_locked=data.get("is_locked", False),
+            travel_time=data.get("travel_time", "")
+        )
+
+
+@dataclass
+class MapRegion:
+    """A visual region/zone on the map (e.g., 'Village', 'Forest', 'Cave')."""
+    
+    id: str                         # "willowmere_village"
+    name: str                       # "Willowmere Village"
+    description: str = ""           # "A peaceful farming village..."
+    
+    # Visual Properties
+    background_color: str = "#2D5A3D"   # Region tint color
+    border_color: str = "#1A3D1A"       # Border color
+    icon: str = "🏘️"                    # Region icon
+    
+    # Bounds (normalized 0-1)
+    bounds_x: float = 0.0           # Left edge
+    bounds_y: float = 0.0           # Top edge
+    bounds_width: float = 1.0       # Width
+    bounds_height: float = 1.0      # Height
+    
+    # State
+    is_unlocked: bool = True        # Can player enter this region?
+    unlock_condition: str = ""      # "objective:rescue_lily"
+    
+    def to_dict(self) -> dict:
+        """Serialize for API."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "background_color": self.background_color,
+            "border_color": self.border_color,
+            "icon": self.icon,
+            "bounds_x": self.bounds_x,
+            "bounds_y": self.bounds_y,
+            "bounds_width": self.bounds_width,
+            "bounds_height": self.bounds_height,
+            "is_unlocked": self.is_unlocked,
+            "unlock_condition": self.unlock_condition
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'MapRegion':
+        """Create from dictionary."""
+        return cls(
+            id=data["id"],
+            name=data["name"],
+            description=data.get("description", ""),
+            background_color=data.get("background_color", "#2D5A3D"),
+            border_color=data.get("border_color", "#1A3D1A"),
+            icon=data.get("icon", "🏘️"),
+            bounds_x=data.get("bounds_x", 0.0),
+            bounds_y=data.get("bounds_y", 0.0),
+            bounds_width=data.get("bounds_width", 1.0),
+            bounds_height=data.get("bounds_height", 1.0),
+            is_unlocked=data.get("is_unlocked", True),
+            unlock_condition=data.get("unlock_condition", "")
+        )
+
+
 @dataclass
 class Location:
     """Represents a physical location in the game world."""
@@ -452,6 +610,14 @@ class Location:
     
     # Random Encounters (Phase 3.2.1 - Priority 7)
     random_encounters: List[RandomEncounter] = field(default_factory=list)  # Possible random encounters
+    
+    # Map Visualization (Phase 4.5 - Interactive World Map)
+    map_x: float = 0.0                   # X coordinate on map (0.0 to 1.0 normalized)
+    map_y: float = 0.0                   # Y coordinate on map (0.0 to 1.0 normalized)
+    map_icon: str = "🏠"                 # Emoji or icon ID for map marker
+    map_label: str = ""                  # Short label (defaults to name if empty)
+    map_region: str = "default"          # Region/zone this location belongs to
+    map_hidden: bool = False             # If True, not shown on map until visited/discovered
     
     # State (runtime)
     visited: bool = False
@@ -827,6 +993,189 @@ def check_exit_condition(condition: str, game_state: dict) -> Tuple[bool, str]:
     
     # Unknown condition type - pass through
     return True, ""
+
+
+# =============================================================================
+# Phase 4.5: WorldMap Class - Manages Interactive World Map
+# =============================================================================
+
+class WorldMap:
+    """Manages the visual world map for a scenario."""
+    
+    def __init__(self, scenario_id: str = ""):
+        self.scenario_id = scenario_id
+        self.nodes: Dict[str, MapNode] = {}          # location_id -> MapNode
+        self.connections: List[MapConnection] = []    # All connections
+        self.regions: Dict[str, MapRegion] = {}       # region_id -> MapRegion
+        self.current_location: str = ""               # Current location ID
+    
+    def build_from_locations(self, locations: Dict[str, 'Location'], 
+                              npc_locations: Dict[str, List[str]] = None,
+                              quest_locations: List[str] = None):
+        """Generate map from Location objects.
+        
+        Args:
+            locations: Dict of location_id -> Location
+            npc_locations: Dict of location_id -> list of NPC IDs (optional)
+            quest_locations: List of location IDs with active quests (optional)
+        """
+        if npc_locations is None:
+            npc_locations = {}
+        if quest_locations is None:
+            quest_locations = []
+        
+        # Build nodes from locations
+        for loc_id, loc in locations.items():
+            # Determine danger level from atmosphere
+            danger = "safe"
+            if loc.atmosphere:
+                danger = loc.atmosphere.danger_level or "safe"
+            
+            # Check for shop NPCs
+            has_shop = False
+            npcs_at_loc = npc_locations.get(loc_id, []) or loc.npcs
+            # We'd need to check NPC roles, but for now just check if any NPCs present
+            has_npc = len(npcs_at_loc) > 0
+            
+            # Check for quests
+            has_quest = loc_id in quest_locations
+            
+            self.nodes[loc_id] = MapNode(
+                location_id=loc_id,
+                x=loc.map_x,
+                y=loc.map_y,
+                icon=loc.map_icon,
+                label=loc.map_label or loc.name,
+                is_visited=loc.visited,
+                is_visible=not loc.map_hidden or loc.visited,
+                is_accessible=True,  # Will be updated based on locked exits
+                danger_level=danger,
+                has_shop=has_shop,
+                has_quest=has_quest,
+                has_npc=has_npc
+            )
+        
+        # Build connections from exits (deduplicate bidirectional)
+        seen_connections = set()
+        for loc_id, loc in locations.items():
+            for exit_name, dest_id in loc.exits.items():
+                if dest_id in self.nodes:
+                    # Create a canonical key for bidirectional deduplication
+                    conn_key = tuple(sorted([loc_id, dest_id]))
+                    if conn_key not in seen_connections:
+                        seen_connections.add(conn_key)
+                        
+                        # Check if connection is locked
+                        is_locked = False
+                        for cond in loc.exit_conditions:
+                            if cond.exit_name == exit_name:
+                                is_locked = True
+                                break
+                        
+                        self.connections.append(MapConnection(
+                            from_id=loc_id,
+                            to_id=dest_id,
+                            is_bidirectional=True,
+                            is_locked=is_locked
+                        ))
+    
+    def add_region(self, region: MapRegion):
+        """Add a map region."""
+        self.regions[region.id] = region
+    
+    def update_current(self, location_id: str):
+        """Update current location marker."""
+        self.current_location = location_id
+        for node in self.nodes.values():
+            node.is_current = (node.location_id == location_id)
+    
+    def mark_visited(self, location_id: str):
+        """Mark location as visited (reveal fog of war)."""
+        if location_id in self.nodes:
+            self.nodes[location_id].is_visited = True
+            self.nodes[location_id].is_visible = True
+    
+    def reveal_adjacent(self, location_id: str, locations: Dict[str, 'Location']):
+        """Reveal nodes adjacent to visited location."""
+        if location_id in locations:
+            loc = locations[location_id]
+            for dest_id in loc.exits.values():
+                if dest_id in self.nodes:
+                    self.nodes[dest_id].is_visible = True
+    
+    def unlock_connection(self, from_id: str, to_id: str):
+        """Unlock a locked connection."""
+        for conn in self.connections:
+            if (conn.from_id == from_id and conn.to_id == to_id) or \
+               (conn.from_id == to_id and conn.to_id == from_id and conn.is_bidirectional):
+                conn.is_locked = False
+    
+    def get_clickable_nodes(self) -> List[MapNode]:
+        """Get nodes player can click to travel to."""
+        if not self.current_location:
+            return []
+        
+        # Find adjacent locations
+        adjacent = set()
+        for conn in self.connections:
+            if not conn.is_visible:
+                continue
+            if conn.from_id == self.current_location:
+                adjacent.add(conn.to_id)
+            if conn.to_id == self.current_location and conn.is_bidirectional:
+                adjacent.add(conn.from_id)
+        
+        return [
+            node for node in self.nodes.values()
+            if node.location_id in adjacent
+            and node.is_visible
+            and node.is_accessible
+        ]
+    
+    def get_all_visible_nodes(self) -> List[MapNode]:
+        """Get all visible nodes for rendering."""
+        return [node for node in self.nodes.values() if node.is_visible]
+    
+    def get_visible_connections(self) -> List[MapConnection]:
+        """Get connections between visible nodes."""
+        visible_ids = {n.location_id for n in self.get_all_visible_nodes()}
+        return [
+            conn for conn in self.connections
+            if conn.is_visible and conn.from_id in visible_ids and conn.to_id in visible_ids
+        ]
+    
+    def to_dict(self) -> dict:
+        """Serialize entire map state for API."""
+        return {
+            "scenario_id": self.scenario_id,
+            "current_location": self.current_location,
+            "nodes": {k: v.to_dict() for k, v in self.nodes.items()},
+            "connections": [c.to_dict() for c in self.connections if c.is_visible],
+            "regions": {k: v.to_dict() for k, v in self.regions.items()}
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'WorldMap':
+        """Create from dictionary."""
+        world_map = cls(scenario_id=data.get("scenario_id", ""))
+        world_map.current_location = data.get("current_location", "")
+        
+        # Load nodes
+        nodes_data = data.get("nodes", {})
+        for node_id, node_data in nodes_data.items():
+            world_map.nodes[node_id] = MapNode.from_dict(node_data)
+        
+        # Load connections
+        connections_data = data.get("connections", [])
+        for conn_data in connections_data:
+            world_map.connections.append(MapConnection.from_dict(conn_data))
+        
+        # Load regions
+        regions_data = data.get("regions", {})
+        for region_id, region_data in regions_data.items():
+            world_map.regions[region_id] = MapRegion.from_dict(region_data)
+        
+        return world_map
 
 
 class LocationManager:
@@ -1918,6 +2267,41 @@ def create_goblin_cave_scenario() -> Scenario:
     """Create the first starter scenario: The Goblin Cave."""
     
     # =========================================================================
+    # MAP REGIONS (Phase 4.5 - World Map UI)
+    # =========================================================================
+    
+    # Define the three main regions of the Goblin Cave scenario
+    map_regions = [
+        MapRegion(
+            id="village",
+            name="Willowbrook Village",
+            description="A peaceful farming village, the starting point of your adventure.",
+            bounds_x=0.0, bounds_y=0.0, bounds_width=1.0, bounds_height=0.20,
+            background_color="#E8F5E9",  # Light green background
+            border_color="#2E7D32",
+            icon="🏘️"
+        ),
+        MapRegion(
+            id="forest",
+            name="Darkhollow Forest",
+            description="An ancient forest with winding paths. Danger lurks deeper within.",
+            bounds_x=0.0, bounds_y=0.20, bounds_width=1.0, bounds_height=0.35,
+            background_color="#FFF3E0",  # Light orange background
+            border_color="#E65100",
+            icon="🌲"
+        ),
+        MapRegion(
+            id="cave",
+            name="Darkhollow Cave",
+            description="The goblin lair. Chief Grotnak rules from his throne of bones.",
+            bounds_x=0.0, bounds_y=0.55, bounds_width=1.0, bounds_height=0.45,
+            background_color="#FFEBEE",  # Light red background
+            border_color="#B71C1C",
+            icon="🕳️"
+        )
+    ]
+    
+    # =========================================================================
     # LOCATIONS (Phase 3.2)
     # =========================================================================
     
@@ -1928,6 +2312,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="The Rusty Dragon - Main Room",
             description="A cozy common room with a crackling hearth. Wooden tables are scattered about, some occupied by locals nursing their drinks. A bar runs along one wall where a gruff barkeep polishes mugs.",
             exits={"bar": "tavern_bar", "outside": "village_square"},
+            # Map coordinates for world map UI
+            map_x=0.15, map_y=0.08, map_icon="🍺", map_region="village",
             direction_aliases={"n": "bar", "north": "bar", "s": "outside", "south": "outside"},
             npcs=["bram", "locals", "barkeep"],
             items=["torch"],
@@ -1948,6 +2334,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="The Rusty Dragon - Bar",
             description="A worn wooden bar with a gruff but friendly barkeep polishing mugs. Bottles line the shelves behind.",
             exits={"main room": "tavern_main"},
+            # Map coordinates for world map UI
+            map_x=0.15, map_y=0.02, map_icon="🍻", map_region="village",
             direction_aliases={"s": "main room", "south": "main room"},
             npcs=["barkeep"],
             items=[],
@@ -1959,6 +2347,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Village Square",
             description="A small village square with a well at the center. Most shops are closed for the evening, but warm light and the clang of a hammer spill from the blacksmith's forge to the west.",
             exits={"tavern": "tavern_main", "east road": "forest_path", "forge": "blacksmith_shop"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.08, map_icon="🏛️", map_region="village",
             direction_aliases={"n": "tavern", "north": "tavern", "e": "east road", "east": "east road", "w": "forge", "west": "forge", "blacksmith": "forge", "in": "forge", "inside": "forge", "enter": "forge"},
             npcs=[],
             items=[],
@@ -1970,6 +2360,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Blacksmith's Forge",
             description="A warm, smoky forge with an anvil at the center. Weapons and armor hang on the walls, and the heat from the furnace fills the small shop.",
             exits={"outside": "village_square", "square": "village_square"},
+            # Map coordinates for world map UI
+            map_x=0.85, map_y=0.08, map_icon="🛠️", map_region="village",
             direction_aliases={"e": "outside", "east": "outside"},
             npcs=["gavin"],
             items=[],
@@ -1983,6 +2375,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Forest Path",
             description="A winding dirt path through an ancient forest. Autumn leaves crunch underfoot.",
             exits={"village": "village_square", "deeper": "forest_clearing", "east": "forest_clearing"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.28, map_icon="🌲", map_region="forest",
             direction_aliases={"w": "village", "west": "village", "e": "deeper", "east": "deeper"},
             npcs=[],
             items=[],
@@ -2005,6 +2399,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Forest Clearing",
             description="A small clearing where the path forks. An old signpost points east toward 'Darkhollow'.",
             exits={"back": "forest_path", "east": "darkhollow_approach", "cave": "darkhollow_approach", "hidden path": "secret_cave"},
+            # Map coordinates for world map UI
+            map_x=0.35, map_y=0.38, map_icon="🌳", map_region="forest",
             direction_aliases={"w": "back", "west": "back", "e": "east", "east": "east"},
             npcs=[],
             items=["rations"],
@@ -2017,6 +2413,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Hidden Hollow",
             description="A small natural cave hidden behind overgrown vines. It's cool and quiet inside, clearly undisturbed for years.",
             exits={"out": "forest_clearing", "exit": "forest_clearing"},
+            # Map coordinates for world map UI (hidden until discovered)
+            map_x=0.20, map_y=0.42, map_icon="🔮", map_region="forest", map_hidden=True,
             direction_aliases={"w": "out", "west": "out"},
             npcs=[],
             items=["ancient_amulet", "healing_potion", "gold_coins"],
@@ -2041,6 +2439,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Approach to Darkhollow",
             description="The forest grows darker and more twisted. Goblin signs become visible - crude markers, bones hanging from branches.",
             exits={"back": "forest_clearing", "cave": "cave_entrance"},
+            # Map coordinates for world map UI
+            map_x=0.65, map_y=0.38, map_icon="⚠️", map_region="forest",
             direction_aliases={"w": "back", "west": "back", "e": "cave", "east": "cave"},
             npcs=[],
             items=["goblin_ear"],
@@ -2063,6 +2463,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Darkhollow Cave Entrance",
             description="A gaping maw in the rocky hillside. Goblin totems flank the entrance, and bones litter the ground.",
             exits={"forest": "darkhollow_approach", "enter cave": "cave_tunnel", "inside": "cave_tunnel"},
+            # Map coordinates for world map UI
+            map_x=0.65, map_y=0.50, map_icon="💀", map_region="forest",
             direction_aliases={"w": "forest", "west": "forest", "e": "enter cave", "east": "enter cave", "d": "enter cave", "down": "enter cave"},
             npcs=[],
             items=["torch"],
@@ -2092,6 +2494,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Dark Tunnel",
             description="A narrow passage descending into darkness. The walls are slick with moisture. Distant goblin chatter echoes ahead.",
             exits={"outside": "cave_entrance", "deeper": "goblin_camp_entrance", "forward": "goblin_camp_entrance"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.62, map_icon="🕯️", map_region="cave",
             direction_aliases={"w": "outside", "west": "outside", "u": "outside", "up": "outside", "e": "deeper", "east": "deeper", "d": "deeper", "down": "deeper"},
             npcs=[],
             items=[],
@@ -2116,6 +2520,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Goblin Warren - Entrance",
             description="The tunnel opens into a larger cavern. Firelight flickers ahead, and you can see goblin shadows moving.",
             exits={"tunnel": "cave_tunnel", "camp": "goblin_camp_main", "sneak left": "goblin_camp_shadows"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.72, map_icon="👁️", map_region="cave",
             direction_aliases={"w": "tunnel", "west": "tunnel", "e": "camp", "east": "camp", "n": "sneak left", "north": "sneak left"},
             npcs=[],
             items=[],
@@ -2127,6 +2533,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Goblin Warren - Main Camp",
             description="A large cavern lit by smoky torches. Four goblins lounge around a central fire. Cages line the far wall - one holds a young girl! A sturdy door to the side is marked 'STORAGE'.",
             exits={"back": "goblin_camp_entrance", "cages": "goblin_camp_cages", "chief": "chief_tunnel", "storage": "goblin_storage"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.82, map_icon="⚔️", map_region="cave",
             direction_aliases={"w": "back", "west": "back", "e": "cages", "east": "cages", "n": "chief", "north": "chief", "s": "storage", "south": "storage"},
             npcs=["goblins"],
             items=["shortsword", "rations", "healing_potion", "gold_pouch_small"],
@@ -2158,6 +2566,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Goblin Warren - Shadows",
             description="A dark alcove along the cavern wall. From here you can observe the camp without being seen. Something glints in the corner.",
             exits={"camp": "goblin_camp_main", "cages": "goblin_camp_cages", "chief": "chief_tunnel"},
+            # Map coordinates for world map UI
+            map_x=0.35, map_y=0.78, map_icon="👤", map_region="cave",
             direction_aliases={"s": "camp", "south": "camp", "e": "cages", "east": "cages", "n": "chief", "north": "chief"},
             npcs=[],
             items=["poison_vial", "dagger", "storage_key"],
@@ -2178,6 +2588,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Goblin Warren - Storage Room",
             description="A cramped storage room full of stolen goods. Barrels of food, crates of weapons, and a locked chest in the corner.",
             exits={"camp": "goblin_camp_main"},
+            # Map coordinates for world map UI
+            map_x=0.35, map_y=0.88, map_icon="📦", map_region="cave",
             direction_aliases={"n": "camp", "north": "camp"},
             npcs=[],
             items=["healing_potion", "healing_potion", "gold_pouch", "shortsword", "leather_armor", "silver_locket", "family_ring"],
@@ -2198,6 +2610,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Goblin Warren - Prisoner Cages",
             description="Crude iron cages along the wall. A young girl (Lily) cowers in one, her eyes wide with fear and hope.",
             exits={"camp": "goblin_camp_main"},
+            # Map coordinates for world map UI
+            map_x=0.65, map_y=0.82, map_icon="🔒", map_region="cave",
             direction_aliases={"w": "camp", "west": "camp"},
             npcs=["lily"],
             items=["lockpicks"],
@@ -2220,6 +2634,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Passage to Chief's Lair",
             description="A passage leading to the back of the cave. It's more decorated - skulls on spikes, crude paintings. An antidote vial lies forgotten in a corner.",
             exits={"camp": "goblin_camp_main", "lair": "boss_chamber"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.92, map_icon="⚰️", map_region="cave",
             direction_aliases={"s": "camp", "south": "camp", "n": "lair", "north": "lair"},
             npcs=[],
             items=["antidote"],
@@ -2240,6 +2656,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Chief Grotnak's Throne Room",
             description="A large chamber dominated by a throne of bones. Chief Grotnak sits counting coins, flanked by two goblin bodyguards.",
             exits={"escape": "chief_tunnel", "hidden alcove": "treasure_nook"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.98, map_icon="👑", map_region="cave",
             direction_aliases={"s": "escape", "south": "escape"},
             npcs=["grotnak", "bodyguards"],
             items=["healing_potion", "gold_pouch", "longsword"],
@@ -2281,6 +2699,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Chief's Secret Stash",
             description="A cramped alcove hidden behind a false panel in the wall. The chief's personal treasure hoard!",
             exits={"out": "boss_chamber", "back": "boss_chamber"},
+            # Map coordinates for world map UI (hidden until discovered)
+            map_x=0.65, map_y=0.98, map_icon="💎", map_region="cave", map_hidden=True,
             direction_aliases={"s": "out", "south": "out"},
             npcs=[],
             items=["enchanted_dagger", "ruby_ring", "gold_pile", "rare_scroll"],
@@ -2307,6 +2727,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Cave Exit",
             description="Daylight streams through the cave entrance. Fresh air replaces the goblin stench.",
             exits={"outside": "return_path"},
+            # Map coordinates for world map UI
+            map_x=0.65, map_y=0.50, map_icon="☀️", map_region="forest",
             direction_aliases={"w": "outside", "west": "outside"},
             npcs=["lily"],
             items=[],
@@ -2318,6 +2740,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Return Journey",
             description="The forest path back to the village. The journey feels lighter now.",
             exits={"village": "village_return"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.28, map_icon="🏃", map_region="forest",
             direction_aliases={"w": "village", "west": "village"},
             npcs=["lily"],
             items=[],
@@ -2329,6 +2753,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="Village - Hero's Return",
             description="The village square, but now filled with people. Word has spread of your success!",
             exits={"tavern": "tavern_celebration"},
+            # Map coordinates for world map UI
+            map_x=0.50, map_y=0.08, map_icon="🎊", map_region="village",
             npcs=["bram", "villagers"],
             items=[],
             atmosphere_text="Cheering crowds, tearful reunion",
@@ -2339,6 +2765,8 @@ def create_goblin_cave_scenario() -> Scenario:
             name="The Rusty Dragon - Celebration",
             description="The tavern is packed! Drinks flow freely and the villagers toast your heroism.",
             exits={},
+            # Map coordinates for world map UI
+            map_x=0.15, map_y=0.08, map_icon="🎉", map_region="village",
             npcs=["bram", "barkeep", "villagers"],
             items=[],
             atmosphere_text="Celebration, gratitude, hints of future adventures",

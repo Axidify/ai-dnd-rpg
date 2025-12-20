@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #e94560;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff6b8a;
+}
+
+/* Base styles */
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+  min-height: 100vh;
+}
+
+/* Utility classes */
+@layer components {
+  .rpg-card {
+    @apply bg-rpg-panel rounded-xl border border-rpg-accent/30 shadow-lg;
+  }
+  
+  .rpg-button {
+    @apply bg-rpg-accent hover:bg-rpg-accent/80 text-white font-semibold 
+           px-6 py-3 rounded-lg transition-all duration-200 
+           hover:shadow-lg hover:shadow-rpg-accent/30;
+  }
+  
+  .rpg-input {
+    @apply bg-rpg-dark border border-rpg-accent/30 rounded-lg px-4 py-3 
+           text-white placeholder-gray-500 focus:border-rpg-accent 
+           focus:ring-1 focus:ring-rpg-accent outline-none transition-all;
+  }
+  
+  .stat-bar {
+    @apply h-4 rounded-full overflow-hidden bg-rpg-dark;
+  }
+  
+  .stat-bar-fill {
+    @apply h-full rounded-full transition-all duration-500 ease-out;
+  }
+}
