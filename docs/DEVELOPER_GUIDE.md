@@ -1227,6 +1227,95 @@ When player ambushes enemies:
 | `bandit` | 11 | 12 | +3 | 1d6+1 |
 | `giant_spider` | 26 | 14 | +5 | 1d8+3 |
 
+### Combat Narration System
+
+The combat system integrates AI-generated narration to bring combat to life. The mechanics remain deterministic while the AI DM provides immersive descriptions.
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     PLAYER/ENEMY ATTACKS                        │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  MECHANICS LAYER (Deterministic)                                │
+│  • Dice rolls happen first                                      │
+│  • Damage calculated                                            │
+│  • HP deducted, win/lose determined                             │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  NARRATION LAYER (AI-Generated)                                 │
+│  • DM receives final results                                    │
+│  • Describes what happened                                      │
+│  • Cannot change outcomes                                       │
+│  • Pure flavor/immersion                                        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Key Principle
+
+**Mechanics are authoritative.** The AI DM narrates combat outcomes but cannot change results. Numbers are calculated first, then narration is generated based on those results.
+
+#### Combat Narration Functions (game.py)
+
+| Function | Purpose |
+|----------|---------|
+| `build_combat_context()` | Creates context dict from attack/damage results |
+| `get_combat_narration(chat, context)` | Sends context to AI, returns narrative prose |
+| `display_combat_narration(narration)` | Displays 📖 narration with proper formatting |
+| `COMBAT_NARRATION_PROMPT` | Prompt template for AI narration requests |
+
+#### Combat Context Structure
+
+```python
+combat_context = {
+    'attacker': 'Kira',           # Who is attacking
+    'target': 'Goblin 1',         # Target of attack
+    'weapon': 'longsword',        # Weapon used
+    'outcome': 'hit',             # 'hit', 'miss', 'critical_hit', 'critical_miss'
+    'damage': 8,                  # Damage dealt (if hit)
+    'damage_type': 'slashing',    # Damage type
+    'target_killed': False,       # Did target die?
+    'is_player_attack': True,     # Player attacking enemy or vice versa
+}
+```
+
+#### Example Output
+
+```
+🗡️ Attack (Longsword): [17]+5 = 22 vs AC 15 = ✅ HIT!
+💥 Damage: [6]+3 = 9 slashing damage
+
+📖 Your blade arcs through the air in a deadly silver flash. The goblin 
+   tries to raise its rusty dagger to parry, but you're too fast—steel 
+   bites deep, and the creature crumples with a gurgling cry.
+```
+
+#### Extending Combat Narration
+
+To add narration to a new combat action:
+
+```python
+# 1. Build context after mechanics resolve
+combat_ctx = build_combat_context(
+    attacker_name=character.name,
+    target_name=enemy.name,
+    weapon=weapon,
+    attack_result=attack,
+    damage_result=damage,
+    target_died=enemy.current_hp <= 0,
+    is_player_attacking=True
+)
+
+# 2. Request narration from AI
+narration = get_combat_narration(chat, combat_ctx)
+
+# 3. Display narration
+display_combat_narration(narration)
+```
+
 ---
 
 ### Location System (Phase 3.2)
