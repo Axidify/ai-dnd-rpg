@@ -215,8 +215,9 @@ ITEMS = {
     "lockpicks": Item(
         name="Thieves' Tools",
         item_type=ItemType.MISC,
-        description="Tools for picking locks.",
-        value=25
+        description="Tools for picking locks. Can be used to open locked doors or cages with a successful Sleight of Hand check.",
+        value=25,
+        effect="Can attempt Sleight of Hand check to pick locks (DC varies, consumed on attempt)"
     ),
     "bedroll": Item(
         name="Bedroll",
@@ -247,8 +248,11 @@ ITEMS = {
     "ancient_scroll": Item(
         name="Ancient Scroll",
         item_type=ItemType.QUEST,
-        description="A weathered scroll with forgotten knowledge.",
-        value=0
+        description="A weathered scroll with forgotten knowledge. Reading it reveals: "
+                   "'...the old mining tunnel emerges near the back of Darkhollow. "
+                   "Look for a boulder with a crack shaped like lightning...'",
+        value=0,
+        effect="Reading this scroll reveals the secret tunnel entrance (sets flag: knows_secret_tunnel)"
     ),
     "goblin_ear": Item(
         name="Goblin Ear",
@@ -622,8 +626,19 @@ def use_item(item: Item, character) -> tuple[bool, str]:
         result_lines.append(f"🧪 You drink the {item.name}!")
         result_lines.append(f"💚 Healed {actual_heal} HP ({old_hp} → {character.current_hp}/{character.max_hp})")
     
+    # Phase 3.6.6: Poison Vial - Apply to weapon for +1d4 damage
+    elif item.name == "Poison Vial":
+        if hasattr(character, 'weapon_poisoned'):
+            if character.weapon_poisoned:
+                return False, "Your weapon is already poisoned!"
+            character.weapon_poisoned = True
+            result_lines.append(f"🧪 You carefully apply the {item.name} to your weapon.")
+            result_lines.append(f"🗡️ Your next melee attack deals +1d4 poison damage!")
+        else:
+            return False, "Unable to apply poison."
+    
     # Other effects
-    if item.effect:
+    elif item.effect:
         result_lines.append(f"✨ {item.effect}")
     
     if not result_lines:

@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Callable, Tuple, Any
 from enum import Enum
 import json
 
-from npc import NPC, NPCRole, NPCManager, Personality
+from npc import NPC, NPCRole, NPCManager, Personality, SkillCheckOption
 from quest import (
     Quest, QuestObjective, QuestManager, QuestStatus, QuestType, ObjectiveType,
     create_kill_objective, create_find_objective, create_talk_objective,
@@ -1527,6 +1527,7 @@ Atmosphere: {location.atmosphere}
         - "has_item:map" - Requires player has specific item
         - "level:5" - Requires player level 5+
         - "visited:cave_entrance" - Requires visiting another location first
+        - "cond1 OR cond2" - Either condition can be met (Phase 3.6.3)
         
         Args:
             location_id: The hidden location to check discovery for
@@ -1552,6 +1553,23 @@ Atmosphere: {location.atmosphere}
         
         condition = location.discovery_condition
         
+        # Handle OR conditions (Phase 3.6.3)
+        if " OR " in condition:
+            conditions = [c.strip() for c in condition.split(" OR ")]
+            messages = []
+            for sub_condition in conditions:
+                # Temporarily set condition to check each
+                can_discover, message = self._check_single_condition(sub_condition, game_state)
+                if can_discover:
+                    return True, ""  # Any condition met is enough
+                messages.append(message)
+            # Return combined message if none met
+            return False, " or ".join(messages)
+        
+        return self._check_single_condition(condition, game_state)
+    
+    def _check_single_condition(self, condition: str, game_state: dict = None) -> Tuple[bool, str]:
+        """Check a single discovery condition (helper for OR logic)."""
         # Parse condition
         if condition.startswith("skill:"):
             # Format: "skill:perception:14"
@@ -1567,8 +1585,18 @@ Atmosphere: {location.atmosphere}
             item_key = condition.split(":")[1] if ":" in condition else ""
             if game_state and "inventory" in game_state:
                 inventory = game_state["inventory"]
-                if hasattr(inventory, "has_item") and inventory.has_item(item_key):
-                    return True, ""
+                # Support both list inventory and objects with has_item method
+                if hasattr(inventory, "has_item"):
+                    if inventory.has_item(item_key):
+                        return True, ""
+                elif isinstance(inventory, list):
+                    # List of items - check if any item.name matches
+                    normalized = item_key.lower().replace(" ", "_")
+                    for item in inventory:
+                        if hasattr(item, 'name') and item.name.lower().replace(" ", "_") == normalized:
+                            return True, ""
+                        elif isinstance(item, str) and item.lower().replace(" ", "_") == normalized:
+                            return True, ""
             return False, f"Requires item: {item_key.replace('_', ' ')}"
         
         elif condition.startswith("level:"):
@@ -1865,17 +1893,41 @@ def create_goblin_cave_npcs() -> NPCManager:
             quirks=["wrings hands when anxious", "grabs listener's arm for emphasis", "contradicts his own numbers"],
             secrets=["only saw 3-4 goblins but panic made him think there were more", 
                     "blames himself for not being home that night"]
-        )
+        ),
+        skill_check_options=[
+            SkillCheckOption(
+                id="upfront_payment",
+                skill="persuasion",
+                dc=14,
+                description="Ask Bram for an advance payment before the dangerous mission",
+                success_effect="gold:25",
+                success_dialogue="*sighs heavily* You're right, you're right... you'll need supplies. "
+                               "Here's 25 gold now - it's half my savings. Please, just bring her back!",
+                failure_dialogue="I... I can't spare any coin until I know she's safe. "
+                               "What if you take my money and never return? Please understand..."
+            ),
+            SkillCheckOption(
+                id="better_reward",
+                skill="persuasion",
+                dc=16,
+                description="Negotiate a higher reward for the dangerous rescue mission",
+                success_effect="flag:reward_bonus_25",
+                success_dialogue="*swallows hard* You drive a hard bargain... but Lily's worth everything. "
+                               "75 gold. I'll find a way. Just bring her home!",
+                failure_dialogue="Fifty gold is all I have! *voice cracks* I'd give you the world if I could, "
+                               "but I'm just a farmer. Please, don't abandon my Lily over coin..."
+            )
+        ]
     )
     manager.add_npc(bram)
     
     barkeep = NPC(
         id="barkeep",
-        name="Barkeep",
-        description="A stout, graying man with a watchful eye. He knows all the village gossip "
-                   "and has heard tales from travelers passing through.",
+        name="Greth the Barkeep",
+        description="A stout, graying man with a watchful eye. Greth has run the Rusty Dragon tavern "
+                   "for two decades and knows all the village gossip and tales from travelers.",
         role=NPCRole.INFO,
-        location_id="tavern_main",
+        location_id="tavern_bar",
         dialogue={
             "greeting": "What'll it be, traveler?",
             "about_goblins": "Those goblins have been getting bolder lately. Used to stay in their caves, "
@@ -1886,6 +1938,11 @@ def create_goblin_cave_npcs() -> NPCManager:
                            "they pray for adventurers like yourself.",
             "about_rumors": "Word is the goblins have a new chief. Bigger, smarter than the rest. "
                           "Some travelers went missing on the east road last month.",
+            "about_help": "Looking for swords-for-hire? *nods toward corner* See that big fella Marcus? "
+                        "He's a sellsword, been asking about Darkhollow himself. "
+                        "*lowers voice* I've also heard there's an elf ranger out in the forest - Elira, "
+                        "she's called. Lost her brother to those goblins. She's not in town, but you might "
+                        "cross paths on the east road.",
             "farewell": "Safe travels. And watch your back in those woods."
         },
         disposition=0,  # Neutral
@@ -1899,7 +1956,32 @@ def create_goblin_cave_npcs() -> NPCManager:
                    "lowers voice for rumors"],
             secrets=["knows more about the goblins than he lets on", 
                     "has a hidden cellar in case the village is attacked"]
-        )
+        ),
+        skill_check_options=[
+            SkillCheckOption(
+                id="secret_intel",
+                skill="persuasion",
+                dc=10,
+                description="Convince Greth to share his secret knowledge about the cave",
+                success_effect="flag:knows_secret_tunnel",
+                success_dialogue="*leans in close* Look, I don't tell everyone this... but there's an old "
+                               "mining tunnel that comes up near the back of that cave. Hunters used it years ago. "
+                               "Entrance is hidden by a boulder with a crack shaped like a lightning bolt. "
+                               "Might give you an edge.",
+                failure_dialogue="*shakes head* I've told you what I know. Anything else is just rumor "
+                               "and speculation. Best not to go chasing shadows."
+            ),
+            SkillCheckOption(
+                id="free_drink",
+                skill="persuasion",
+                dc=8,
+                description="Talk Greth into a free drink for the road",
+                success_effect="flag:free_drink",
+                success_dialogue="*chuckles* You've got a silver tongue. One ale, on the house. "
+                               "Consider it my investment in the village's safety.",
+                failure_dialogue="Nothing's free in this world. Two copper for an ale, same as anyone."
+            )
+        ]
     )
     manager.add_npc(barkeep)
     
@@ -1936,7 +2018,30 @@ def create_goblin_cave_npcs() -> NPCManager:
                    "never sits with back to door"],
             secrets=["deserted from army after war crimes he couldn't stomach",
                     "has a daughter in distant city he sends money to"]
-        )
+        ),
+        skill_check_options=[
+            SkillCheckOption(
+                id="appeal_to_honor",
+                skill="persuasion",
+                dc=15,
+                description="Appeal to Marcus's sense of honor about rescuing an innocent girl",
+                success_effect="flag:marcus_discounted",
+                success_dialogue="*pauses mid-drink* A kidnapped girl? *sets down mug* "
+                               "Damn it. Fine. Ten gold. I'm not a monster.",
+                failure_dialogue="*shakes head* Honor doesn't pay for food and lodging. "
+                               "Twenty-five gold or find another sword."
+            ),
+            SkillCheckOption(
+                id="impress_with_knowledge",
+                skill="history",
+                dc=14,
+                description="Recognize Marcus's unit insignia and impress him with military knowledge",
+                success_effect="disposition:+15",
+                success_dialogue="*eyes widen* You know the Black Wolves? *leans forward* "
+                               "Not many remember. Maybe you're not just another greenhorn after all.",
+                failure_dialogue="*grunts* Never heard of them? Typical. Kids these days know nothing of real war."
+            )
+        ]
     )
     manager.add_npc(marcus)
     
@@ -1976,7 +2081,39 @@ def create_goblin_cave_npcs() -> NPCManager:
                    "refuses to smile"],
             secrets=["secretly fears she's becoming consumed by vengeance",
                     "brother was trying to negotiate peace when killed"]
-        )
+        ),
+        skill_check_options=[
+            SkillCheckOption(
+                id="share_tracking_knowledge",
+                skill="survival",
+                dc=12,
+                description="Demonstrate tracking skills to earn Elira's respect",
+                success_effect="disposition:+15",
+                success_dialogue="*raises eyebrow* You know how to read a trail. Good. "
+                               "Perhaps you won't slow me down after all.",
+                failure_dialogue="*shakes head* You'd miss a goblin track even if you stepped in it."
+            ),
+            SkillCheckOption(
+                id="empathize_with_loss",
+                skill="persuasion",
+                dc=12,
+                description="Share understanding of loss to connect with Elira",
+                success_effect="disposition:+10",
+                success_dialogue="*pauses, grip on bow softens* You understand. "
+                               "Perhaps... we're not so different. Very well. Let's hunt together.",
+                failure_dialogue="*cold stare* Don't pretend to understand my pain. You can't."
+            ),
+            SkillCheckOption(
+                id="notice_brother_truth",
+                skill="insight",
+                dc=16,
+                description="Sense that Elira is hiding something about her brother's death",
+                success_effect="flag:knows_brother_truth",
+                success_dialogue="*freezes* How did you...? *voice cracks* He was trying to negotiate. "
+                               "Make peace. And they... *trails off* I should have stopped him.",
+                failure_dialogue="*looks away* My brother died fighting. That's all you need to know."
+            )
+        ]
     )
     manager.add_npc(elira)
     
@@ -2019,7 +2156,29 @@ def create_goblin_cave_npcs() -> NPCManager:
                    "never makes eye contact for long"],
             secrets=["assassin sent to kill the goblin chief for political reasons",
                     "has killed before and will again if necessary"]
-        )
+        ),
+        skill_check_options=[
+            SkillCheckOption(
+                id="prove_stealth",
+                skill="stealth",
+                dc=12,
+                description="Demonstrate your own stealth ability to earn Shade's respect",
+                success_effect="disposition:+20",
+                success_dialogue="*nods slowly* So... you know how to move. That's rare. "
+                               "Perhaps you're not as clumsy as most who stumble through these caves.",
+                failure_dialogue="*sighs* You move like a wounded bear. I heard you coming three chambers away."
+            ),
+            SkillCheckOption(
+                id="read_intentions",
+                skill="insight",
+                dc=16,
+                description="Perceive Shade's true mission and confront them",
+                success_effect="flag:knows_shade_assassin",
+                success_dialogue="*goes very still* ...You're perceptive. Yes. I'm here to kill the chief. "
+                               "Someone powerful wants him dead. We can help each other.",
+                failure_dialogue="*gives nothing away* I'm here for my own reasons. That's all you need to know."
+            )
+        ]
     )
     manager.add_npc(shade)
     
@@ -2048,9 +2207,123 @@ def create_goblin_cave_npcs() -> NPCManager:
             quirks=["grips cage bars when speaking", "listens for goblin footsteps mid-sentence"],
             secrets=["overheard goblins talking about 'something bigger' in the deep tunnels",
                     "has been secretly loosening a bar in her cage"]
-        )
+        ),
+        skill_check_options=[
+            SkillCheckOption(
+                id="pick_cage_lock",
+                skill="sleight_of_hand",
+                dc=12,
+                description="Use your lockpicks to open Lily's cage",
+                success_effect="flag:freed_lily_lockpicks",
+                success_dialogue="*click* The lock gives way! Lily squeezes through the bars. "
+                               "'You did it! I knew you could save me!'",
+                failure_dialogue="The lock is more complex than you expected. The pick slips. "
+                               "You'll need the key... or try again with steadier hands.",
+                requires_item="lockpicks",
+                consumes_item=True
+            ),
+            SkillCheckOption(
+                id="encourage_escape_help",
+                skill="persuasion",
+                dc=8,
+                description="Convince Lily to share her secret about the loosened bar",
+                success_effect="flag:knows_loose_bar",
+                success_dialogue="*glances around* I... I've been working on one of the bars. "
+                               "It's almost free. If you can distract the guards, I might be able to squeeze through!",
+                failure_dialogue="I... I can't say more. The guards might hear. Please just get the key."
+            ),
+            SkillCheckOption(
+                id="learn_deep_secret",
+                skill="insight",
+                dc=12,
+                description="Notice Lily is holding back important information",
+                success_effect="flag:knows_deep_tunnels",
+                success_dialogue="*eyes widen* You can tell? I... I heard them talking. "
+                               "There's something down there. In the deep tunnels. "
+                               "Something even the goblins are afraid of. They call it 'the Old One.'",
+                failure_dialogue="*looks away* There's nothing else. Please, just get me out of here."
+            )
+        ]
     )
     manager.add_npc(lily)
+    
+    # Chief Grotnak - Boss NPC with negotiation options
+    grotnak = NPC(
+        id="grotnak",
+        name="Chief Grotnak",
+        description="A massive goblin seated on a throne of bones and scrap metal. Unlike his smaller kin, "
+                   "Grotnak stands nearly five feet tall with a cunning gleam in his yellow eyes. "
+                   "He wears a crown of bent forks and speaks surprisingly good Common.",
+        role=NPCRole.HOSTILE,
+        location_id="boss_chamber",
+        dialogue={
+            "greeting": "*looks up from counting coins* Ah, a visitor! You come to steal from Grotnak? "
+                       "Or maybe... we talk first? Grotnak is civilized goblin.",
+            "about_self": "I am Chief! Greatest goblin in a hundred caves. I read books! "
+                        "I speak human-talk! I am... evolved. *grins with pointed teeth*",
+            "about_lily": "The girl? She is valuable. Father pays, or someone else pays. "
+                        "*shrugs* Is business. You understand business?",
+            "about_treasure": "My hoard? *clutches coin pouch* You want to trade? I respect trade. "
+                            "But steal... stealing from Grotnak means death.",
+            "threat_response": "*stands, drawing scimitar* So it is fighting you choose? "
+                             "Then Grotnak shows you why he is CHIEF!",
+            "deal_accept": "*narrows eyes* You drive hard bargain. But deal is deal. "
+                         "Take girl. We not cross paths again. Go now, before I change mind.",
+            "deal_decline": "*spits on floor* Then we have nothing more to say. "
+                          "Boys! KILL THEM!",
+            "farewell": "*waves dismissively* Go, go. Grotnak has coins to count."
+        },
+        disposition=-40,  # Hostile but will parley
+        personality=Personality(
+            traits=["cunning", "greedy", "surprisingly intelligent", "pragmatic", "cruel but reasonable"],
+            speech_style="broken Common with occasional sophisticated words, third person references",
+            voice_notes="deep gravelly voice, emphatic gestures, sudden mood shifts",
+            motivations=["accumulate wealth", "maintain power", "prove goblin superiority"],
+            fears=["being seen as weak", "losing his hoard", "the 'deeper things' in the tunnels"],
+            quirks=["counts coins while talking", "refers to self in third person", 
+                   "randomly uses big words incorrectly"],
+            secrets=["traded with dark forces for intelligence", 
+                    "knows about something terrible deeper in the caves",
+                    "secretly fears his own bodyguards plotting against him"]
+        ),
+        skill_check_options=[
+            SkillCheckOption(
+                id="intimidate_release",
+                skill="intimidation",
+                dc=16,
+                description="Intimidate Grotnak into releasing Lily without a fight",
+                success_effect="flag:lily_freed_peacefully",
+                success_dialogue="*eyes widen, steps back* You... you are strong. Grotnak sees this. "
+                               "Take girl! Take her and go! Is not worth dying for one human.",
+                failure_dialogue="*laughs* You try to scare GROTNAK? In his own lair? "
+                               "Maybe Grotnak scare YOU instead! *draws weapon*"
+            ),
+            SkillCheckOption(
+                id="deceive_distraction",
+                skill="deception",
+                dc=18,
+                description="Deceive Grotnak with a lie about reinforcements coming",
+                success_effect="flag:grotnak_distracted",
+                success_dialogue="*looks toward tunnel nervously* An army? How many? "
+                               "*barks at guards* Go check tunnels! All of you! "
+                               "*mutters* Maybe Grotnak negotiate with army instead...",
+                failure_dialogue="*sneers* You think Grotnak stupid? My scouts see nothing. "
+                               "You lie to Grotnak? That costs extra... maybe costs your life."
+            ),
+            SkillCheckOption(
+                id="negotiate_ransom",
+                skill="persuasion",
+                dc=14,
+                description="Negotiate a reasonable ransom for Lily's release",
+                success_effect="flag:ransom_deal",
+                success_dialogue="*strokes chin* Fifty gold? Is... acceptable. Grotnak is fair goblin. "
+                               "Gold for girl. Simple trade. We have deal.",
+                failure_dialogue="*scoffs* Fifty gold? For valuable hostage? "
+                               "You insult Grotnak! Price is now ONE HUNDRED gold or we fight!"
+            )
+        ]
+    )
+    manager.add_npc(grotnak)
     
     # =========================================================================
     # MERCHANT NPCs (Phase 3.3.3 - Shop System)
@@ -2086,7 +2359,41 @@ def create_goblin_cave_npcs() -> NPCManager:
             fears=["seeing young people die with poor equipment", "the village falling to threats"],
             quirks=["taps anvil when thinking", "judges people by their weapon maintenance"],
             secrets=["served as a soldier decades ago", "hides a masterwork sword under the forge for emergencies"]
-        )
+        ),
+        skill_check_options=[
+            SkillCheckOption(
+                id="haggle_discount",
+                skill="persuasion",
+                dc=12,
+                description="Haggle for better prices at the forge",
+                success_effect="flag:gavin_discount",
+                success_dialogue="*chuckles* Sharp tongue you've got! Fine, 10% off for you. "
+                               "But don't go telling everyone, or I'll have no business left!",
+                failure_dialogue="*frowns* I've got costs to cover. Price is fair, take it or leave it."
+            ),
+            SkillCheckOption(
+                id="soldier_bond",
+                skill="history",
+                dc=14,
+                description="Recognize Gavin's old military insignia and bond over shared knowledge",
+                success_effect="disposition:+20",
+                success_dialogue="*eyes widen* You recognize the Third Regiment? *grips your arm* "
+                               "Been a long time since anyone remembered. *voice softens* "
+                               "You need anything special, you come to me first.",
+                failure_dialogue="*shrugs* Just an old decoration. Don't mean nothing anymore."
+            ),
+            SkillCheckOption(
+                id="masterwork_reveal",
+                skill="persuasion",
+                dc=18,
+                description="Convince Gavin to show you his hidden masterwork blade",
+                success_effect="flag:knows_masterwork",
+                success_dialogue="*looks around* You're serious about this, aren't you? "
+                               "*pulls aside floorboard* This here... this is me finest work. "
+                               "If things get truly dire... come back. We'll talk.",
+                failure_dialogue="*shakes head* Some things aren't for sale. Or for showing."
+            )
+        ]
     )
     manager.add_npc(gavin)
     
@@ -2226,6 +2533,30 @@ def create_goblin_cave_quests(quest_manager: QuestManager) -> None:
         }
     )
     quest_manager.register_quest(chiefs_treasure)
+    
+    # =========================================================================
+    # SIDE QUEST: Thin the Herd (Goblin Ear Bounty) - Phase 3.6.1
+    # =========================================================================
+    thin_the_herd = Quest(
+        id="thin_the_herd",
+        name="Thin the Herd",
+        description="The village offers a bounty for proof of goblin kills. Bring back goblin ears as evidence.",
+        giver_npc_id="barkeep",
+        quest_type=QuestType.SIDE,
+        objectives=[
+            create_collect_objective(
+                "collect_ears",
+                "Collect 5 goblin ears",
+                "goblin_ear",
+                count=5
+            )
+        ],
+        rewards={
+            "xp": 50,
+            "gold": 25
+        }
+    )
+    quest_manager.register_quest(thin_the_herd)
 
 
 def create_goblin_cave_shops(shop_manager: ShopManager) -> None:
@@ -2310,12 +2641,12 @@ def create_goblin_cave_scenario() -> Scenario:
         "tavern_main": Location(
             id="tavern_main",
             name="The Rusty Dragon - Main Room",
-            description="A cozy common room with a crackling hearth. Wooden tables are scattered about, some occupied by locals nursing their drinks. A bar runs along one wall where a gruff barkeep polishes mugs.",
+            description="A cozy common room with a crackling hearth. Wooden tables are scattered about, some occupied by locals nursing their drinks. A bar runs along one wall where Greth the barkeep polishes mugs.",
             exits={"bar": "tavern_bar", "outside": "village_square"},
             # Map coordinates for world map UI
             map_x=0.15, map_y=0.08, map_icon="🍺", map_region="village",
             direction_aliases={"n": "bar", "north": "bar", "s": "outside", "south": "outside"},
-            npcs=["bram", "locals", "barkeep"],
+            npcs=["bram", "marcus", "locals"],
             items=["torch"],
             atmosphere=LocationAtmosphere(
                 sounds=["crackling hearth", "murmured conversations", "clinking tankards", "occasional laughter", "creaking floorboards"],
@@ -2402,7 +2733,7 @@ def create_goblin_cave_scenario() -> Scenario:
             # Map coordinates for world map UI
             map_x=0.35, map_y=0.38, map_icon="🌳", map_region="forest",
             direction_aliases={"w": "back", "west": "back", "e": "east", "east": "east"},
-            npcs=[],
+            npcs=["elira"],
             items=["rations"],
             atmosphere_text="Birds go quiet here. An uneasy stillness.",
             enter_text="You emerge into a clearing. The trees seem to lean away from the eastern path."
@@ -2420,9 +2751,9 @@ def create_goblin_cave_scenario() -> Scenario:
             items=["ancient_amulet", "healing_potion", "gold_coins"],
             atmosphere_text="Peaceful, ancient, the scent of old magic",
             enter_text="You push through the vines and discover a hidden hollow. Treasure glints in the dim light!",
-            # Hidden location - requires perception to discover
+            # Hidden location - requires perception OR mysterious_key (Phase 3.6.3)
             hidden=True,
-            discovery_condition="skill:perception:14",
+            discovery_condition="skill:perception:14 OR has_item:mysterious_key",
             discovery_hint="The vines along the cliff face seem unusually thick in one spot...",
             events=[
                 LocationEvent(
@@ -2569,7 +2900,7 @@ def create_goblin_cave_scenario() -> Scenario:
             # Map coordinates for world map UI
             map_x=0.35, map_y=0.78, map_icon="👤", map_region="cave",
             direction_aliases={"s": "camp", "south": "camp", "e": "cages", "east": "cages", "n": "chief", "north": "chief"},
-            npcs=[],
+            npcs=["shade"],
             items=["poison_vial", "dagger", "storage_key"],
             atmosphere_text="Hidden, good vantage point for surprise attack",
             enter_text="You slip into the shadows. From here you can see the whole camp.",
@@ -2793,8 +3124,8 @@ The goblin lair is in Darkhollow Cave, a half-day's journey east.
 Let the player ask questions, gather information from locals.
 
 IMPORTANT - WHEN PLAYER ACCEPTS THE QUEST:
-- Give the [XP: ...] reward
-- Give any items (torch, etc.)
+- DO NOT use [XP: ...] tags - XP is awarded automatically by the system
+- Give any items (torch, etc.) using [ITEM: torch]
 - Describe Bram's relief and gratitude
 - END YOUR RESPONSE in the tavern
 - DO NOT narrate the journey - the player will navigate using 'go' commands
@@ -3125,3 +3456,111 @@ class ScenarioManager:
     def is_active(self) -> bool:
         """Check if a scenario is currently active."""
         return self.active_scenario is not None and not self.active_scenario.is_complete
+
+# =============================================================================
+# UTILITY FUNCTIONS (Migrated from legacy game.py)
+# =============================================================================
+
+def get_exit_by_number(number: int, exits: dict) -> str | None:
+    """Get exit name by numbered choice. Returns None if invalid."""
+    exit_list = list(exits.keys())
+    if 1 <= number <= len(exit_list):
+        return exit_list[number - 1]
+    return None
+
+
+def build_location_context(location, is_first_visit: bool = False, events: list = None) -> dict:
+    """Build context dict for location narration.
+    
+    Args:
+        location: The Location object being described
+        is_first_visit: Whether this is the player's first time here
+        events: Any events that just triggered (optional)
+    
+    Returns:
+        Dict with all location context for AI narration
+    """
+    from inventory import ITEMS as ITEM_DATABASE
+    
+    context = {
+        'name': location.name,
+        'description': location.description,
+        'is_first_visit': is_first_visit,
+    }
+    
+    # Add structured atmosphere if available (Phase 3.4.1)
+    if location.atmosphere:
+        # Use structured LocationAtmosphere
+        atmo = location.atmosphere
+        atmosphere_context = {}
+        if atmo.sounds:
+            atmosphere_context['sounds'] = atmo.sounds
+        if atmo.smells:
+            atmosphere_context['smells'] = atmo.smells
+        if atmo.textures:
+            atmosphere_context['textures'] = atmo.textures
+        if atmo.lighting:
+            atmosphere_context['lighting'] = atmo.lighting
+        if atmo.temperature:
+            atmosphere_context['temperature'] = atmo.temperature
+        if atmo.mood:
+            atmosphere_context['mood'] = atmo.mood
+        if atmo.danger_level:
+            atmosphere_context['danger_level'] = atmo.danger_level
+        if atmo.random_details:
+            atmosphere_context['detail_pool'] = atmo.random_details
+        
+        if atmosphere_context:
+            context['atmosphere'] = atmosphere_context
+            context['atmosphere_instruction'] = "Weave 2-3 sensory details naturally into the description. Match the mood without stating emotions directly."
+    elif location.atmosphere_text:
+        # Legacy fallback: simple text atmosphere
+        context['atmosphere'] = location.atmosphere_text
+    else:
+        context['atmosphere'] = "neutral"
+    
+    # Add items with rich descriptions for DM to weave into narrative
+    if location.items:
+        items_with_descriptions = []
+        for item_id in location.items:
+            item_name = item_id.replace("_", " ").title()
+            # Try to get item description from database
+            item_data = ITEM_DATABASE.get(item_id)
+            if item_data:
+                # Provide more context for the DM
+                items_with_descriptions.append({
+                    "name": item_name,
+                    "type": item_data.item_type.value,
+                    "description": item_data.description[:50] + "..." if len(item_data.description) > 50 else item_data.description
+                })
+            else:
+                items_with_descriptions.append({"name": item_name})
+        context['items_present'] = items_with_descriptions
+        context['items_note'] = "Describe these items naturally in the scene - where they are, how they look. Don't list them."
+    
+    # Add NPCs with context
+    if location.npcs:
+        npc_names = [npc.replace("_", " ").title() for npc in location.npcs]
+        context['npcs_present'] = npc_names
+    
+    # Add exits/directions
+    if location.exits:
+        context['available_directions'] = list(location.exits.keys())
+    
+    # Add events if any triggered
+    if events:
+        event_texts = [e.narration for e in events]
+        context['events'] = event_texts
+    
+    # Add enter text for first visits
+    if is_first_visit and location.enter_text:
+        context['enter_text'] = location.enter_text
+    
+    # Add hints about hidden items for the DM to weave into narration
+    if hasattr(location, 'get_search_hints') and location.has_searchable_secrets():
+        hints = location.get_search_hints()
+        if hints:
+            context['hidden_item_hints'] = hints
+            context['dm_note'] = "Subtly hint that there may be something hidden here for observant adventurers."
+    
+    return context

@@ -22,7 +22,7 @@ from combat import (
     roll_initiative, format_initiative_roll, determine_turn_order,
     display_turn_order, Combatant
 )
-from game import (
+from dm_engine import (
     build_combat_context, get_combat_narration, display_combat_narration,
     COMBAT_NARRATION_PROMPT
 )

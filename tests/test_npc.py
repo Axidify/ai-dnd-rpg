@@ -530,9 +530,9 @@ class TestGoblinCaveNPCs:
         barkeep = self.manager.get_npc("barkeep")
         
         assert barkeep is not None
-        assert barkeep.name == "Barkeep"
+        assert barkeep.name == "Greth the Barkeep"
         assert barkeep.role == NPCRole.INFO
-        assert barkeep.location_id == "tavern_main"
+        assert barkeep.location_id == "tavern_bar"
     
     def test_elira_exists(self):
         """Test that Elira the ranger exists."""
@@ -556,11 +556,17 @@ class TestGoblinCaveNPCs:
         """Test that tavern has correct NPCs."""
         tavern_npcs = self.manager.get_npcs_at_location("tavern_main")
         
-        assert len(tavern_npcs) == 3  # Bram, Barkeep, Marcus
+        assert len(tavern_npcs) == 2  # Bram, Marcus (barkeep is at tavern_bar)
         names = [n.name for n in tavern_npcs]
         assert "Bram" in names
-        assert "Barkeep" in names
         assert "Marcus" in names  # Recruitable mercenary
+    
+    def test_tavern_bar_has_barkeep(self):
+        """Test that tavern bar has barkeep."""
+        bar_npcs = self.manager.get_npcs_at_location("tavern_bar")
+        
+        assert len(bar_npcs) == 1  # Just the barkeep
+        assert bar_npcs[0].name == "Greth the Barkeep"
     
     def test_bram_dialogue(self):
         """Test Bram has essential dialogue."""

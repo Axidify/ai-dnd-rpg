@@ -5,7 +5,7 @@
 **Architecture:** API-First (dm_engine.py → api_server.py → React/Flutter/Godot)  
 **Methodology:** Terminal-First Development (Build → Test → Expose → Display)  
 **Created:** December 15, 2025  
-**Last Updated:** December 20, 2025  
+**Last Updated:** December 21, 2025  
 
 ---
 
@@ -68,7 +68,11 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 - Level cap: 5
 - XP Thresholds: 0 → 100 → 300 → 600 → 1000
 - Commands: 'xp' (view progress), 'levelup' (advance)
-- DM awards XP with [XP: amount] or [XP: amount | reason]
+- XP Sources (ALL SYSTEM-CONTROLLED):
+  • Combat XP: Automatic per enemy (goblin=25, boss=100)
+  • Objective XP: Automatic per scene objective (accept_quest=15)
+  • Quest XP: Automatic on quest completion (main=100, side=50-75)
+  • AI XP: RARE - only for exceptional roleplay (puzzles, creative solutions)
 - Milestone XP: minor=25, major=50, boss=100, adventure=150
 - Benefits: +2 HP/level, stat boosts at L2/L4, abilities at L3/L5
 - Proficiency bonus: +2 (L1-4), +3 (L5)
@@ -1163,6 +1167,107 @@ The mood is [ominous] - let that inform your tone without stating emotions direc
 
 ---
 
+### Phase 3.6: Item Utility System 🔄 In Progress
+**Goal:** Give unused items mechanical purpose beyond flavor
+
+| Step | Feature | Description | Priority | Status |
+|------|---------|-------------|----------|--------|
+| 3.6.1 | Goblin Ear Bounty | Quest to collect goblin ears for gold reward | HIGH | ✅ Complete |
+| 3.6.2 | Gold Pouch Auto-Convert | Auto-add gold on pickup instead of item | HIGH | ✅ Complete |
+| 3.6.3 | Mysterious Key Usage | Opens Hidden Hollow (alternative to Perception) | HIGH | ✅ Complete |
+| 3.6.4 | Ancient Scroll Lore | Reading reveals secret tunnel location | HIGH | ✅ Complete |
+| 3.6.5 | Lockpicks Mechanics | Alternative to getting cage key | MEDIUM | ✅ Complete |
+| 3.6.6 | Poison Vial Combat | Apply for +1d4 poison damage | MEDIUM | ✅ Complete |
+| 3.6.7 | Torch Darkness | Required in dark locations | LOW | ⬜ |
+| 3.6.8 | Rope Utility | Climb/escape alternative routes | LOW | ⬜ |
+
+**Item Analysis:**
+
+| Item | Current State | Proposed Use | Effort | Status |
+|------|--------------|--------------|--------|--------|
+| `goblin_ear` | Drops, unused | Bounty quest: 5 ears → 25g | LOW | ✅ Done |
+| `gold_pouch` | Says "contains gold" | Auto-convert on pickup | TRIVIAL | ✅ Done |
+| `mysterious_key` | Opens nothing | Alt entry to Hidden Hollow | LOW | ✅ Done |
+| `ancient_scroll` | Listed, unused | Reveals secret tunnel flag | LOW | ✅ Done |
+| `lockpicks` | No lock system | Cage escape (DC 12 Sleight) | LOW | ✅ Done |
+| `poison_vial` | Effect described | +1d4 damage on next hit | LOW | ✅ Done |
+| `torch` | Flavor only | Required for dark cave areas | MEDIUM | ⬜ |
+| `rope` | Flavor only | Climb shortcut / cage escape | MEDIUM | ⬜ |
+| `rations` | No hunger system | Keep as flavor (no mechanics) | - | N/A |
+| `bedroll` | No rest system | Keep as flavor (no mechanics) | - | N/A |
+
+**Implementation Details:**
+
+*3.6.1 Goblin Ear Bounty Quest:*
+```python
+Quest(
+    id="thin_the_herd",
+    name="Thin the Herd",
+    description="The village offers a bounty for proof of goblin kills.",
+    objectives=[("collect_ears", "Collect 5 goblin ears", "goblin_ear:5")],
+    rewards={"gold": 25, "xp": 50}
+)
+# Quest giver: Barkeep or posted bounty board
+# Condition check: has_item:goblin_ear:5
+```
+
+*3.6.2 Gold Pouch Auto-Convert:*
+```python
+# In item pickup handler:
+if item_id.startswith("gold_pouch"):
+    gold_amount = ITEMS[item_id].value  # 50 or 15
+    add_gold(gold_amount)
+    # Don't add item to inventory
+    return f"[GOLD: {gold_amount}]"
+```
+
+*3.6.3 Mysterious Key → Hidden Hollow:*
+```python
+# Add to secret_cave location:
+discovery_condition="skill:perception:14 OR has_item:mysterious_key"
+# Alternative entry with the key
+```
+
+*3.6.4 Ancient Scroll → Secret Tunnel:*
+```python
+# Reading the scroll sets flag:
+effect="flag:knows_secret_tunnel"
+# Same flag as barkeep Persuasion DC 10
+```
+
+*3.6.5 Lockpicks → Cage Escape:*
+```python
+# Add to cage location:
+LockedExit(
+    id="cage_escape",
+    condition="has_item:storage_key OR (has_item:lockpicks AND skill:sleight_of_hand:12)"
+)
+```
+
+*3.6.6 Poison Vial Combat Bonus:*
+```python
+# New combat action: "use poison" or "apply poison"
+# Sets flag: poison_applied_to_weapon
+# Next attack: +1d4 poison damage
+# One-time consumable, removes from inventory
+```
+
+**Keep as Flavor (No Mechanics):**
+- `rations` - No hunger system (too complex for short scenario)
+- `bedroll` - No fatigue system (too complex)
+- AI DM can still roleplay using these items narratively
+
+**Success Criteria:**
+- [x] Goblin ears can be turned in for bounty reward
+- [x] Gold pouches auto-convert to gold on pickup
+- [x] Mysterious key opens Hidden Hollow
+- [x] Ancient scroll reveals tunnel location
+- [x] Lockpicks allow cage escape with skill check
+- [x] Poison vial adds damage to next combat attack
+- [ ] All item effects documented in SCENARIO_REFERENCE.md
+
+---
+
 ### Phase 4: Security & Testing ✅ COMPLETE
 **Goal:** Comprehensive adversarial testing and security hardening
 
@@ -2137,7 +2242,7 @@ Priority 3 - Moderation & Safety: ⬜ NOT STARTED
 
 ## Current Focus
 
-**Current Phase:** 3.2.1 (Location & Navigation) + 3.2.2 (Balance Improvements)
+**Current Phase:** 3.2.1 (Location & Navigation) + 3.2.2 (Balance Improvements) + 3.6 (Item Utility)
 
 **Recently Completed:**
 - ✅ Fixed loot drops with class-appropriate weapons
@@ -2145,6 +2250,20 @@ Priority 3 - Moderation & Safety: ⬜ NOT STARTED
 - ✅ Comprehensive scenario documentation
 - ✅ SCENARIO_TEMPLATE.py for scenario authors
 - ✅ **Priority 5: Conditional Exits** - Locked doors with key requirements!
+- ✅ **SkillCheckOption System** - NPCs have persuasion/skill check opportunities
+- ✅ **Chief Grotnak NPC** - Boss NPC with negotiation options
+- ✅ **NPC Location Fixes** - Barkeep correctly describes NPC locations
+- ✅ **Phase 3.6 Quick Wins** - Item utility improvements (6/8 complete)
+  - ✅ Goblin Ear Bounty Quest ("Thin the Herd") - 5 ears → 25g + 50xp
+  - ✅ Gold Pouch Auto-Convert - Adds gold on pickup, not item
+  - ✅ Mysterious Key → Hidden Hollow - OR condition for secret_cave
+  - ✅ Ancient Scroll → Secret Tunnel - Description reveals location
+  - ✅ Lockpicks → Cage Escape (DC 12 Sleight of Hand, consumes lockpicks)
+  - ✅ Poison Vial Combat Bonus (+1d4 damage, consumed after hit)
+
+**Upcoming (Phase 3.6 Remaining):**
+- ⬜ Torch Darkness Mechanics (Required in dark areas)
+- ⬜ Rope Utility (Climb/escape alternatives)
 - ✅ **Phase 4.5: World Map UI** - React WorldMap.jsx with visual map, click-to-travel
 - ✅ **Phase 3.3.7: Party System** - 72 tests, 3 recruitable NPCs, class abilities
 

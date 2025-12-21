@@ -1103,8 +1103,10 @@ The AI Dungeon Master uses special tags to trigger game mechanics. These tags ar
 | `[ITEM: item_name]` | Give FREE item (loot/reward) | `[ITEM: healing_potion]` |
 | `[BUY: item_name, price]` | Shop purchase (deducts gold) | `[BUY: studded_leather, 25]` |
 | `[GOLD: amount]` | Give gold | `[GOLD: 50]` |
-| `[XP: amount]` | Award experience | `[XP: 25]` |
+| `[XP: amount]` | Award experience (RARE - see note) | `[XP: 25]` |
 | `[XP: amount \| reason]` | Award XP with reason | `[XP: 50 \| Solved puzzle]` |
+
+> **⚠️ XP Tag Usage:** Most XP is awarded automatically by the system (combat, objectives, quests). The AI should only use `[XP:]` tags for **exceptional** roleplay like creative puzzle solutions. See [XP System](#xp-system-controlled) for details.
 
 ### Item vs Buy Tags
 
@@ -1117,7 +1119,7 @@ The AI Dungeon Master uses special tags to trigger game mechanics. These tags ar
 parse_item_rewards(dm_response)      # Returns list of item names
 parse_buy_transactions(dm_response)  # Returns list of (item, price) tuples
 parse_gold_rewards(dm_response)      # Returns total gold amount
-parse_xp_rewards(dm_response)        # Returns list of (amount, reason) tuples
+parse_xp_rewards(dm_response)        # Returns list of (amount, reason) tuples (AI-awarded only)
 ```
 
 ### Auto-Equip on Purchase
@@ -2261,9 +2263,10 @@ The NPC system provides structured NPCs with dialogue, roles, disposition tracki
 │    ▼                      ▼                      ▼             │
 │ ┌──────────┐        ┌──────────┐          ┌──────────┐        │
 │ │   NPC    │        │   NPC    │          │   NPC    │        │
-│ │  Bram    │        │ Barkeep  │          │  Elira   │        │
+│ │  Bram    │        │  Greth   │          │  Elira   │        │
 │ └──────────┘        └──────────┘          └──────────┘        │
 │  QUEST_GIVER            INFO              RECRUITABLE          │
+│  tavern_main          tavern_bar        forest_clearing        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -2585,18 +2588,65 @@ def create_my_dlc_scenario() -> Scenario:
 - `create_goblin_cave_npcs()` - NPCs for Goblin Cave scenario
 - `create_my_dlc_npcs()` - NPCs for your new DLC
 
-#### Starter NPCs (Goblin Cave)
+#### Starter NPCs (Goblin Cave Scenario)
 
-| NPC | Role | Location | Purpose |
-|-----|------|----------|---------|
-| **Bram** | QUEST_GIVER | tavern_main | Offers main quest |
-| **Barkeep** | INFO | tavern_main | Provides gossip/lore |
-| **Marcus** | RECRUITABLE | tavern_main | Recruitable fighter (25g or CHA DC 15) |
-| **Gavin the Blacksmith** | MERCHANT | blacksmith_shop | Sells weapons/armor |
-| **Elira** | RECRUITABLE | forest_clearing | Recruitable ranger (CHA DC 12) |
-| **Trader Mira** | MERCHANT | forest_clearing | Sells supplies |
-| **Shade** | RECRUITABLE | goblin_camp_shadows | Recruitable rogue (CHA DC 14) |
-| **Lily** | INFO | goblin_camp_main | Rescue target |
+The Goblin Cave scenario includes NPCs spread across multiple locations:
+
+**Tavern Locations:**
+
+| NPC | Role | Location ID | Purpose |
+|-----|------|-------------|---------|
+| **Bram** | QUEST_GIVER | `tavern_main` | Desperate farmer, offers main quest "Rescue Lily" |
+| **Marcus** | RECRUITABLE | `tavern_main` | Mercenary, recruitable (25g) |
+| **Greth the Barkeep** | INFO | `tavern_bar` | Tavern keeper, provides gossip/lore about goblins and village |
+
+> **Note:** The tavern has two sub-locations:
+> - `tavern_main` - Main Room with hearth, tables, and most patrons
+> - `tavern_bar` - Bar area where Greth the Barkeep works
+
+**Village Locations:**
+
+| NPC | Role | Location ID | Purpose |
+|-----|------|-------------|---------|
+| **Gavin the Blacksmith** | MERCHANT | `blacksmith_shop` | Sells weapons/armor |
+
+**Forest Locations:**
+
+| NPC | Role | Location ID | Purpose |
+|-----|------|-------------|---------|
+| **Elira** | RECRUITABLE | `forest_clearing` | Elf ranger, recruitable (CHA DC 12) |
+| **Trader Mira** | MERCHANT | `forest_clearing` | Traveling merchant, sells supplies |
+
+**Cave Locations:**
+
+| NPC | Role | Location ID | Purpose |
+|-----|------|-------------|---------|
+| **Shade** | RECRUITABLE | `goblin_camp_shadows` | Rogue, recruitable (CHA DC 14) |
+| **Lily** | INFO | `goblin_camp_main` | Rescue target (Bram's daughter) |
+
+**NPC Location Query Examples:**
+
+```python
+from scenario import create_goblin_cave_scenario
+
+scenario = create_goblin_cave_scenario()
+npc_manager = scenario.npc_manager
+
+# Get NPCs at specific locations
+tavern_main_npcs = npc_manager.get_npcs_at_location("tavern_main")
+# Returns: [Bram, Marcus]
+
+bar_npcs = npc_manager.get_npcs_at_location("tavern_bar")
+# Returns: [Greth the Barkeep]
+
+# Get all recruitable NPCs
+recruitable = npc_manager.get_recruitable()
+# Returns: [Marcus, Elira, Shade]
+
+# Find NPC by name (case-insensitive)
+barkeep = npc_manager.get_npc_by_name("Greth")
+# Returns: Greth the Barkeep NPC
+```
 
 ---
 
@@ -4725,7 +4775,18 @@ location.encounter_triggered = True
 
 ### XP and Leveling System (Phase 3.2.2)
 
-XP is awarded automatically following **Mechanics First** principles.
+XP is awarded **automatically by the system** following **Mechanics First** principles.
+
+> ⚠️ **Important:** The AI DM should NOT use `[XP:]` tags for normal gameplay. XP is awarded automatically for combat, objectives, and quests. AI XP tags are reserved only for **exceptional** roleplay (creative puzzle solutions, brilliant negotiations).
+
+#### XP Sources (All System-Controlled)
+
+| Source | Controller | Example |
+|--------|-----------|---------|
+| Combat kills | `combat.py` → `get_enemy_xp()` | goblin = 25 XP |
+| Scene objectives | `scenario.py` → `objective_xp` | accept_quest = 15 XP |
+| Quest completion | `quest.py` → `rewards["xp"]` | Rescue Lily = 100 XP |
+| AI discretion | `dm_engine.py` (RARE) | Creative puzzle = 25 XP |
 
 #### Enemy XP Rewards
 
@@ -5106,14 +5167,45 @@ Characters can advance from Level 1 to Level 5:
 | 4 | 300 | 600 | +2 |
 | 5 | 400 | 1000 | +3 |
 
-### XP Reward System
+### XP Reward System (System-Controlled)
 
-DM awards XP using tags in responses:
+> ⚠️ **XP is primarily awarded automatically by the system, not the AI DM.**
+
+| XP Source | Controller | When |
+|-----------|------------|------|
+| **Combat** | `combat.py` | Automatic per enemy killed |
+| **Objectives** | `scenario.py` | Automatic when objective completed |
+| **Quests** | `quest.py` | Automatic when quest completed |
+| **AI (RARE)** | DM's `[XP:]` tag | Only for exceptional roleplay |
+
+### AI XP Tags (Rare - Exceptional Only)
+
+The AI DM can award 25 XP for **truly exceptional** roleplay:
 
 | Tag Format | Description |
 |------------|-------------|
-| `[XP: 50]` | Award 50 XP |
-| `[XP: 50 \| Defeated goblin]` | Award 50 XP with reason |
+| `[XP: 25]` | Award 25 XP (exceptional only) |
+| `[XP: 25 \| Creative trap]` | Award with reason |
+
+**✅ When AI SHOULD use XP tags (award 25 XP):**
+1. **Creative Puzzle Solving** - Player thinks outside the box
+   - Using environment unexpectedly (rope + oil = trap)
+   - Connecting clues from earlier conversations
+2. **Brilliant Negotiation** - Exceptional diplomacy
+   - Convincing hostile enemies to switch sides
+   - Finding non-obvious win-win solutions
+3. **Unexpected Ingenuity** - Surprising clever actions
+   - Combining items creatively (mirror + sunlight)
+   - Using environment in unexpected ways
+
+**❌ When AI should NEVER use XP tags:**
+- Accepting quests (handled by objective XP)
+- Reaching locations (handled by objective XP)
+- Defeating enemies (handled by combat XP)
+- Completing quests (handled by quest rewards)
+- Using items as intended
+- Normal dialogue or investigation
+- Following obvious paths
 
 ### Milestone XP Values
 

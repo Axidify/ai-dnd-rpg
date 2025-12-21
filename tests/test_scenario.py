@@ -391,8 +391,8 @@ class TestGoblinCaveQuests:
         manager = QuestManager()
         create_goblin_cave_quests(manager)
         
-        # Check quests were registered
-        assert len(manager.available_quests) == 4
+        # Check quests were registered (5: rescue_lily, recover_heirlooms, clear_path, chiefs_treasure, thin_the_herd)
+        assert len(manager.available_quests) == 5
     
     def test_rescue_lily_quest(self):
         """Test main quest is properly defined."""

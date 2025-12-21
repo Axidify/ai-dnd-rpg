@@ -13,6 +13,10 @@ Run with: python -m tests.playtest_dm_integration
 Requires: GEMINI_API_KEY environment variable
 
 WARNING: This test makes real API calls to Google Gemini.
+
+NOTE: This is a LEGACY playtest. The architecture has moved to API-first (api_server.py).
+This playtest requires manual setup of get_dm_response and create_client functions.
+For automated tests, use the tests in tests/ directory.
 """
 
 import sys
@@ -37,11 +41,41 @@ from shop import ShopManager, buy_item
 from npc import NPCManager
 import google.generativeai as genai
 
-# Import game functions
-from game import (
-    get_dm_response, create_client, parse_roll_request, parse_combat_request,
-    parse_xp_rewards, roll_skill_check, format_roll_result, DM_SYSTEM_PROMPT_BASE
+# Import dm_engine functions
+from dm_engine import (
+    parse_roll_request, parse_combat_request,
+    parse_xp_rewards, roll_skill_check, format_roll_result, DM_SYSTEM_PROMPT
 )
+
+# Note: get_dm_response and create_client moved to api_server.py
+# This playtest requires the API server to be running
+
+# Alias for backward compatibility
+DM_SYSTEM_PROMPT_BASE = DM_SYSTEM_PROMPT
+
+
+def create_client(character, scenario_context=""):
+    """Create a Gemini client for DM responses.
+    
+    Legacy function - in API-first architecture, this is handled by api_server.py.
+    """
+    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("No GOOGLE_API_KEY or GEMINI_API_KEY found in environment")
+    
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    return model
+
+
+def get_dm_response(chat, player_input, context="", stream=False):
+    """Get DM response from the AI.
+    
+    Legacy function - in API-first architecture, this is handled by api_server.py.
+    """
+    prompt = f"{DM_SYSTEM_PROMPT}\n\n{context}\n\nPlayer: {player_input}"
+    response = chat.send_message(prompt)
+    return response.text
 
 
 # =============================================================================

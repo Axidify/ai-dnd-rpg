@@ -191,12 +191,15 @@ class TestNPCLookup:
         assert npc1.id == npc2.id == npc3.id
     
     def test_find_barkeep(self):
-        """Test finding barkeep NPC."""
+        """Test finding barkeep NPC (now in tavern_bar)."""
         npc = self.manager.get_npc("barkeep")
         assert npc is not None
+        assert npc.location_id == "tavern_bar"
         
-        npc_by_name = self.manager.get_npc_by_name("Barkeep")
+        # Full name lookup (name is "Greth the Barkeep")
+        npc_by_name = self.manager.get_npc_by_name("Greth the Barkeep")
         assert npc_by_name is not None
+        assert npc_by_name.id == "barkeep"
 
 
 # =============================================================================
@@ -246,7 +249,12 @@ class TestDialogueIntegration:
         
         npc_ids = [npc.id for npc in tavern_npcs]
         assert "bram" in npc_ids
-        assert "barkeep" in npc_ids
+        assert "marcus" in npc_ids  # Marcus is in tavern_main
+        
+        # Barkeep is in tavern_bar, not tavern_main
+        bar_npcs = manager.get_npcs_at_location("tavern_bar")
+        bar_npc_ids = [npc.id for npc in bar_npcs]
+        assert "barkeep" in bar_npc_ids
     
     def test_npcs_have_matching_location_ids(self):
         """Test that NPCs have correct location_id set."""

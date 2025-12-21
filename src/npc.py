@@ -152,6 +152,85 @@ class Personality:
 
 
 # =============================================================================
+# SKILL CHECK OPTIONS (Phase 3.5 - Persuasion System)
+# =============================================================================
+
+@dataclass
+class SkillCheckOption:
+    """
+    Represents a skill check opportunity during NPC interaction.
+    
+    Allows players to attempt skill checks for various effects like:
+    - Persuading for upfront payment
+    - Intimidating for better rewards
+    - Deceiving to gain advantages
+    - Negotiating non-combat resolutions
+    - Using items with skill checks (e.g., lockpicks)
+    
+    Attributes:
+        id: Unique identifier (e.g., "upfront_payment", "better_reward")
+        skill: Skill to check ("persuasion", "intimidation", "deception", etc.)
+        dc: Difficulty class (typically 10-20)
+        description: What the player is attempting (shown to player)
+        success_effect: What happens on success (e.g., "gold:25", "disposition:+10")
+        success_dialogue: NPC dialogue on success
+        failure_dialogue: NPC dialogue on failure
+        one_time: Can only attempt once per session
+        attempted: Has this been attempted?
+        requires_disposition: Minimum disposition to attempt (optional)
+        requires_item: Item needed to attempt (e.g., "lockpicks")
+        consumes_item: Whether the item is consumed on use
+    """
+    id: str
+    skill: str  # persuasion, intimidation, deception, insight, sleight_of_hand, etc.
+    dc: int
+    description: str  # Shown to player: "Ask for upfront payment"
+    success_effect: str  # e.g., "gold:25" or "disposition:+10" or "flag:paid_upfront"
+    success_dialogue: str
+    failure_dialogue: str
+    one_time: bool = True
+    attempted: bool = False
+    requires_disposition: int = -100  # Minimum disposition to try
+    requires_item: str = ""  # Item required (e.g., "lockpicks")
+    consumes_item: bool = False  # Whether item is consumed on attempt
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "id": self.id,
+            "skill": self.skill,
+            "dc": self.dc,
+            "description": self.description,
+            "success_effect": self.success_effect,
+            "success_dialogue": self.success_dialogue,
+            "failure_dialogue": self.failure_dialogue,
+            "one_time": self.one_time,
+            "attempted": self.attempted,
+            "requires_disposition": self.requires_disposition,
+            "requires_item": self.requires_item,
+            "consumes_item": self.consumes_item
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SkillCheckOption":
+        """Create SkillCheckOption from dictionary."""
+        return cls(
+            id=data["id"],
+            skill=data["skill"],
+            dc=data["dc"],
+            description=data["description"],
+            success_effect=data["success_effect"],
+            success_dialogue=data["success_dialogue"],
+            failure_dialogue=data["failure_dialogue"],
+            one_time=data.get("one_time", True),
+            attempted=data.get("attempted", False),
+            requires_disposition=data.get("requires_disposition", -100),
+            requires_item=data.get("requires_item", ""),
+            consumes_item=data.get("consumes_item", False)
+        )
+
+
+# =============================================================================
 # NPC DATACLASS
 # =============================================================================
 
@@ -194,6 +273,9 @@ class NPC:
     
     # Personality System (Phase 3.4 - Consistent Characterization)
     personality: Optional[Personality] = None  # Structured personality data for DM
+    
+    # Skill Check Options (Phase 3.5 - Persuasion System)
+    skill_check_options: List["SkillCheckOption"] = field(default_factory=list)
     
     def __post_init__(self):
         """Validate NPC data after initialization."""
@@ -300,6 +382,15 @@ class NPC:
         if self.is_recruitable and not self.recruited:
             context_parts.append(f"Recruitable (condition: {self.recruitment_condition})")
         
+        # Include skill check options for DM context
+        if self.skill_check_options:
+            available_options = self.get_available_skill_checks()
+            if available_options:
+                context_parts.append("")
+                context_parts.append("=== SKILL CHECK OPTIONS ===")
+                for opt in available_options:
+                    context_parts.append(f"- {opt.description} ({opt.skill.title()} DC {opt.dc})")
+        
         # Include personality data for consistent characterization
         if self.personality:
             personality_summary = self.personality.get_dm_summary(include_secrets=True)
@@ -309,6 +400,34 @@ class NPC:
                 context_parts.append(personality_summary)
         
         return "\n".join(context_parts)
+    
+    # =========================================================================
+    # SKILL CHECK OPTIONS SYSTEM
+    # =========================================================================
+    
+    def get_available_skill_checks(self) -> List["SkillCheckOption"]:
+        """Get skill check options that haven't been attempted (or are repeatable)."""
+        return [opt for opt in self.skill_check_options 
+                if not opt.attempted or not opt.one_time]
+    
+    def get_skill_check_option(self, option_id: str) -> Optional["SkillCheckOption"]:
+        """Get a specific skill check option by ID."""
+        for opt in self.skill_check_options:
+            if opt.id == option_id:
+                return opt
+        return None
+    
+    def mark_skill_check_attempted(self, option_id: str) -> bool:
+        """Mark a skill check option as attempted. Returns True if found."""
+        for opt in self.skill_check_options:
+            if opt.id == option_id:
+                opt.attempted = True
+                return True
+        return False
+    
+    def has_available_skill_checks(self) -> bool:
+        """Check if this NPC has any available skill check options."""
+        return len(self.get_available_skill_checks()) > 0
     
     # =========================================================================
     # SERIALIZATION
@@ -328,7 +447,8 @@ class NPC:
             "is_recruitable": self.is_recruitable,
             "recruitment_condition": self.recruitment_condition,
             "recruited": self.recruited,
-            "personality": self.personality.to_dict() if self.personality else None
+            "personality": self.personality.to_dict() if self.personality else None,
+            "skill_check_options": [opt.to_dict() for opt in self.skill_check_options]
         }
     
     @classmethod
@@ -339,6 +459,10 @@ class NPC:
         # Load personality if present
         personality_data = data.get("personality")
         personality = Personality.from_dict(personality_data) if personality_data else None
+        
+        # Load skill check options if present
+        skill_options_data = data.get("skill_check_options", [])
+        skill_check_options = [SkillCheckOption.from_dict(opt) for opt in skill_options_data]
         
         return cls(
             id=data["id"],
@@ -352,7 +476,8 @@ class NPC:
             is_recruitable=data.get("is_recruitable", False),
             recruitment_condition=data.get("recruitment_condition", ""),
             recruited=data.get("recruited", False),
-            personality=personality
+            personality=personality,
+            skill_check_options=skill_check_options
         )
 
 

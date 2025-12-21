@@ -8,6 +8,157 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **SkillCheckOption System** - Comprehensive skill check framework for NPCs!
+  - New `SkillCheckOption` dataclass in `npc.py` with:
+    * `id`, `skill`, `dc` - Check identification and difficulty
+    * `description` - Player-facing prompt for the action
+    * `success_effect` - Effect on success (e.g., "gold:25", "flag:paid_upfront", "disposition:+15")
+    * `success_dialogue` / `failure_dialogue` - NPC response based on outcome
+    * `one_time` / `attempted` - Track repeatable vs one-shot checks
+    * `requires_disposition` - Minimum disposition needed to attempt
+  - NPC helper methods: `get_available_skill_checks()`, `get_skill_check_option()`, `mark_skill_check_attempted()`, `has_available_skill_checks()`
+  - Full serialization support in `NPC.to_dict()` / `from_dict()`
+  - Integrated into `get_dm_context()` for AI visibility
+
+- **Bram Persuasion Options** - Quest giver now supports negotiation!
+  - `upfront_payment` (Persuasion DC 14): Get 25g advance before mission
+  - `better_reward` (Persuasion DC 16): Negotiate 75g total reward
+
+- **Barkeep Intel Options** - Get information through persuasion!
+  - `secret_intel` (Persuasion DC 10): Learn about hidden tunnel entrance
+  - `free_drink` (Persuasion DC 8): Talk your way into a free ale
+
+- **Marcus the Mercenary Options** - Alternative recruitment paths!
+  - `appeal_to_honor` (Persuasion DC 15): Reduce recruitment cost to 10g
+  - `impress_with_knowledge` (History DC 14): Recognize his military unit for +15 disposition
+
+- **Elira the Ranger Options** - Multiple ways to connect!
+  - `share_tracking_knowledge` (Survival DC 12): Demonstrate tracking skills for +15 disposition
+  - `empathize_with_loss` (Persuasion DC 12): Bond over shared loss for +10 disposition
+  - `notice_brother_truth` (Insight DC 16): Learn the truth about her brother's death
+
+- **Shade the Rogue Options** - Earn the assassin's trust!
+  - `prove_stealth` (Stealth DC 12): Demonstrate stealth ability for +20 disposition
+  - `read_intentions` (Insight DC 16): Discover Shade is an assassin
+
+- **Lily (Prisoner) Options** - Learn rescue secrets!
+  - `encourage_escape_help` (Persuasion DC 8): Learn about loosened cage bar
+  - `learn_deep_secret` (Insight DC 12): Discover the "Old One" in deep tunnels
+
+- **Chief Grotnak** - NEW BOSS NPC with negotiation options!
+  - Full NPC with cunning personality and unique dialogue
+  - `intimidate_release` (Intimidation DC 16): Force Lily's release without combat
+  - `deceive_distraction` (Deception DC 18): Lie about reinforcements
+  - `negotiate_ransom` (Persuasion DC 14): Pay 50g for peaceful resolution
+
+- **Gavin the Blacksmith Options** - Shop and lore interactions!
+  - `haggle_discount` (Persuasion DC 12): Get 10% off purchases
+  - `soldier_bond` (History DC 14): Recognize insignia for +20 disposition
+  - `masterwork_reveal` (Persuasion DC 18): Learn about hidden masterwork blade
+
+- **Phase 3.6 Item Utility Quick Wins** - Unused items now have mechanical purpose!
+  - **Gold Pouch Auto-Convert** - Gold pouch items now automatically convert to gold on pickup
+    * Uses item's `value` field (50g for gold_pouch, 15g for small_gold_pouch)
+    * Added in `dm_engine.py` `apply_rewards()` function
+  - **"Thin the Herd" Bounty Quest** - New side quest for goblin_ear collection!
+    * Collect 5 goblin ears → 25g + 50 XP
+    * Given by Barkeep (village bounty board)
+    * Prerequisites: None (available from start)
+  - **Ancient Scroll Tunnel Revelation** - Updated item description and effect
+    * Now states scroll reveals secret tunnel entrance location
+    * Effect field: "Reading this scroll reveals the secret tunnel entrance"
+  - **Mysterious Key Usage** - Key now opens Hidden Hollow location!
+    * Added OR condition support to `check_discovery()` method
+    * Secret cave discoverable via: Perception DC 14 OR possessing mysterious_key
+    * New `_check_single_condition()` helper for OR logic parsing
+
+- **Phase 3.6 Integration Tests** - Comprehensive gameplay tests for item utility!
+  * 11 new tests in `tests/test_phase36_quick_wins.py`
+  * Tests gold pouch auto-convert (3 tests)
+  * Tests goblin ear bounty quest (3 tests)
+  * Tests mysterious key discovery with OR logic (3 tests)
+  * Tests ancient scroll description and effect (2 tests)
+  * Total test count: 918 passing
+
+- **Phase 3.6.5 Lockpicks Cage Escape** - Lockpicks now provide alternative rescue path!
+  * Added `requires_item` and `consumes_item` fields to SkillCheckOption dataclass
+  * New `pick_cage_lock` skill check on Lily NPC (Sleight of Hand DC 12)
+  * Requires lockpicks item, consumed on attempt
+  * Success sets `freed_lily_lockpicks` flag
+  * Updated lockpicks item description with "use for Sleight of Hand checks"
+  * Full serialization support in to_dict/from_dict
+
+- **Phase 3.6.6 Poison Vial Combat Bonus** - Poison now enhances next attack!
+  * New `weapon_poisoned` field on Character dataclass
+  * Using Poison Vial via `use_item()` sets weapon_poisoned=True
+  * Modified `roll_damage()` adds +1d4 poison damage when poisoned
+  * Poison consumed after one hit (single-use buff)
+  * Cannot double-apply poison (returns error if already poisoned)
+  * Format damage result shows poison damage separately
+  * Serialization support for save/load persistence
+
+- **Phase 3.6.5/3.6.6 Integration Tests** - Tests for lockpicks and poison!
+  * 9 new tests added to `test_phase36_quick_wins.py`
+  * Lockpicks: Lily skill check, SkillCheckOption fields, item description
+  * Poison: Character field, use_item application, damage bonus, consumption
+  * Total test count: 927 passing
+
+### Fixed
+- **Barkeep NPC Location Dialogue** - Barkeep no longer implies all recruitable NPCs are in tavern!
+  - Updated DM system prompt to include NPC locations with recruitable list
+  - Added explicit warning: "NPCs can only be interacted with at their actual locations"
+  - Added `about_help` dialogue to barkeep that correctly says Marcus is here but Elira is in the forest
+  - AI now knows: Marcus → TAVERN, Elira → FOREST, Shade → CAVE
+
+- **NPC Location Filtering** - NPCs now appear only at their assigned locations!
+  - Fixed bug where all recruitable NPCs (Marcus, Elira, Shade) appeared in tavern perception checks
+  - `build_npc_context()` now accepts `location_npc_ids` parameter
+  - NPCs are marked as "PRESENT AT THIS LOCATION" or "NOT HERE" in AI context
+  - Added NPCs to their correct `Location.npcs` lists in scenario:
+    * Marcus → tavern_main
+    * Elira → forest_clearing  
+    * Shade → goblin_camp_shadows
+  - Maintains awareness of all NPCs while correctly showing who's present
+
+- **System-Controlled XP Rewards** - XP is now consistent and predictable!
+  - Removed "Give the [XP: ...] reward" instructions from scene dm_instructions
+  - AI DM no longer randomly generates XP amounts for quests/objectives
+  - All quest/objective XP comes from `Scene.objective_xp` field
+  - Combat XP comes from `Enemy.xp_reward` field
+  - Prevents double XP and inconsistent reward amounts (was 25-50, now always 15)
+
+### Added
+- **SCENARIO_REFERENCE.md** - Comprehensive user-readable scenario documentation!
+  - Complete location details with NPCs, items, and connections
+  - All NPC profiles with recruitment requirements
+  - Full item catalog with shops and prices
+  - Quest details with objectives and rewards
+  - XP reward breakdown by source type
+  - ASCII art map of Goblin Cave scenario
+  - Located at `docs/SCENARIO_REFERENCE.md`
+
+- **Exceptional Roleplay XP Guidelines** - Clear criteria for AI discretionary XP!
+  - Detailed examples in DM_SYSTEM_PROMPT for when to award XP
+  - Three categories: Creative Puzzle Solving, Brilliant Negotiation, Unexpected Ingenuity
+  - Explicit ✅ AWARD and ❌ DON'T AWARD examples
+  - Exclusion list: No XP for quests, combat, normal dialogue, following obvious paths
+  - Maximum 25 XP per exceptional action
+
+### Improved
+- **DM System Prompt XP Guidelines** - More explicit XP rules for AI DM
+  - Added "WHEN TO AWARD XP" section with specific criteria
+  - Added "WHEN NOT TO AWARD XP" exclusion list
+  - Added real gameplay examples with ✅/❌ markers
+  - Prevents AI from awarding XP for routine actions
+
+### Documentation
+- Updated `DEVELOPER_GUIDE.md` with system-controlled XP explanation
+- Updated `DEVELOPMENT_PLAN.md` Leveling System section with XP sources
+- Added exceptional roleplay criteria tables to documentation
+
+---
+
 ### Security
 - **Comprehensive Security Testing (125 Tests Passing)** - Full hostile player testing complete!
   - 5 testing rounds covering 125 unique security test cases

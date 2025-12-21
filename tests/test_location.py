@@ -2437,7 +2437,8 @@ class TestGoblinCaveSecretLocations:
         assert "secret_cave" in lm.locations
         secret = lm.locations["secret_cave"]
         assert secret.hidden is True
-        assert secret.discovery_condition == "skill:perception:14"
+        # Discovery possible via Perception DC 14 OR having the mysterious_key
+        assert secret.discovery_condition == "skill:perception:14 OR has_item:mysterious_key"
         assert secret.discovery_hint != ""
     
     def test_secret_cave_accessible_from_forest_clearing(self):
@@ -2647,7 +2648,7 @@ class TestNumberedExitNavigation:
     
     def test_get_exit_by_number_valid(self):
         """Test getting exit by valid number."""
-        from game import get_exit_by_number
+        from scenario import get_exit_by_number
         
         exits = {"north": "forest", "south": "village", "east": "cave"}
         
@@ -2657,14 +2658,14 @@ class TestNumberedExitNavigation:
     
     def test_get_exit_by_number_invalid_zero(self):
         """Test that 0 returns None (custom action)."""
-        from game import get_exit_by_number
+        from scenario import get_exit_by_number
         
         exits = {"north": "forest", "south": "village"}
         assert get_exit_by_number(0, exits) is None
     
     def test_get_exit_by_number_invalid_too_high(self):
         """Test that number higher than exits returns None."""
-        from game import get_exit_by_number
+        from scenario import get_exit_by_number
         
         exits = {"north": "forest", "south": "village"}
         assert get_exit_by_number(3, exits) is None
@@ -2672,21 +2673,21 @@ class TestNumberedExitNavigation:
     
     def test_get_exit_by_number_negative(self):
         """Test that negative number returns None."""
-        from game import get_exit_by_number
+        from scenario import get_exit_by_number
         
         exits = {"north": "forest", "south": "village"}
         assert get_exit_by_number(-1, exits) is None
     
     def test_get_exit_by_number_empty_exits(self):
         """Test with empty exits dict."""
-        from game import get_exit_by_number
+        from scenario import get_exit_by_number
         
         exits = {}
         assert get_exit_by_number(1, exits) is None
     
     def test_get_exit_by_number_single_exit(self):
         """Test with single exit."""
-        from game import get_exit_by_number
+        from scenario import get_exit_by_number
         
         exits = {"door": "outside"}
         assert get_exit_by_number(1, exits) == "door"
@@ -2694,7 +2695,7 @@ class TestNumberedExitNavigation:
     
     def test_exit_order_preserved(self):
         """Test that exit order is consistent."""
-        from game import get_exit_by_number
+        from scenario import get_exit_by_number
         
         # Python 3.7+ preserves dict insertion order
         exits = {"alpha": "a", "beta": "b", "gamma": "c", "delta": "d"}
@@ -2891,8 +2892,7 @@ class TestLocationWithAtmosphere:
     
     def test_location_atmosphere_in_context(self):
         """Test that build_location_context handles structured atmosphere."""
-        from scenario import LocationAtmosphere
-        from game import build_location_context
+        from scenario import LocationAtmosphere, build_location_context
         
         atmo = LocationAtmosphere(
             sounds=["dripping water", "distant echoes"],
@@ -2922,7 +2922,7 @@ class TestLocationWithAtmosphere:
     
     def test_location_legacy_atmosphere_in_context(self):
         """Test that build_location_context handles legacy atmosphere_text."""
-        from game import build_location_context
+        from scenario import build_location_context
         
         location = Location(
             id="tavern",

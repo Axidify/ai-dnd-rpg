@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, 'src')
 
 from character import Character
-from game import parse_combat_request, run_combat
+from dm_engine import parse_combat_request
 
 def test_parsing():
     """Test the combat request parsing"""
@@ -14,13 +14,14 @@ def test_parsing():
     print("Testing Combat Request Parsing")
     print("=" * 50)
     
+    # parse_combat_request returns (enemy_list, surprise_player)
     test_cases = [
-        ("[COMBAT: goblin]", ['goblin']),
-        ("[COMBAT: goblin, goblin]", ['goblin', 'goblin']),
-        ("[COMBAT: goblin, orc]", ['goblin', 'orc']),
-        ("[COMBAT: wolf, wolf, wolf]", ['wolf', 'wolf', 'wolf']),
-        ("[COMBAT: goblin_boss, goblin, goblin]", ['goblin_boss', 'goblin', 'goblin']),
-        ("No combat here", []),
+        ("[COMBAT: goblin]", (['goblin'], False)),
+        ("[COMBAT: goblin, goblin]", (['goblin', 'goblin'], False)),
+        ("[COMBAT: goblin, orc]", (['goblin', 'orc'], False)),
+        ("[COMBAT: wolf, wolf, wolf]", (['wolf', 'wolf', 'wolf'], False)),
+        ("[COMBAT: goblin_boss, goblin, goblin]", (['goblin_boss', 'goblin', 'goblin'], False)),
+        ("No combat here", ([], False)),
     ]
     
     for input_str, expected in test_cases:
@@ -43,8 +44,10 @@ def test_single_enemy():
     print(f"HP: {char.current_hp}/{char.max_hp}, AC: {char.armor_class}")
     print()
     
-    # This will run interactive combat - for testing, we'll just verify it starts
-    print("Single enemy combat ready. Run game.py to test interactively.")
+    # Test combat parsing for single enemy
+    result = parse_combat_request("[COMBAT: goblin]")
+    assert result == (['goblin'], False), f"Expected (['goblin'], False), got {result}"
+    print("✅ Single enemy parsing works correctly.")
 
 
 def test_multi_enemy():
@@ -60,8 +63,15 @@ def test_multi_enemy():
     print(f"HP: {char.current_hp}/{char.max_hp}, AC: {char.armor_class}")
     print()
     
-    print("Multi-enemy combat ready. Run game.py to test interactively.")
-    print("Use commands like 'attack 1' or 'attack 2' to target specific enemies.")
+    # Test combat parsing for multiple enemies
+    result = parse_combat_request("[COMBAT: goblin, goblin, orc]")
+    assert result == (['goblin', 'goblin', 'orc'], False), f"Expected (['goblin', 'goblin', 'orc'], False), got {result}"
+    print("✅ Multi-enemy parsing works correctly.")
+    
+    # Test surprise attack parsing
+    result = parse_combat_request("[COMBAT: wolf, wolf | SURPRISE]")
+    assert result == (['wolf', 'wolf'], True), f"Expected (['wolf', 'wolf'], True), got {result}"
+    print("✅ Surprise attack parsing works correctly.")
 
 
 if __name__ == "__main__":
@@ -70,8 +80,5 @@ if __name__ == "__main__":
     test_multi_enemy()
     
     print("\n" + "=" * 50)
-    print("To test interactively, run: python src/game.py")
-    print("Then trigger combat with enemies, e.g.:")
-    print("  'I attack the goblins'")
-    print("DM should respond with [COMBAT: goblin, goblin]")
+    print("All multi-enemy combat parsing tests passed!")
     print("=" * 50)

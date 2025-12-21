@@ -198,24 +198,62 @@ Available items: healing_potion, greater_healing_potion, antidote, rations, torc
 lockpicks, dagger, shortsword, longsword, greataxe, rapier, leather_armor, studded_leather,
 chain_shirt, chain_mail, goblin_ear, mysterious_key, ancient_scroll
 
-Recruitable NPCs: marcus (Fighter), elira (Ranger), shade (Rogue)
+Recruitable NPCs (RESPECT THEIR LOCATIONS):
+- marcus (Fighter) - Currently at: TAVERN - can be recruited here
+- elira (Ranger) - Currently at: FOREST CLEARING - player must travel there to meet her
+- shade (Rogue) - Currently at: GOBLIN CAVE SHADOWS - player must find them in the cave
+
+⚠️ IMPORTANT: NPCs can only be interacted with at their actual locations!
+- The barkeep may have HEARD of other adventurers, but they are NOT present in the tavern
+- Only Marcus is physically present in the tavern
+- Elira is encountered in the forest on the way to the cave
+- Shade is hiding in the goblin caves
 
 Examples:
 - Player loots a chest: [ITEM: healing_potion] [GOLD: 15]
-- Quest reward: [ITEM: longsword] [GOLD: 50] [XP: 50 | Quest Complete]
+- Quest reward: [ITEM: longsword] [GOLD: 50]
 - Found in a drawer: [ITEM: torch]
-- Solved puzzle: [XP: 50 | Clever solution]
 - SHOP PURCHASE: [BUY: studded_leather, 25]
 - HIRE MERCENARY: [PAY: 20, Hired Marcus] [RECRUIT: marcus]
 
-XP GUIDELINES:
-⚠️ COMBAT XP IS AUTOMATIC - Do NOT award XP for defeating enemies!
-Only award XP for NON-COMBAT milestones:
-- Solving a puzzle: 25-50 XP
-- Completing a quest objective: 25-50 XP
-- Finishing a story chapter: 100-150 XP
-- Clever roleplay or creative solutions: 25 XP
-- Max level is 5, so be measured with XP rewards
+## XP GUIDELINES (CRITICAL)
+
+⚠️ COMBAT XP IS AUTOMATIC - NEVER award XP for combat or defeating enemies!
+⚠️ OBJECTIVE XP IS AUTOMATIC - NEVER award XP for: accepting quests, meeting NPCs, reaching locations, completing objectives!
+⚠️ QUEST XP IS AUTOMATIC - NEVER award XP for completing quests!
+
+The game system handles ALL standard XP rewards. You should RARELY use [XP: ...] tags.
+
+### WHEN TO AWARD XP (Exceptional Roleplay ONLY)
+
+Award 25 XP ONLY when the player demonstrates ONE of these:
+
+1. **CREATIVE PUZZLE SOLVING** - Player thinks outside the box
+   ✅ Player uses rope + oil to create a trap that kills goblins without combat
+   ✅ Player figures out a riddle by connecting clues from earlier conversations
+   ❌ Player solves a simple lock (normal gameplay)
+
+2. **BRILLIANT NEGOTIATION** - Player uses exceptional diplomacy
+   ✅ Player convinces hostile enemies to switch sides with clever argument
+   ✅ Player finds a win-win solution that wasn't obvious
+   ❌ Player asks NPC for help (normal gameplay)
+
+3. **UNEXPECTED INGENUITY** - Player does something surprising and clever
+   ✅ Player uses environment in unexpected way (floods room to stop fire)
+   ✅ Player combines items creatively (mirror + sunlight = weapon)
+   ❌ Player uses items as intended (healing potion to heal)
+
+### WHEN NOT TO AWARD XP
+
+NEVER award XP for:
+- Accepting or completing quests
+- Entering locations or meeting NPCs
+- Combat victories
+- Using items normally
+- Normal dialogue or investigation
+- Following obvious paths
+
+When in doubt: DO NOT award XP. The system handles it.
 
 Style guidelines:
 - Use second person ("You enter the tavern...")
@@ -379,8 +417,16 @@ def build_location_context(location_manager) -> str:
     return location_manager.get_context_for_dm()
 
 
-def build_npc_context(npc_manager) -> str:
-    """Build NPC context string for DM prompt."""
+def build_npc_context(npc_manager, location_npc_ids: List[str] = None) -> str:
+    """
+    Build NPC context string for DM prompt.
+    
+    Args:
+        npc_manager: The NPC manager instance
+        location_npc_ids: List of NPC IDs at the current location. If provided,
+                         only these NPCs are included as "present". Others are
+                         listed as "known but elsewhere".
+    """
     if not npc_manager:
         return ""
     
@@ -388,14 +434,39 @@ def build_npc_context(npc_manager) -> str:
     if not npcs:
         return ""
     
-    npc_list = []
-    for npc in npcs:
-        npc_list.append(f"  - {npc.name} ({npc.role.value}): {npc.description}")
+    # Separate NPCs by location presence
+    present_npcs = []
+    other_npcs = []
     
-    return f"""
-KNOWN NPCs (ONLY reference these - do NOT invent new ones!):
-{chr(10).join(npc_list)}
+    for npc in npcs:
+        npc_info = f"  - {npc.name} ({npc.role.value}): {npc.description}"
+        if location_npc_ids and npc.id in location_npc_ids:
+            present_npcs.append(npc_info)
+        elif location_npc_ids:
+            # NPC exists but is not at this location
+            other_npcs.append(f"  - {npc.name} (NOT HERE - at {npc.location_id})")
+        else:
+            # No location filter, include all
+            present_npcs.append(npc_info)
+    
+    context = ""
+    if present_npcs:
+        context += f"""
+NPCs PRESENT AT THIS LOCATION (can interact with):
+{chr(10).join(present_npcs)}
 """
+    
+    if other_npcs:
+        context += f"""
+OTHER KNOWN NPCs (NOT at this location - do NOT describe as present):
+{chr(10).join(other_npcs)}
+"""
+    
+    if context:
+        context = "\n" + context.strip() + "\n"
+        context += "\n⚠️ ONLY describe NPCs listed as 'PRESENT' - others are elsewhere!"
+    
+    return context
 
 
 def build_quest_context(quest_manager) -> str:
@@ -436,7 +507,15 @@ def build_full_dm_context(
     char_ctx = build_character_context(character)
     scenario_ctx = build_scenario_context(scenario_manager)
     location_ctx = build_location_context(location_manager)
-    npc_ctx = build_npc_context(npc_manager)
+    
+    # Get NPCs at current location for filtering
+    location_npc_ids = []
+    if location_manager:
+        current_loc = location_manager.get_current_location()
+        if current_loc and current_loc.npcs:
+            location_npc_ids = current_loc.npcs
+    
+    npc_ctx = build_npc_context(npc_manager, location_npc_ids)
     quest_ctx = build_quest_context(quest_manager)
     
     # Format conversation history
@@ -503,8 +582,15 @@ def apply_rewards(dm_response: str, character, inventory_add_func) -> Dict[str, 
         from inventory import get_item
         item = get_item(item_name)
         if item:
-            inventory_add_func(character, item)
-            results['items_gained'].append(item_name)
+            # Auto-convert gold pouches to gold (Phase 3.6.2)
+            if item_name.startswith("gold_pouch"):
+                gold_value = item.value  # gold_pouch=50, gold_pouch_small=15
+                character.gold += gold_value
+                results['gold_gained'] = results.get('gold_gained', 0) + gold_value
+                results['items_gained'].append(f"{item_name} (+{gold_value}g)")
+            else:
+                inventory_add_func(character, item)
+                results['items_gained'].append(item_name)
     
     # Parse gold
     gold = parse_gold_rewards(dm_response)
@@ -613,3 +699,399 @@ def format_roll_result(result: Dict[str, Any]) -> str:
         f"🎲 {result['skill']} Check (DC {result['dc']}): "
         f"rolled {result['roll']} {mod_str} = {result['total']} {emoji}"
     )
+
+
+# =============================================================================
+# TRAVEL MENU SYSTEM (Phase 3.2.1)
+# =============================================================================
+
+# Approach keywords for detecting player intent
+APPROACH_KEYWORDS = {
+    "stealth": ["sneak", "quietly", "stealthily", "creep", "hide", "silent", "silently", 
+                "sneaking", "creeping", "unnoticed", "unseen", "shadow", "shadows"],
+    "urgent": ["run", "rush", "hurry", "sprint", "dash", "flee", "quick", "quickly",
+               "fast", "running", "rushing", "sprinting", "flee", "escape"],
+    "cautious": ["careful", "carefully", "cautiously", "slowly", "cautious", "wary",
+                 "look around", "looking", "watch", "watching", "alert", "alertly"]
+}
+
+
+def parse_approach_intent(approach_input: str) -> Tuple[str, Optional[str]]:
+    """Parse player's approach input for travel intent keywords.
+    
+    Args:
+        approach_input: Player's description of how they approach (e.g., "sneak carefully")
+    
+    Returns:
+        (approach_type, skill_to_check) tuple:
+        - approach_type: "stealth", "urgent", "cautious", or "normal"
+        - skill_to_check: "stealth", "perception", or None for normal approach
+    """
+    if not approach_input or not approach_input.strip():
+        return ("normal", None)
+    
+    input_lower = approach_input.lower().strip()
+    
+    # Check for stealth keywords (triggers Stealth check)
+    for keyword in APPROACH_KEYWORDS["stealth"]:
+        if keyword in input_lower:
+            return ("stealth", "stealth")
+    
+    # Check for cautious keywords (triggers Perception check)
+    for keyword in APPROACH_KEYWORDS["cautious"]:
+        if keyword in input_lower:
+            return ("cautious", "perception")
+    
+    # Check for urgent keywords (no check, just narrative flavor)
+    for keyword in APPROACH_KEYWORDS["urgent"]:
+        if keyword in input_lower:
+            return ("urgent", None)
+    
+    # Default: normal approach
+    return ("normal", None)
+
+
+def is_destination_dangerous(location, loc_mgr=None) -> bool:
+    """Check if a destination location should prompt for approach style.
+    
+    Returns True if:
+    - Location has danger_level != "safe"
+    - Location has enemies/encounter
+    - Location has random encounters
+    - Location hasn't been visited before
+    
+    Args:
+        location: The destination Location object
+        loc_mgr: LocationManager for context (optional, for compatibility)
+    
+    Returns:
+        True if approach prompt should be shown
+    """
+    # Check danger level from atmosphere
+    if location.atmosphere and hasattr(location.atmosphere, 'danger_level'):
+        danger = location.atmosphere.danger_level.lower() if location.atmosphere.danger_level else ""
+        if danger and danger != "safe":
+            return True
+    
+    # Check for fixed encounters
+    if hasattr(location, 'encounter') and location.encounter and not location.encounter_triggered:
+        return True
+    
+    # Check for random encounters
+    if hasattr(location, 'random_encounters') and location.random_encounters:
+        return True
+    
+    # First visit to new location is always worth being cautious
+    if not location.visited:
+        return True
+    
+    return False
+
+
+def get_destination_danger_level(location) -> str:
+    """Get the danger level string for a location.
+    
+    Returns: "safe", "uneasy", "threatening", "deadly", or "unknown"
+    """
+    if location.atmosphere and hasattr(location.atmosphere, 'danger_level'):
+        if location.atmosphere.danger_level:
+            return location.atmosphere.danger_level.lower()
+    
+    # Infer danger from encounters
+    if hasattr(location, 'encounter') and location.encounter and not location.encounter_triggered:
+        return "threatening"
+    
+    if hasattr(location, 'random_encounters') and location.random_encounters:
+        return "uneasy"
+    
+    return "unknown"
+
+
+# =============================================================================
+# COMBAT NARRATION SYSTEM
+# =============================================================================
+
+COMBAT_NARRATION_PROMPT = """You are the Dungeon Master narrating a combat moment. 
+Given the combat result below, provide a brief (2-3 sentences) vivid, immersive description.
+
+RULES:
+- Do NOT mention dice rolls, numbers, AC, HP, or any game mechanics
+- Focus on visceral, cinematic description of the action
+- Match the tone to the outcome (triumphant for crits, tense for misses, brutal for kills)
+- Keep it under 50 words
+- Write in second person ("You..." or "Your...") for player actions
+- Write in third person for enemy actions
+
+Combat Result:
+{context}
+
+Narration:"""
+
+
+def build_combat_context(
+    attacker_name: str,
+    target_name: str,
+    weapon: str,
+    attack_result: dict,
+    damage_result: dict = None,
+    target_died: bool = False,
+    is_player_attacking: bool = True
+) -> Dict[str, Any]:
+    """Build context dict for combat narration."""
+    
+    # Determine outcome type
+    if attack_result.get('is_crit'):
+        outcome = 'critical_hit'
+    elif attack_result.get('is_fumble'):
+        outcome = 'critical_miss'
+    elif attack_result.get('hit'):
+        outcome = 'hit'
+    else:
+        outcome = 'miss'
+    
+    context = {
+        'attacker': attacker_name,
+        'target': target_name,
+        'weapon': weapon,
+        'outcome': outcome,
+        'is_player_attack': is_player_attacking,
+    }
+    
+    if damage_result:
+        context['damage'] = damage_result.get('total', 0)
+        context['damage_type'] = damage_result.get('damage_type', 'physical')
+    
+    if target_died:
+        context['target_killed'] = True
+    
+    return context
+
+
+def get_combat_narration(chat, context: dict) -> str:
+    """Request AI narration for a combat action."""
+    try:
+        import json
+        context_str = json.dumps(context, indent=2)
+        prompt = COMBAT_NARRATION_PROMPT.format(context=context_str)
+        
+        # Send to AI for narration
+        response = chat.send_message(prompt)
+        
+        # Clean up response - extract just the narration
+        narration = response.text.strip()
+        
+        # Remove any markdown or extra formatting
+        if narration.startswith('"') and narration.endswith('"'):
+            narration = narration[1:-1]
+        
+        return narration
+    except Exception as e:
+        # If narration fails, return empty (don't break combat)
+        return ""
+
+
+def display_combat_narration(narration: str):
+    """Display the AI-generated combat narration."""
+    if narration:
+        print(f"\n📖 {narration}")
+
+
+# =============================================================================
+# LOCATION NARRATION SYSTEM
+# =============================================================================
+
+LOCATION_NARRATION_PROMPT = """You are the Dungeon Master describing a location the player is exploring.
+Given the location details below, provide an immersive, narrative description.
+
+RULES:
+- Write 5-7 sentences in second person ("You see...", "Before you...")
+- For first visits, include a travel transition describing how they arrived
+- IMPORTANT: Naturally describe visible items in the scene - don't just list them, describe WHERE they are and how they look:
+  * A healing potion might be "a crimson vial glinting on a dusty shelf"
+  * A sword might be "a longsword propped against the wall, its blade nicked from battle"
+  * Gold coins might be "scattered coins glinting in the torchlight"
+- Describe NPCs with personality - what they're doing, their demeanor, body language. Hint that they're approachable.
+
+ATMOSPHERE GUIDANCE:
+- If atmosphere_context is provided, USE IT to create sensory immersion:
+  * Pick 2-3 sounds from the list and describe them naturally
+  * Weave in 1-2 smells that set the scene
+  * Use lighting and temperature to set visual tone
+  * Let the MOOD guide your word choices
+  * DANGER_LEVEL affects pacing: low=relaxed descriptions, medium=subtle unease, high=immediate threat
+  * Pick 1-2 items from random_details to add unique flavor
+- DON'T list atmosphere elements - weave them into natural prose
+- DON'T name the mood explicitly - SHOW it through description
+
+- If hidden_item_hints are provided, subtly weave these into the description without being obvious
+- NATURALLY WEAVE DIRECTIONS INTO PROSE - describe paths and doorways as part of the scene
+- Do NOT use bullet points, lists, or game mechanics - pure narrative prose
+- Do NOT end with "What do you do?" or any prompt - just end the scene description
+- Keep it between 80-150 words for immersive storytelling
+
+Location Details:
+{context}
+
+Narration:"""
+
+
+def build_location_context_full(location, is_first_visit: bool = False, events: list = None) -> Dict[str, Any]:
+    """Build context dict for location narration with full atmospheric details.
+    
+    This is the extended version used for AI narration requests.
+    For simple context building, use build_location_context().
+    
+    Args:
+        location: The Location object being described
+        is_first_visit: Whether this is the player's first time here
+        events: Any events that just triggered (optional)
+    
+    Returns:
+        Dict with all location context for AI narration
+    """
+    from inventory import ITEMS as ITEM_DATABASE
+    
+    context = {
+        'name': location.name,
+        'description': location.description,
+        'is_first_visit': is_first_visit,
+    }
+    
+    # Add structured atmosphere if available
+    if location.atmosphere:
+        atmo = location.atmosphere
+        atmosphere_context = {}
+        if hasattr(atmo, 'sounds') and atmo.sounds:
+            atmosphere_context['sounds'] = atmo.sounds
+        if hasattr(atmo, 'smells') and atmo.smells:
+            atmosphere_context['smells'] = atmo.smells
+        if hasattr(atmo, 'textures') and atmo.textures:
+            atmosphere_context['textures'] = atmo.textures
+        if hasattr(atmo, 'lighting') and atmo.lighting:
+            atmosphere_context['lighting'] = atmo.lighting
+        if hasattr(atmo, 'temperature') and atmo.temperature:
+            atmosphere_context['temperature'] = atmo.temperature
+        if hasattr(atmo, 'mood') and atmo.mood:
+            atmosphere_context['mood'] = atmo.mood
+        if hasattr(atmo, 'danger_level') and atmo.danger_level:
+            atmosphere_context['danger_level'] = atmo.danger_level
+        if hasattr(atmo, 'random_details') and atmo.random_details:
+            atmosphere_context['detail_pool'] = atmo.random_details
+        
+        if atmosphere_context:
+            context['atmosphere'] = atmosphere_context
+            context['atmosphere_instruction'] = "Weave 2-3 sensory details naturally into the description. Match the mood without stating emotions directly."
+    elif hasattr(location, 'atmosphere_text') and location.atmosphere_text:
+        context['atmosphere'] = location.atmosphere_text
+    else:
+        context['atmosphere'] = "neutral"
+    
+    # Add items with rich descriptions
+    if location.items:
+        items_with_descriptions = []
+        for item_id in location.items:
+            item_name = item_id.replace("_", " ").title()
+            item_data = ITEM_DATABASE.get(item_id)
+            if item_data:
+                items_with_descriptions.append({
+                    "name": item_name,
+                    "type": item_data.item_type.value,
+                    "description": item_data.description[:50] + "..." if len(item_data.description) > 50 else item_data.description
+                })
+            else:
+                items_with_descriptions.append({"name": item_name})
+        context['items_present'] = items_with_descriptions
+        context['items_note'] = "Describe these items naturally in the scene - where they are, how they look. Don't list them."
+    
+    # Add NPCs with context
+    if location.npcs:
+        npc_names = [npc.replace("_", " ").title() for npc in location.npcs]
+        context['npcs_present'] = npc_names
+    
+    # Add exits/directions
+    if location.exits:
+        context['available_directions'] = list(location.exits.keys())
+    
+    # Add events if any triggered
+    if events:
+        event_texts = [e.narration for e in events]
+        context['events'] = event_texts
+    
+    # Add enter text for first visits
+    if is_first_visit and hasattr(location, 'enter_text') and location.enter_text:
+        context['enter_text'] = location.enter_text
+    
+    # Add hints about hidden items
+    if hasattr(location, 'get_search_hints') and hasattr(location, 'has_searchable_secrets'):
+        if location.has_searchable_secrets():
+            hints = location.get_search_hints()
+            if hints:
+                context['hidden_item_hints'] = hints
+                context['dm_note'] = "Subtly hint that there may be something hidden here for observant adventurers."
+    
+    return context
+
+
+def get_location_narration(chat, context: dict) -> str:
+    """Request AI narration for a location description."""
+    try:
+        import json
+        context_str = json.dumps(context, indent=2)
+        prompt = LOCATION_NARRATION_PROMPT.format(context=context_str)
+        
+        # Send to AI for narration
+        response = chat.send_message(prompt)
+        
+        # Clean up response
+        narration = response.text.strip()
+        
+        # Remove any markdown or extra formatting
+        if narration.startswith('"') and narration.endswith('"'):
+            narration = narration[1:-1]
+        
+        return narration
+    except Exception as e:
+        # If narration fails, return a fallback description
+        return f"You are in {context.get('name', 'an unknown location')}. {context.get('description', '')}"
+
+
+def display_location_narration(location_name: str, narration: str, exits: dict = None, 
+                                npcs: list = None, items: list = None,
+                                has_secrets: bool = False, show_context: bool = True):
+    """Display the AI-generated location narration in pure narrative form.
+    
+    Args:
+        location_name: Name of the current location
+        narration: AI-generated description
+        exits: Dict of exit names to location IDs
+        npcs: List of NPC names present
+        items: List of visible item IDs at location
+        has_secrets: Whether there are hidden items to search for
+        show_context: Whether to show NPCs/exits (False during conversations)
+    """
+    # Display pure narrative
+    if narration:
+        print(f"\n📍 {location_name}\n")
+        print(f"  {narration}")
+        print()
+    
+    # Only show context if requested
+    if show_context:
+        if npcs:
+            if len(npcs) == 1:
+                print(f"  💬 {npcs[0]} is nearby.")
+            else:
+                npc_list = ", ".join(npcs[:3])
+                print(f"  💬 Nearby: {npc_list}")
+        
+        if exits:
+            exit_names = list(exits.keys())
+            if len(exit_names) == 1:
+                print(f"\n  → You could go {exit_names[0]}.")
+            elif len(exit_names) == 2:
+                print(f"\n  → Exits: {exit_names[0]}, {exit_names[1]}")
+            else:
+                formatted = ", ".join(exit_names)
+                print(f"\n  → Exits: {formatted}")
+            print()
+

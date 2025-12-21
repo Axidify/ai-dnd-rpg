@@ -467,8 +467,15 @@ def get_dm_response(session: GameSession, player_action: str, is_opening: bool =
     return get_fallback_response(session, player_action, is_opening)
 
 
-def stream_dm_response(session: GameSession, player_action: str, max_retries: int = 3):
-    """Generator that yields streaming DM response chunks using chat session."""
+def stream_dm_response(session: GameSession, player_action: str, max_retries: int = 3, is_roll_continuation: bool = False):
+    """Generator that yields streaming DM response chunks using chat session.
+    
+    Args:
+        session: The game session
+        player_action: The player's action or roll result message
+        max_retries: Number of retry attempts for API errors
+        is_roll_continuation: If True, this is a continuation after a dice roll
+    """
     import time
     
     chat = init_dm_chat(session)
@@ -480,8 +487,13 @@ def stream_dm_response(session: GameSession, player_action: str, max_retries: in
     # Build the message with context refresh + action + skill hints
     # Only include context updates periodically or when state changes significantly
     context_refresh = refresh_chat_context(session)
-    skill_hint = get_skill_hint(player_action)
-    full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}"
+    
+    if is_roll_continuation:
+        # For roll continuations, don't add skill hints (we already have the result)
+        full_message = f"{context_refresh}\n\n{player_action}"
+    else:
+        skill_hint = get_skill_hint(player_action)
+        full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}"
     
     for attempt in range(max_retries):
         try:
@@ -815,6 +827,23 @@ def game_action():
         
         # Add roll result to response
         dm_response += f"\n\n{format_roll_result(result)}"
+        
+        # Make a follow-up DM call to continue narration after the dice roll
+        success_word = "SUCCESS" if result['success'] else "FAILURE"
+        nat_20 = result['roll'] == 20
+        nat_1 = result['roll'] == 1
+        
+        if nat_20:
+            roll_continuation = f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = CRITICAL SUCCESS (NATURAL 20)!]\n\nContinue narrating what happens with this extraordinary success."
+        elif nat_1:
+            roll_continuation = f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = CRITICAL FAILURE (NATURAL 1)!]\n\nContinue narrating what happens with this spectacular failure."
+        else:
+            roll_continuation = f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = {success_word}]\n\nContinue narrating what happens based on this {'successful' if result['success'] else 'failed'} check."
+        
+        # Get continuation response (strip any roll requests to prevent infinite loops)
+        continuation = get_dm_response(session, roll_continuation, is_opening=False)
+        continuation = re.sub(r'\[ROLL:\s*\w+\s+DC\s*\d+\]', '', continuation)
+        dm_response += f"\n\n{continuation}"
     
     # Check for combat request
     enemies, surprise = parse_combat_request(dm_response)
@@ -976,6 +1005,30 @@ def game_action_stream():
             roll_text = f"\n\n{format_roll_result(result)}"
             yield json_sse({'type': 'chunk', 'content': roll_text})
             dm_response += roll_text
+            
+            # Make a follow-up DM call to continue narration after the dice roll
+            success_word = "SUCCESS" if result['success'] else "FAILURE"
+            nat_20 = result['roll'] == 20
+            nat_1 = result['roll'] == 1
+            
+            if nat_20:
+                roll_continuation = f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = CRITICAL SUCCESS (NATURAL 20)!]\n\nContinue narrating what happens with this extraordinary success."
+            elif nat_1:
+                roll_continuation = f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = CRITICAL FAILURE (NATURAL 1)!]\n\nContinue narrating what happens with this spectacular failure."
+            else:
+                roll_continuation = f"[ROLL RESULT: {result['skill']} = {result['total']} vs DC {dc} = {success_word}]\n\nContinue narrating what happens based on this {'successful' if result['success'] else 'failed'} check."
+            
+            # Stream the continuation response (no further roll processing to avoid loops)
+            continuation_response = []
+            for chunk in stream_dm_response(session, roll_continuation, is_roll_continuation=True):
+                continuation_response.append(chunk)
+                yield json_sse({'type': 'chunk', 'content': chunk})
+            
+            # Add continuation to response (rewards/items from continuation will be processed below)
+            continuation_text = ''.join(continuation_response)
+            # Strip any accidental roll requests from continuation to prevent infinite loops
+            continuation_text = re.sub(r'\[ROLL:\s*\w+\s+DC\s*\d+\]', '', continuation_text)
+            dm_response += '\n\n' + continuation_text
         
         # Check for combat request
         enemies, surprise = parse_combat_request(dm_response)

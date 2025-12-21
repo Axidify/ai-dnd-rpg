@@ -1,17 +1,59 @@
- *  Executing task: Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd "D:\Vibecoding\AI RPG V2"; .venv\Scripts\python.exe src/api_server.py'; Start-Sleep -Seconds 2; cd "D:\Vibecoding\AI RPG V2\frontend"; C:\flutter\bin\flutter.bat run -d chrome 
+📍 **The Rusty Dragon Tavern**
 
-Set-Location : A positional parameter cannot be found that accepts argument 'RPG'.
-At line:1 char:161
-+ ... ; Start-Sleep -Seconds 2; cd D:\Vibecoding\AI RPG V2\frontend; C:\flu ...
-+                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidArgument: (:) [Set-Location], ParameterBindingException   
-    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.SetLoc 
-   ationCommand
- 
-Error: No pubspec.yaml file found.
-This command should be run from the root of your Flutter project.
+You push open the heavy oak door of the Rusty Dragon, and a wave of warmth and sound washes over you. The air is thick with the scent of woodsmoke, spilled ale, and roasting meat. A hearty fire crackles in a large stone hearth, casting long, dancing shadows across the worn wooden tables. The tavern's usual cheerful din is muted tonight, replaced by the low murmur of hushed conversations and the occasional clinking of tankards. Behind the bar, a stout, graying man polishes a mug, his eyes scanning the room. In the corners, you notice others who don't look like simple villagers—a weathered sellsword nursing a drink and a hooded figure who seems to blend into the shadows.
 
- *  The terminal process "C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -Command Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd "D:\Vibecoding\AI RPG V2"; .venv\Scripts\python.exe src/api_server.py'; Start-Sleep -Seconds 2; cd "D:\Vibecoding\AI RPG V2\frontend"; C:\flutter\bin\flutter.bat run -d chrome" terminated with exit code: 1. 
- *  Terminal will be reused by tasks, press any key to close it. 
+Before you can even take a seat, a man detaches himself from a shadowed corner and stumbles towards you. His clothes are the simple, dirt-stained garb of a farmer, and his face is etched with a desperate, sleepless panic. His eyes are wide and bloodshot, and they fix on you with a sliver of hope. "Please," he says, his voice raspy and choked with emotion. "You look capable. A fighter. My name is Bram. I... I need help."
 
+He grips the edge of a nearby table, his knuckles white. "Goblins," he spits the word like a curse. "They came in the night. Raided our farm, just beyond the woods. They took... they took my daughter, Lily." He swallows hard, his gaze pleading. "I don't have much, but our family's savings... 50 gold coins... it's all yours if you can bring her back safe. They dragged her toward Darkhollow Cave, east of here. Please, will you help me?"
 
+i accept but only if i get a deposit for me to gear up or hire some help
+
+You place a reassuring hand on the man's shoulder, your voice firm but steady. "Calm yourself, Bram. I will help you. But Darkhollow Cave sounds dangerous, and I'll need proper supplies, perhaps even some help. I'll need a portion of the payment now as a deposit."
+
+Bram flinches at the mention of a deposit, his panicked eyes darting around the room. "A deposit?" he whispers, his voice trembling. "That... that fifty gold is everything we have saved. It's for Lily's future. If I give it to you and... and you don't return..." He trails off, the unspoken fear hanging heavy in the air. He looks from your determined face back toward the door, as if picturing his daughter in the clutches of goblins.
+
+He is desperate, but he is also a man who has just lost everything he has worked for, save for this small purse of coins. Convincing him to part with it now will not be easy.
+
+[ROLL: Persuasion DC 12]
+
+🎲 Persuasion Check (DC 12): rolled 17 +2 = 19 ✅You look Bram directly in the eye, your expression softening slightly. "I understand your fear," you say, your voice low and earnest. "But this isn't just about gold. This is about being prepared. Goblins are vicious, and their caves are treacherous. The better equipped I am, the better Lily's chances are. Think of it not as an expense, but as an investment in your daughter's life."
+
+Your words, calm and logical, cut through his panic. He sees the truth in them, the sincerity in your gaze. The wild fear in his eyes recedes, replaced by a flicker of determined hope. He nods slowly, his shoulders slumping in a mixture of relief and resignation. "You're right," he murmurs. "Of course, you're right. Anything for Lily."
+
+With a trembling hand, Bram fumbles with a small, worn leather pouch tied to his belt. He loosens the drawstring and carefully counts out twenty gold coins, their metallic gleam faint in the firelight. He pushes them across the table to you. "It's all I can spare for now. The rest is yours when she's safe." He then unhooks a torch from his belt, its end blackened with soot. "I... I also have this. It's not much, but it may help in the dark."
+
+A wave of profound relief washes over the farmer's face, as if a great weight has been lifted. "Thank you," he says, his voice thick with emotion. "Gods, thank you. Please... bring my girl home." He gives you a final, pleading look before retreating to a quiet corner of the tavern, his anxious vigil beginning. The choice is now yours. You can explore the village for supplies or perhaps allies by going 'outside', or you can begin the journey to Darkhollow Cave by heading east.
+
+[GOLD: 20]
+[ITEM: torch]
+[XP: 50 | Quest Accepted]
+
+📦 Received: Torch
+
+💰 Received 20 gold (Total: 35)
+
+⭐ Gained 50 XP: Quest Accepted
+
+📜 Quest Accepted: Rescue Lily
+
+📜 Quest Accepted: Clear the Path
+
+📜 Quest Accepted: The Chief's Treasure
+
+talk to the barkeep
+
+You slide the newly acquired coins into your pouch and make your way toward the long wooden bar. The stout barkeep, Greth, stops polishing his mug and sets it down with a soft thud. He gives you a knowing look, his gaze flickering for a moment towards Bram, who is now slumped at a table, head in his hands.
+
+"Trouble finds this village again," Greth says, his voice a low rumble. He leans forward, resting his thick forearms on the bar. "That poor man's been beside himself since last night. Goblins have been getting bolder these last few months. Bad for business." He gestures with his head towards the other patrons. "You're not the first to think of heading to that cave. That sellsword Marcus was asking about it earlier, and the elf, Elira... she's got her own reasons for wanting goblin blood."
+
+He straightens up and grabs a clean tankard. "So, what'll it be? A drink to steel your nerves, or are you just here for information? I've been running this tavern for twenty years; I hear most everything that's worth hearing."
+
+any swords for hire in town?
+
+Greth lets out a low chuckle, wiping a clean spot on the bar with his rag. He subtly gestures with his chin, not even bothering to look directly.
+
+"You're in the right place for it. See that big fella in the corner, the one with the face like a roadmap and a greatsword that's seen better days? That's Marcus. He's a sellsword, plain and simple. His loyalty is to the heaviest coin purse. Word is he's looking for a good score, and a goblin chief's hoard might just be it. He's been asking questions about Darkhollow."
+
+He then shifts his gaze slightly to a tall, lean elf woman with a longbow resting against the wall beside her. Her expression is grim. "Then there's Elira. She's not a mercenary, not really. She's a survivor. The goblins in that cave ambushed her scouting party a few weeks back. She's here for revenge, not coin. She might join a capable warrior if it means putting an end to them for good."
+
+Finally, his eyes flick to the deepest shadows of the room, where a hooded figure, Shade, remains perfectly still. "And that one... I don't know their story. But they carry themselves like a coiled snake, and those daggers at their belt aren't for show. Could be they're looking for work, could be they're looking for trouble. You'd have to be brave enough to ask."

@@ -80,6 +80,7 @@ class Character:
     # Equipment
     weapon: str = "longsword"  # Default weapon for combat
     equipped_armor: str = ""  # Empty = unarmored
+    weapon_poisoned: bool = False  # True if poison applied (Phase 3.6.6)
     
     # Inventory
     inventory: list = field(default_factory=list)
@@ -327,6 +328,7 @@ class Character:
             armor_class=data.get('armor_class', 10),
             weapon=data.get('weapon', 'longsword'),
             equipped_armor=data.get('equipped_armor', ''),
+            weapon_poisoned=data.get('weapon_poisoned', False),
             inventory=inventory,
             gold=data.get('gold', 0),
             experience=data.get('experience', 0)

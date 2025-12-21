@@ -558,6 +558,7 @@ def roll_damage(character: Character, weapon_name: str = 'longsword', is_crit: b
     """
     Roll damage for a weapon hit.
     Critical hits roll damage dice twice.
+    Poison adds +1d4 damage and is consumed after use.
     """
     weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['longsword'])
     damage_dice = weapon['damage']
@@ -573,10 +574,20 @@ def roll_damage(character: Character, weapon_name: str = 'longsword', is_crit: b
         crit_total, crit_rolls = roll_dice(damage_dice)
         total += crit_total
     
+    # Phase 3.6.6: Poison damage bonus (+1d4)
+    poison_rolls = []
+    poison_damage = 0
+    weapon_was_poisoned = False
+    if hasattr(character, 'weapon_poisoned') and character.weapon_poisoned:
+        poison_damage, poison_rolls = roll_dice('1d4')
+        total += poison_damage
+        character.weapon_poisoned = False  # Consume after one hit
+        weapon_was_poisoned = True
+    
     # Add modifier
     final_damage = max(1, total + damage_bonus)  # Minimum 1 damage
     
-    return {
+    result = {
         'weapon': weapon_name.title(),
         'damage_dice': damage_dice,
         'damage_type': damage_type,
@@ -586,6 +597,14 @@ def roll_damage(character: Character, weapon_name: str = 'longsword', is_crit: b
         'total': final_damage,
         'is_crit': is_crit,
     }
+    
+    # Add poison info if applicable
+    if weapon_was_poisoned:
+        result['poison_rolls'] = poison_rolls
+        result['poison_damage'] = poison_damage
+        result['was_poisoned'] = True
+    
+    return result
 
 
 def format_attack_result(attack: dict) -> str:
@@ -630,15 +649,20 @@ def format_damage_result(damage: dict) -> str:
     """Format damage roll for display."""
     bonus_sign = '+' if damage['damage_bonus'] >= 0 else ''
     
+    # Check for poison damage
+    poison_text = ""
+    if damage.get('was_poisoned'):
+        poison_text = f" + 🧪{damage['poison_rolls']} poison"
+    
     if damage['is_crit']:
         all_rolls = damage['rolls'] + damage['crit_rolls']
         return (
-            f"💥 Damage: {all_rolls}{bonus_sign}{damage['damage_bonus']} = "
+            f"💥 Damage: {all_rolls}{bonus_sign}{damage['damage_bonus']}{poison_text} = "
             f"{damage['total']} {damage['damage_type']} damage (CRITICAL!)"
         )
     else:
         return (
-            f"💥 Damage: {damage['rolls']}{bonus_sign}{damage['damage_bonus']} = "
+            f"💥 Damage: {damage['rolls']}{bonus_sign}{damage['damage_bonus']}{poison_text} = "
             f"{damage['total']} {damage['damage_type']} damage"
         )
 

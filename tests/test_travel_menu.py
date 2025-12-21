@@ -10,7 +10,7 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from game import (
+from dm_engine import (
     parse_approach_intent, 
     is_destination_dangerous, 
     get_destination_danger_level,
