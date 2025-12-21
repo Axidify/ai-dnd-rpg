@@ -23,12 +23,17 @@ from datetime import datetime
 from dataclasses import asdict
 from typing import Optional, Dict, Any, List, Tuple
 from enum import Enum
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Default save directory
-SAVES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saves")
+# Default save directory (configurable via .env)
+_default_saves_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saves")
+SAVES_DIR = os.getenv("SAVES_DIR", _default_saves_dir)
 
 
 # =============================================================================
@@ -671,7 +676,7 @@ def dict_to_item(data: Dict[str, Any]) -> Optional[Any]:
         return None
 
 
-def scenario_to_dict(scenario_manager) -> Optional[Dict[str, Any]]:
+def scenario_to_dict(scenario_manager, quest_manager=None) -> Optional[Dict[str, Any]]:
     """
     Serialize scenario state for full game continuity.
     
@@ -680,6 +685,7 @@ def scenario_to_dict(scenario_manager) -> Optional[Dict[str, Any]]:
     - Current scene ID
     - All scene states (exchange_count, objectives_complete, status)
     - Location manager state (current location, visited locations)
+    - Quest manager state (available, active, completed, failed quests)
     
     This allows resuming a game mid-scenario at the exact point.
     """
@@ -702,16 +708,22 @@ def scenario_to_dict(scenario_manager) -> Optional[Dict[str, Any]]:
     if scenario.location_manager:
         location_state = scenario.location_manager.to_dict()
     
+    # Serialize quest manager state (Phase 3.3.4)
+    quest_state = None
+    if quest_manager:
+        quest_state = quest_manager.to_dict()
+    
     return {
         'id': scenario.id,
         'current_scene_id': scenario.current_scene_id,
         'is_complete': scenario.is_complete,
         'scene_states': scene_states,
         'location_state': location_state,  # Phase 3.2
+        'quest_state': quest_state,  # Phase 3.3.4
     }
 
 
-def restore_scenario(scenario_manager, data: Dict[str, Any]) -> bool:
+def restore_scenario(scenario_manager, data: Dict[str, Any], quest_manager=None) -> bool:
     """
     Restore scenario state from saved data for full game continuity.
     
@@ -720,6 +732,7 @@ def restore_scenario(scenario_manager, data: Dict[str, Any]) -> bool:
     - Current scene ID
     - All scene states (exchange_count, objectives_complete, status)
     - Location manager state (current location, visited locations)
+    - Quest manager state (available, active, completed, failed quests)
     """
     from scenario import SceneStatus
     
@@ -764,6 +777,11 @@ def restore_scenario(scenario_manager, data: Dict[str, Any]) -> bool:
     if location_state and scenario.location_manager:
         scenario.location_manager.restore_state(location_state)
     
+    # Restore quest manager state (Phase 3.3.4)
+    quest_state = data.get('quest_state')
+    if quest_state and quest_manager:
+        quest_manager.restore_state(quest_state)
+    
     return True
 
 
@@ -795,10 +813,12 @@ class SaveManager:
         self,
         character,
         scenario_manager=None,
+        quest_manager=None,
         chat_history: Optional[list] = None,
         slot: Optional[int] = None,
         description: str = "",
-        game_stats: Optional[Dict[str, Any]] = None
+        game_stats: Optional[Dict[str, Any]] = None,
+        party=None
     ) -> Tuple[str, str]:
         """
         Save the current game state to a JSON file for full continuity.
@@ -806,10 +826,12 @@ class SaveManager:
         Args:
             character: The player's Character object
             scenario_manager: ScenarioManager with active scenario (optional)
+            quest_manager: QuestManager with quest states (optional, Phase 3.3.4)
             chat_history: List of chat messages for context (optional)
             slot: Save slot number (1-5) or None for timestamped save
             description: Optional description for the save
             game_stats: Optional game statistics (enemies_defeated, etc.)
+            party: Optional Party object with companions (Phase 3.3.7)
             
         Returns:
             Tuple of (filepath: str, message: str)
@@ -860,8 +882,11 @@ class SaveManager:
                 # Character data (complete state)
                 'character': char_dict,
                 
-                # Scenario data (complete with scene states)
-                'scenario': scenario_to_dict(scenario_manager),
+                # Scenario data (complete with scene states and quests)
+                'scenario': scenario_to_dict(scenario_manager, quest_manager),
+                
+                # Party data (companions, Phase 3.3.7)
+                'party': party.to_dict() if party else None,
                 
                 # Chat history (expanded to 50 messages for better AI context)
                 'chat_history': chat_history[-50:] if chat_history else [],
@@ -918,7 +943,7 @@ class SaveManager:
             logger.error(error)
             return ("", error)
     
-    def load_game(self, filepath: str, Character, ScenarioManager=None) -> Optional[Dict[str, Any]]:
+    def load_game(self, filepath: str, Character, ScenarioManager=None, quest_manager=None, Party=None) -> Optional[Dict[str, Any]]:
         """
         Load a game from a JSON file for full continuity.
         
@@ -926,9 +951,11 @@ class SaveManager:
             filepath: Path to the save file
             Character: Character class to instantiate
             ScenarioManager: ScenarioManager class to instantiate (optional)
+            quest_manager: QuestManager instance to restore state into (optional, Phase 3.3.4)
+            Party: Party class to instantiate (optional, Phase 3.3.7)
             
         Returns:
-            Dict with keys: 'character', 'scenario_manager', 'chat_history', 
+            Dict with keys: 'character', 'scenario_manager', 'party', 'chat_history', 
             'game_stats', 'errors', or None on critical error
             
         Raises:
@@ -968,6 +995,7 @@ class SaveManager:
             result = {
                 'character': None,
                 'scenario_manager': None,
+                'party': None,
                 'chat_history': [],
                 'description': save_data.get('description', ''),
                 'timestamp': save_data.get('timestamp', ''),
@@ -993,18 +1021,27 @@ class SaveManager:
             else:
                 result['errors'].append("No character data in save file")
             
-            # Restore scenario
+            # Restore scenario (and quest state)
             scenario_data = save_data.get('scenario')
             if scenario_data and ScenarioManager:
                 try:
                     scenario_manager = ScenarioManager()
-                    if restore_scenario(scenario_manager, scenario_data):
+                    if restore_scenario(scenario_manager, scenario_data, quest_manager):
                         result['scenario_manager'] = scenario_manager
                     else:
                         result['errors'].append("Failed to restore scenario progress")
                 except Exception as e:
                     result['errors'].append(f"Scenario: {e}")
                     logger.warning(f"Failed to restore scenario: {e}")
+            
+            # Restore party (Phase 3.3.7)
+            party_data = save_data.get('party')
+            if party_data and Party:
+                try:
+                    result['party'] = Party.from_dict(party_data)
+                except Exception as e:
+                    result['errors'].append(f"Party: {e}")
+                    logger.warning(f"Failed to restore party: {e}")
             
             # Restore chat history
             result['chat_history'] = save_data.get('chat_history', [])

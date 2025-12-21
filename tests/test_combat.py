@@ -5,7 +5,10 @@ Covers: dice rolling, attacks, damage, enemies, initiative.
 
 import pytest
 import sys
-sys.path.insert(0, '../src')
+import os
+
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from combat import (
     Enemy, ENEMIES, WEAPONS,
@@ -74,8 +77,8 @@ class TestEnemy:
         goblin = create_enemy("goblin")
         assert goblin is not None
         assert goblin.name == "Goblin"
-        assert goblin.max_hp == 7
-        assert goblin.current_hp == 7
+        assert goblin.max_hp == 5  # Balanced for new players
+        assert goblin.current_hp == 5
     
     def test_create_nonexistent_enemy(self):
         """Test creating nonexistent enemy returns None."""
@@ -86,7 +89,7 @@ class TestEnemy:
         """Test enemy taking damage."""
         goblin = create_enemy("goblin")
         result = goblin.take_damage(3)
-        assert goblin.current_hp == 4
+        assert goblin.current_hp == 2  # 5 - 3 = 2
         assert "takes 3 damage" in result
     
     def test_enemy_death(self):

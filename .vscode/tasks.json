@@ -1,0 +1,83 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "🎮 Start Backend (Flask)",
+			"type": "shell",
+			"command": "${workspaceFolder}/.venv/Scripts/python.exe",
+			"args": ["src/api_server.py"],
+			"options": {
+				"cwd": "${workspaceFolder}",
+				"env": {
+					"API_PORT": "5000",
+					"DEBUG": "false"
+				}
+			},
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^never-match$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^.*Flask app.*$",
+					"endsPattern": "^.*Running on.*$"
+				}
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"clear": true
+			}
+		},
+		{
+			"label": "🌐 Start Frontend (React)",
+			"type": "shell",
+			"command": "npm",
+			"args": ["run", "dev"],
+			"options": {
+				"cwd": "${workspaceFolder}/frontend/option1-react"
+			},
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^never-match$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^.*vite.*$",
+					"endsPattern": "^.*Local.*$"
+				}
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"clear": true
+			}
+		},
+		{
+			"label": "🚀 Start Full Stack",
+			"dependsOn": ["🎮 Start Backend (Flask)", "🌐 Start Frontend (React)"],
+			"dependsOrder": "parallel",
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "🛑 Stop All Servers",
+			"type": "shell",
+			"command": "taskkill",
+			"args": ["/F", "/IM", "python.exe"],
+			"windows": {
+				"command": "Get-Process -Name python,node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+			},
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			}
+		}
+	]
+}

@@ -226,6 +226,18 @@ ITEMS = {
     ),
     
     # -------------------- QUEST ITEMS --------------------
+    "rusty_key": Item(
+        name="Rusty Key",
+        item_type=ItemType.QUEST,
+        description="An old iron key, covered in rust. It might open something nearby.",
+        value=0
+    ),
+    "storage_key": Item(
+        name="Storage Key",
+        item_type=ItemType.QUEST,
+        description="A small brass key labeled 'STORAGE' in crude letters.",
+        value=0
+    ),
     "mysterious_key": Item(
         name="Mysterious Key",
         item_type=ItemType.QUEST,
@@ -245,7 +257,177 @@ ITEMS = {
         stackable=True,
         value=2
     ),
+    "silver_locket": Item(
+        name="Silver Locket",
+        item_type=ItemType.QUEST,
+        description="A beautiful silver locket belonging to Bram's family. It contains a small portrait of Lily as a child.",
+        value=0,
+        rarity=Rarity.UNCOMMON
+    ),
+    "family_ring": Item(
+        name="Family Ring",
+        item_type=ItemType.QUEST,
+        description="An old gold ring passed down through Bram's family for generations. It bears the crest of his ancestors.",
+        value=0,
+        rarity=Rarity.UNCOMMON
+    ),
+    
+    # -------------------- TREASURE ITEMS (Phase 3.2.1) --------------------
+    "gold_pouch": Item(
+        name="Gold Pouch",
+        item_type=ItemType.MISC,
+        description="A heavy leather pouch filled with gold coins.",
+        value=50,
+        effect="Contains 50 gold pieces"
+    ),
+    "gold_pouch_small": Item(
+        name="Small Gold Pouch",
+        item_type=ItemType.MISC,
+        description="A small pouch with a few gold coins.",
+        value=15,
+        effect="Contains 15 gold pieces"
+    ),
+    
+    # -------------------- SPECIAL CONSUMABLES (Phase 3.2.1) --------------------
+    "poison_vial": Item(
+        name="Poison Vial",
+        item_type=ItemType.CONSUMABLE,
+        description="A vial of goblin poison. Apply to weapon for extra damage.",
+        value=25,
+        effect="Apply to weapon: +1d4 poison damage on next hit"
+    ),
+    "antidote": Item(
+        name="Antidote",
+        item_type=ItemType.CONSUMABLE,
+        description="Cures poison and grants resistance for a short time.",
+        value=50,
+        effect="Cures poison status"
+    ),
+    
+    # -------------------- HIDDEN TREASURES (Phase 3.3.5) --------------------
+    "chiefs_medallion": Item(
+        name="Chief's Medallion",
+        item_type=ItemType.MISC,
+        description="An ornate bronze medallion worn by Chief Grotnak. It bears crude goblin runes that seem to pulse with faint magical energy.",
+        value=75,
+        rarity=Rarity.UNCOMMON,
+        effect="May grant advantage on Intimidation checks against goblins"
+    ),
 }
+
+
+# ============================================================
+#               QUALITY WEAPON SYSTEM (Phase 3.2.2)
+# ============================================================
+
+# Map quality prefixes to rarity and bonus
+QUALITY_PREFIXES = {
+    "fine": {"rarity": Rarity.UNCOMMON, "bonus": 1, "value_mult": 2},
+    "superior": {"rarity": Rarity.RARE, "bonus": 2, "value_mult": 5},
+    "legendary": {"rarity": Rarity.RARE, "bonus": 3, "value_mult": 10},
+}
+
+# Base weapons that can have quality variants
+BASE_WEAPONS = ["dagger", "shortsword", "longsword", "greatsword", "greataxe", 
+                "warhammer", "rapier", "mace", "quarterstaff", "shortbow", 
+                "longbow", "light_crossbow", "spear", "handaxe"]
+
+
+def create_quality_weapon(base_weapon_id: str, display_name: str, bonus: int) -> Optional[Item]:
+    """
+    Create a quality weapon item with stat bonuses.
+    
+    Args:
+        base_weapon_id: The base weapon type (e.g., "longsword")
+        display_name: Full display name (e.g., "Superior Longsword")
+        bonus: Damage bonus from quality tier (0-3)
+        
+    Returns:
+        Item with enhanced stats, or None if base weapon not found
+    """
+    # Get base weapon
+    if base_weapon_id.lower() not in ITEMS:
+        return None
+    
+    base = ITEMS[base_weapon_id.lower()]
+    if base.item_type != ItemType.WEAPON:
+        return None
+    
+    # Determine quality tier from bonus
+    if bonus >= 3:
+        rarity = Rarity.RARE
+        quality_prefix = "Legendary"
+        value_mult = 10
+    elif bonus >= 2:
+        rarity = Rarity.RARE
+        quality_prefix = "Superior"
+        value_mult = 5
+    elif bonus >= 1:
+        rarity = Rarity.UNCOMMON
+        quality_prefix = "Fine"
+        value_mult = 2
+    else:
+        rarity = Rarity.COMMON
+        quality_prefix = ""
+        value_mult = 1
+    
+    # Create enhanced weapon
+    # Add bonus to damage dice (e.g., "1d8" -> "1d8+2")
+    enhanced_damage = base.damage_dice
+    if bonus > 0:
+        enhanced_damage = f"{base.damage_dice}+{bonus}"
+    
+    return Item(
+        name=display_name,
+        item_type=ItemType.WEAPON,
+        description=f"{quality_prefix} quality. {base.description}" if quality_prefix else base.description,
+        rarity=rarity,
+        value=base.value * value_mult,
+        stackable=False,
+        quantity=1,
+        damage_dice=enhanced_damage,
+        finesse=base.finesse,
+    )
+
+
+def parse_quality_weapon(item_name: str) -> Optional[Item]:
+    """
+    Parse a quality weapon name and create the appropriate item.
+    Handles names like "Fine Longsword", "Superior Dagger", "Legendary Greataxe"
+    
+    Returns Item if it's a valid quality weapon, None otherwise.
+    """
+    name_lower = item_name.lower().strip()
+    
+    # Check for quality prefixes
+    for prefix, data in QUALITY_PREFIXES.items():
+        if name_lower.startswith(prefix + " "):
+            # Extract base weapon name
+            base_name = name_lower[len(prefix) + 1:].replace(" ", "_")
+            if base_name in BASE_WEAPONS:
+                # Create quality weapon
+                display_name = item_name.title()
+                return create_quality_weapon(base_name, display_name, data["bonus"])
+    
+    return None
+
+
+def get_weapon_max_damage(damage_dice: str) -> int:
+    """
+    Get the maximum damage from a damage dice string (e.g., "1d8" -> 8, "2d6" -> 12).
+    Used for comparing weapon damage when auto-equipping.
+    """
+    if not damage_dice:
+        return 0
+    try:
+        # Handle formats like "1d8", "2d6", "1d8+2"
+        dice_part = damage_dice.split("+")[0].strip()
+        if "d" in dice_part:
+            num_dice, die_size = dice_part.split("d")
+            return int(num_dice) * int(die_size)
+        return 0
+    except (ValueError, IndexError):
+        return 0
 
 
 # ============================================================
@@ -253,16 +435,29 @@ ITEMS = {
 # ============================================================
 
 def get_item(item_name: str) -> Optional[Item]:
-    """Get an item from the database by name (case-insensitive)"""
+    """Get an item from the database by name (case-insensitive).
+    
+    Also handles quality weapons (e.g., "Fine Longsword", "Superior Dagger")
+    """
+    # Handle empty or whitespace-only input
+    if not item_name or not item_name.strip():
+        return None
+    
+    # Phase 3.2.2: Check for quality weapon first
+    quality_item = parse_quality_weapon(item_name)
+    if quality_item:
+        return quality_item
+    
     # Try exact match first
     key = item_name.lower().replace(" ", "_").replace("'", "")
     if key in ITEMS:
         return _copy_item(ITEMS[key])
     
-    # Try partial match
-    for item_key, item in ITEMS.items():
-        if item_name.lower() in item.name.lower():
-            return _copy_item(item)
+    # Try partial match (only if input has meaningful length)
+    if len(item_name.strip()) >= 2:
+        for item_key, item in ITEMS.items():
+            if item_name.lower() in item.name.lower():
+                return _copy_item(item)
     
     return None
 
@@ -353,8 +548,20 @@ def format_inventory(inventory: list, gold: int = 0) -> str:
                 lines.append(f"║  {group_name:<54}║")
                 for item in group:
                     qty_str = f" x{item.quantity}" if item.quantity > 1 else ""
-                    rarity_str = f" [{item.rarity.value}]" if item.rarity != Rarity.COMMON else ""
-                    item_line = f"    • {item.name}{qty_str}{rarity_str}"
+                    
+                    # Add stats for weapons and armor
+                    stat_str = ""
+                    if item.damage_dice:
+                        stat_str = f" [DMG: {item.damage_dice}]"
+                    elif item.ac_bonus:
+                        stat_str = f" [AC: +{item.ac_bonus}]"
+                    elif item.heal_amount:
+                        stat_str = f" [HEAL: {item.heal_amount}]"
+                    
+                    item_line = f"    • {item.name}{qty_str}{stat_str}"
+                    # Truncate if too long
+                    if len(item_line) > 56:
+                        item_line = item_line[:53] + "..."
                     lines.append(f"║{item_line:<58}║")
     
     lines.append("╚══════════════════════════════════════════════════════════╝")

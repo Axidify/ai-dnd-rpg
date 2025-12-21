@@ -2,3 +2,12 @@
 .venv/
 __pycache__/
 *.pyc
+
+# Save data
+saves/
+
+# Temp test files
+test_output.json
+test_session.txt
+test_sid.txt
+notes.log

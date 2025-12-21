@@ -160,7 +160,18 @@ class Character:
         """
         Add XP to the character and check for level up.
         Returns dict with xp info and whether level up occurred.
+        Negative values are ignored (XP cannot be lost).
         """
+        if amount <= 0:
+            return {
+                'xp_gained': 0,
+                'source': source,
+                'old_xp': self.experience,
+                'new_xp': self.experience,
+                'level_up': False,
+                'new_level': self.level,
+            }
+        
         old_xp = self.experience
         self.experience += amount
         
@@ -291,6 +302,37 @@ class Character:
         char._add_starting_equipment()
         return char
     
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Character':
+        """Create a Character from a dictionary (for save/load)."""
+        if not data:
+            return None
+        
+        # Handle inventory items that may be serialized
+        inventory = data.get('inventory', [])
+        
+        char = cls(
+            name=data.get('name', 'Unnamed Hero'),
+            race=data.get('race', 'Human'),
+            char_class=data.get('char_class', 'Fighter'),
+            level=data.get('level', 1),
+            strength=data.get('strength', 10),
+            dexterity=data.get('dexterity', 10),
+            constitution=data.get('constitution', 10),
+            intelligence=data.get('intelligence', 10),
+            wisdom=data.get('wisdom', 10),
+            charisma=data.get('charisma', 10),
+            max_hp=data.get('max_hp', 10),
+            current_hp=data.get('current_hp', 10),
+            armor_class=data.get('armor_class', 10),
+            weapon=data.get('weapon', 'longsword'),
+            equipped_armor=data.get('equipped_armor', ''),
+            inventory=inventory,
+            gold=data.get('gold', 0),
+            experience=data.get('experience', 0)
+        )
+        return char
+    
     def _add_starting_equipment(self):
         """Add starting equipment based on class."""
         from inventory import get_item, add_item_to_inventory
@@ -379,7 +421,9 @@ class Character:
         return f"[{'█' * filled}{'░' * empty}]"
     
     def take_damage(self, amount: int) -> str:
-        """Apply damage to character."""
+        """Apply damage to character. Ignores negative values (use heal instead)."""
+        if amount <= 0:
+            return f"{self.name} takes no damage."
         self.current_hp = max(0, self.current_hp - amount)
         if self.current_hp == 0:
             return f"{self.name} has fallen unconscious!"

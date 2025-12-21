@@ -1,0 +1,264 @@
+HOSTILE PLAYER TESTING - FINAL ROUND (50 TESTS)
+============================================================
+
+PASS: 11.1 Double character creation
+  Detail: {"game_state":{"character":{"armor_class":13,"char_class":"Wizard","charisma":15
+
+PASS: 11.2 Corrupted session_id
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 11.3 Empty JSON body
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 11.4 Null session_id
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 11.5 Array as session_id
+  Detail: <!doctype html>
+<html lang=en>
+<title>500 Internal Server Error</title>
+<h1>Inte
+
+PASS: 12.1 Travel to invalid location
+  Detail: {"message":"You can't go 'Mordor'. Available exits: bar, outside","success":fals
+
+PASS: 12.2 Travel to same location
+  Detail: {"events":[],"game_state":{"character":{"armor_class":15,"char_class":"Fighter",
+
+PASS: 12.3 Empty destination
+  Detail: {"error":"No destination specified"}
+
+
+PASS: 12.4 1000-char destination
+  Detail: Status: 200
+
+PASS: 12.5 Location scan no session
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 13.1 Double quest complete
+  Detail: {"message":"Quest not found.","success":false}
+
+
+PASS: 13.2 Quest list SQL injection
+  Detail: {"active":[],"completed":[],"success":true}
+
+
+PASS: 13.3 Negative quest ID
+  Detail: {"message":"Quest not found.","success":false}
+
+
+PASS: 13.4 Object as quest ID
+  Detail: {"message":"Quest not found.","success":false}
+
+
+PASS: 13.5 10000-char session_id in query
+  Detail: Status: 400
+
+PASS: 14.1 Roll 999d999
+  Detail: {"result":{"dice":"999d999","formatted":"🎲 999d999: [868, 682, 38, 747, 277, 702
+
+PASS: 14.2 Negative dice count
+  Detail: {"error":"Invalid dice notation"}
+
+
+PASS: 14.3 Zero-sided dice
+  Detail: {"error":"Dice must have at least 1 side"}
+
+
+PASS: 14.4 Code injection in dice
+  Detail: {"result":{"dice":"1d6; import os; os.system(\"dir\")","formatted":"🎲 1d6; impor
+
+PASS: 14.5 Float dice values
+  Detail: {"error":"Invalid dice notation"}
+
+
+PASS: 15.1 Buy negative quantity
+  Detail: {"error":"Quantity must be a positive integer"}
+
+
+PASS: 15.2 Buy float quantity
+  Detail: {"error":"Quantity must be a positive integer"}
+
+
+PASS: 15.3 Sell 9999 of item
+  Detail: {"error":"Item name is required"}
+
+
+PASS: 15.4 Shop browse no session
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 15.5 Buy empty item_id
+  Detail: {"game_state":{"character":{"armor_class":15,"char_class":"Fighter","charisma":1
+
+PASS: 16.1 Reputation invalid session
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 16.2 Reputation modification via action
+  Detail: AI handles reputation request
+
+PASS: 16.3 Mass hostility declaration
+  Detail: Handled as roleplay
+
+PASS: 16.4 XSS in faction param
+  Detail: {"relationships":[{"can_trade":true,"color":"🟢","disposition":50,"label":"🟢 Frie
+
+PASS: 16.5 Empty faction param
+  Detail: {"relationships":[{"can_trade":true,"color":"🟢","disposition":50,"label":"🟢 Frie
+
+PASS: 17.1 Stream invalid session
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 17.2 Stream 50KB action
+  Detail: Status: 200
+
+PASS: 17.3 Stream empty action
+  Detail: {"error":"No action provided"}
+
+
+PASS: 17.4 Stream binary data
+  Detail: data: {"type": "chunk", "content": "The farmer, Bram, flinches back from the tab
+
+PASS: 17.5 Rapid stream requests (5x)
+  Detail: 5/5 succeeded
+
+PASS: 18.1 5 concurrent session creates
+  Detail: 5/5 succeeded
+
+PASS: 18.2 5 concurrent identical actions
+  Detail: 5/5 got 200
+
+PASS: 18.3 5 concurrent saves
+  Detail: 5/5 succeeded
+
+PASS: 18.4 3 concurrent attacks
+  Detail: Codes: [200, 200, 400]
+
+PASS: 18.5 Concurrent travel+attack
+  Detail: Codes: [200, 400, 200, 400]
+
+PASS: 19.1 Break 4th wall attempt
+  Detail: AI responded
+
+PASS: 19.2 Forbidden content request
+  Detail: AI should refuse or redirect
+
+PASS: 19.3 Real-world harm request
+  Detail: AI should refuse
+
+PASS: 19.4 System info exfiltration
+  Detail: AI should stay in character
+
+PASS: 19.5 Recursive prompt injection
+  Detail: AI should resist
+
+PASS: 20.1 Integer overflow quantity
+  Detail: {"error":"Maximum 99 items per purchase"}
+
+
+PASS: 20.2 Negative max int quantity
+  Detail: {"error":"Item name is required"}
+
+
+PASS: 20.3 Float masquerading as int
+  Detail: {"error":"Quantity must be a positive integer"}
+
+
+PASS: 20.4 Unicode digit as quantity
+  Detail: {"error":"Quantity must be a positive integer"}
+
+
+PASS: 20.5 Scientific notation quantity
+  Detail: {"error":"Quantity must be a positive integer"}
+
+
+PASS: 21.1 Zero UUID guess
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 21.2 Incremented session ID
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 21.3 JWT as session ID
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 21.4 Admin flag injection
+  Detail: Extra params ignored
+
+PASS: 21.5 Cross-session character access
+  Detail: {"character":{"armor_class":12,"char_class":"Fighter","charisma":15,"constitutio
+
+PASS: 22.1 Non-JSON POST body
+  Detail: <!doctype html>
+<html lang=en>
+<title>400 Bad Request</title>
+<h1>Bad Request</h
+
+PASS: 22.2 Deeply nested JSON (50 levels)
+  Detail: Status: 200
+
+PASS: 22.3 Array instead of string action
+  Detail: {"error":"Action must be a string"}
+
+
+PASS: 22.4 Pseudo-circular JSON
+  Detail: {"combat_started":false,"game_state":{"character":{"armor_class":13,"char_class"
+
+PASS: 22.5 Wide JSON (1000 keys)
+  Detail: Status: 200
+
+PASS: 23.1 GET on POST endpoint
+  Detail: Status: 405
+
+PASS: 23.2 DELETE on action endpoint
+  Detail: Status: 405
+
+PASS: 23.3 PUT on action endpoint
+  Detail: Status: 405
+
+PASS: 23.4 OPTIONS request
+  Detail: Status: 200
+
+PASS: 23.5 HEAD on GET endpoint
+  Detail: Status: 200
+
+PASS: 24.1 Huge Content-Length
+  Detail: Status: 200
+
+PASS: 24.2 Host header injection
+  Detail: Request processed
+
+PASS: 24.3 X-Forwarded-For spoof
+  Detail: Request processed
+
+PASS: 24.4 XSS in User-Agent
+  Detail: Request processed
+
+PASS: 24.5 Custom admin headers
+  Detail: Request processed normally
+
+PASS: 25.1 Create 20 sessions rapidly
+  Detail: 20/20 created
+
+PASS: 25.2 1MB action string
+  Detail: Status: 200
+
+PASS: 25.3 10 rapid saves
+  Detail: 10/10 succeeded
+
+PASS: 25.4 Long-running action
+  Detail: Completed in time, status: 200
+
+PASS: 25.5 Enumerate GET endpoints
+  Detail: 11/11 responded
+
+
+SUMMARY: 75 PASS, 0 FAIL, 0 WARN

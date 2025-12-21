@@ -3,6 +3,48 @@
 ## Overview
 A text-based Dungeons & Dragons style RPG where Google Gemini AI acts as the Dungeon Master, creating an interactive storytelling experience.
 
+**Architecture**: API-first design with Flask backend and React frontend.
+
+**Security**: 🛡️ 125/125 security tests passing (16 vulnerabilities identified and fixed)
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Python 3.10+
+- Node.js 18+ (for frontend)
+- Google Gemini API key
+
+### Backend Setup
+```bash
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # Linux/Mac
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure API key
+cp .env.example .env
+# Edit .env and add your GOOGLE_API_KEY
+
+# Start backend
+python src/api_server.py
+```
+
+### Frontend Setup
+```bash
+cd frontend/option1-react
+npm install
+npm run dev
+```
+
+### Play the Game
+- Backend API: http://localhost:5000
+- React Frontend: http://localhost:3000
+
 ---
 
 ## Project Structure
@@ -10,58 +52,133 @@ A text-based Dungeons & Dragons style RPG where Google Gemini AI acts as the Dun
 ```
 AI RPG V2/
 ├── .env                    # Environment variables (API keys) - DO NOT COMMIT
-├── .env.example            # Template for .env file
-├── .gitignore              # Git ignore patterns
 ├── .venv/                  # Python virtual environment
 ├── README.md               # This file
 ├── requirements.txt        # Python dependencies
-├── task.py                 # TaskSync helper script
 ├── tasksync.md             # TaskSync protocol
 ├── saves/                  # Game save files (auto-created)
 ├── docs/
 │   ├── CHANGELOG.md            # Version history
-│   ├── DEVELOPER_GUIDE.md      # Technical documentation
+│   ├── DEVELOPER_GUIDE.md      # Technical documentation (5000+ lines)
 │   ├── DEVELOPMENT_PLAN.md     # Phased development roadmap
+│   ├── HOSTILE_PLAYER_TESTING.md # Security testing results (125 tests)
 │   ├── FLUTTER_SETUP.md        # Flutter installation guide
 │   ├── THEME_SYSTEM_SPEC.md    # DLC-ready theme architecture
 │   └── UI_DESIGN_SPEC.md       # UI/UX specifications
-├── src/
-│   ├── __init__.py         # Package initializer
+├── src/                    # Backend (Flask API)
+│   ├── api_server.py       # Flask REST API (main entry point, 35 endpoints)
+│   ├── dm_engine.py        # Shared DM logic (prompts, parsing)
 │   ├── character.py        # Character system (stats, XP, leveling)
 │   ├── combat.py           # Combat system (multi-enemy, surprise)
-│   ├── game.py             # Main game logic
 │   ├── inventory.py        # Items and inventory
+│   ├── npc.py              # NPC system (dialogue, shops, relationships)
+│   ├── party.py            # Party/companion system
+│   ├── quest.py            # Quest tracking system
 │   ├── save_system.py      # Save/Load persistence
-│   └── scenario.py         # Adventure scenarios
-└── tests/
-    ├── test_combat_with_dm.py  # Combat integration tests
-    ├── test_dice.py            # Dice rolling tests
-    ├── test_dice_with_dm.py    # Dice + AI tests
-    ├── test_multi_enemy.py     # Multi-enemy tests
-    ├── test_save_system.py     # Save/Load tests
-    └── test_xp_system.py       # XP/Leveling tests
+│   ├── scenario.py         # Adventure scenarios
+│   └── shop.py             # Shop/merchant system
+├── frontend/
+│   └── option1-react/      # React + Vite + Tailwind frontend
+│       ├── src/
+│       │   ├── App.jsx
+│       │   ├── components/
+│       │   │   ├── CharacterCreation.jsx
+│       │   │   ├── GameScreen.jsx
+│       │   │   ├── WorldMap.jsx
+│       │   │   └── DiceRoller.jsx
+│       │   └── store/
+│       │       └── gameStore.js   # Zustand state management
+│       └── package.json
+├── backup/
+│   └── legacy/
+│       └── game.py         # Archived terminal version
+└── tests/                  # 821+ unit tests + 125 security tests
+    ├── test_api_integration.py  # API integration tests
+    ├── test_character.py        # Character system (26 tests)
+    ├── test_combat.py           # Combat mechanics (31 tests)
+    ├── test_location.py         # Location system (200 tests)
+    ├── test_party.py            # Party system (72 tests)
+    ├── test_quest.py            # Quest tracking (57 tests)
+    ├── hostile_final.py         # Security stress test (75 tests)
+    └── ...
 ```
 
 ---
 
-## Current Features (Phase 1-3.1 Complete)
+## API Architecture
+
+The game uses an **API-first architecture**:
+
+| Layer | Technology | Port |
+|-------|------------|------|
+| Backend API | Flask | 5000 |
+| Frontend | React + Vite | 3000 |
+| AI Model | Gemini 2.5 Pro | - |
+| State | Zustand (React) | - |
+
+### Key API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Health check |
+| `/api/scenarios` | GET | List available adventures |
+| `/api/classes` | GET | List available character classes |
+| `/api/races` | GET | List available character races |
+| `/api/game/start` | POST | Create character & start game |
+| `/api/game/action/stream` | POST | Send action (SSE streaming) |
+| `/api/game/state` | GET | Get current game state |
+| `/api/game/save` | POST | Save game |
+| `/api/game/load` | POST | Load game |
+| `/api/game/saves` | GET | List available saves |
+| `/api/game/end` | POST | End session |
+| `/api/travel` | POST | Travel to location |
+| `/api/locations` | GET | Get available locations |
+| `/api/combat/status` | GET | Get combat state |
+| `/api/combat/attack` | POST | Attack in combat |
+| `/api/combat/defend` | POST | Defend in combat |
+| `/api/combat/flee` | POST | Flee from combat |
+| `/api/character/levelup` | POST | Level up character |
+| `/api/character/rest` | POST | Rest to heal |
+| `/api/inventory/use` | POST | Use an item |
+| `/api/inventory/equip` | POST | Equip weapon/armor |
+| `/api/shop/browse` | GET | Browse shop inventory |
+| `/api/shop/buy` | POST | Buy from shop |
+| `/api/shop/sell` | POST | Sell to shop |
+| `/api/party/view` | GET | View party members |
+| `/api/party/recruit` | POST | Recruit companion |
+| `/api/quests/list` | GET | List active/completed quests |
+| `/api/reputation` | GET | Get NPC relationships |
+| `/api/sessions/stats` | GET | Session monitoring |
+
+---
+
+## Features
 
 ### ✅ AI Dungeon Master
-- **Google Gemini 2.0 Flash** provides intelligent, contextual responses
-- **Streaming Responses** - Text appears word-by-word as AI generates it
+- **Google Gemini 2.5 Pro** provides intelligent, contextual responses
+- **SSE Streaming** - Text appears word-by-word as AI generates
 - **Conversation Memory** - Chat history maintained throughout session
 - **Character-Aware** - AI knows your race, class, and stats
 - **Scene-Aware** - AI follows structured scenario guidance
-- **Configurable** - Model and API key stored in `.env` file
+- **NPC Context** - AI uses correct NPC names from scenarios
 
 ### ✅ Character System
 - **Character Creation** - Choose name, race (9 options), class (12 options)
 - **Stat Rolling** - 4d6-drop-lowest for authentic D&D feel
-- **Quick Start** - Random character generation available
-- **Character Sheet** - ASCII art display with all stats
+- **Starting Equipment** - Class-based starting gear
+- **Starting Gold** - Random 10-25 gold
 - **HP/AC Calculation** - Based on class and constitution/dexterity
-- **XP & Leveling** - Level 1-5 with milestone XP rewards
+- **XP & Leveling** - Level 1-5 with milestone XP (100/300/600/1000)
 - **Proficiency Bonus** - Scales with level (+2 to +3)
+
+### ✅ Frontend Features
+- **React + Tailwind CSS** - Modern, responsive UI
+- **Character Sidebar** - Shows HP, XP, AC, ATK, ability scores, gold
+- **Inventory Modal** - View items with stats and descriptions
+- **Quest Journal** - Track active/completed quests with objectives
+- **World Map** - Interactive location navigation
+- **Quick Actions** - One-click buttons for common actions
+- **Save/Load** - Persist game progress
 
 ### ✅ Combat System
 - **D&D 5e Rules** - Initiative, attack rolls, damage
@@ -73,223 +190,91 @@ AI RPG V2/
 
 ### ✅ Inventory System
 - **Item Types** - Weapons, armor, consumables, quest items
-- **Equipment** - Equip weapons and armor
+- **Stats Display** - Damage dice, AC bonus, heal amount shown
+- **Equipment** - Weapons and armor affect combat
 - **Loot Drops** - Random loot from defeated enemies
 - **Gold Tracking** - Currency system
 
 ### ✅ Scenario System
 - **Structured Adventures** - Scenes with objectives and transitions
-- **First Adventure: "The Goblin Cave"** - Complete 6-scene rescue quest
-- **Free Play Mode** - Unstructured play also available
-- **Progress Tracking** - See where you are in the story
-- **Pacing Control** - Minimum exchanges per scene
+- **"The Goblin Cave"** - Complete rescue quest with 6 scenes
+- **NPC System** - Named NPCs with roles (Bram, Lily, Barkeep, etc.)
+- **Quest Tracking** - Objectives with progress percentages
 
-### ✅ Save/Load System (NEW!)
-- **Save Games** - Save to numbered slots or timestamped files
-- **Load Games** - Resume from main menu or during play
-- **Persistent Progress** - Character, inventory, scenario state saved
-- **Multi-Platform Ready** - API-ready for cloud saves
+### ✅ Shop System
+- **Browse & Buy** - Purchase items from merchant NPCs
+- **Sell Loot** - Sell items for 50% of base value
+- **Haggle Mechanic** - CHA check for discount
+- **Stock Tracking** - Merchants have limited quantities
 
-### How It Works
-1. Player launches the game and creates a character (or loads a save)
-2. Player selects an adventure or Free Play mode
-3. AI DM sets the scene tailored to your character
-4. Player types actions (e.g., "I search the room", "I talk to the innkeeper")
-5. AI responds with streaming text following scene guidance
-6. Combat, skill checks, and loot are handled automatically
-7. Player can save progress at any time
-8. Adventure concludes with resolution scene
+### ✅ NPC Relationships
+- **Disposition System** - NPCs remember how you treat them (-100 to +100)
+- **Gift Giving** - Improve relationships with gifts
+- **Reputation** - Actions affect how NPCs perceive you
+- **Dialogue Variety** - NPCs respond based on relationship
 
----
+### ✅ Party System
+- **Companion Recruitment** - Recruit NPCs to join your party (max 2)
+- **Party Combat** - Companions fight alongside you with their own abilities
+- **Class Abilities** - Fighter (Shield Wall), Ranger (Hunter's Mark), Rogue (Sneak Attack), Cleric (Heal), Wizard (Magic Missile)
+- **Flanking Bonus** - +2 to attack when you and companion target same enemy
+- **Party Persistence** - Party saved/loaded with game state
 
-## Tech Stack
+### ✅ Travel System  
+- **Travel Menu** - Numbered destination selection with danger indicators
+- **Two-Phase Travel** - Approach selection for dangerous areas (sneak, carefully, run)
+- **Surprise Mechanics** - Successful stealth grants combat advantage
+- **Natural Language** - "go to the tavern", "head north", etc.
 
-| Component | Technology |
-|-----------|------------|
-| Language (Backend) | Python 3.14 |
-| Language (Frontend) | Dart (Flutter) |
-| AI Provider | Google Gemini (gemini-2.0-flash) |
-| AI Library | google-generativeai |
-| Config | python-dotenv |
-| Frontend Framework | Flutter (iOS, Android, Web, Desktop) |
-
----
-
-## Setup Instructions
-
-### Prerequisites
-- Python 3.10+
-- Google AI API key (get from [Google AI Studio](https://aistudio.google.com/))
-
-### Installation
-
-1. **Clone/Navigate to project**
-   ```bash
-   cd "AI RPG V2"
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate  # Windows
-   source .venv/bin/activate  # Mac/Linux
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your GOOGLE_API_KEY
-   ```
-
-5. **Run the game**
-   ```bash
-   python src/game.py
-   ```
-
-> **⚠️ Important:** Run the game in its own dedicated terminal window. If using VS Code, open a new terminal (Ctrl+Shift+`) specifically for gameplay to avoid conflicts with other terminal sessions.
+### ✅ Rest & Healing
+- **Hit Dice System** - Pool = character level, restored on boss kills/level up
+- **Short Rest** - Spend Hit Die for 1d6 + CON healing
+- **Strategic Resource** - Prevents rest spam, rewards major victories
 
 ---
 
-## Gameplay
+## Testing
 
-### Character Creation
-When you start the game, you can:
-1. **Create character** - Choose name, race, class, and roll stats
-2. **Quick start** - Generate a random character instantly
-3. **Load saved game** - Continue a previous adventure (if saves exist)
-
-### In-Game Commands
-
-| Command | Action |
-|---------|--------|
-| `stats`, `character`, `sheet` | View your character sheet |
-| `hp` | Quick HP check with visual bar |
-| `xp`, `level` | View XP progress and level |
-| `levelup` | Level up when ready |
-| `inventory`, `inv`, `i` | View your inventory |
-| `use <item>` | Use a consumable item |
-| `equip <item>` | Equip a weapon or armor |
-| `save` | Save your game |
-| `load` | Load a saved game |
-| `saves` | List all saved games |
-| `help`, `?` | Show all commands |
-| `quit`, `exit`, `q` | Exit the game gracefully |
-| Any other text | Send your action to the Dungeon Master |
-
-### Example Session
-```
-⚔️  Your action: I search the room for hidden doors
-🎲 Dungeon Master: You run your hands along the stone walls...
-
-⚔️  Your action: stats
-╔═══════════════════════════════════════════════════╗
-║                 CHARACTER SHEET                   ║
-║  Name:  Amir          Level: 1                    ║
-║  Race:  Human         Class: Fighter              ║
-...
-
-⚔️  Your action: quit
+### Run API Integration Tests
+```bash
+python tests/test_api_integration.py
 ```
 
----
-
-## Files Description
-
-### src/game.py
-Main game file containing:
-- `DM_SYSTEM_PROMPT_BASE`: Instructions that define AI behavior as a Dungeon Master
-- `create_client()`: Initializes Gemini API with character context
-- `get_dm_response()`: Sends player input and receives AI response
-- `show_help()`: Display available commands
-- `main()`: Game loop with character creation and command handling
-
-### src/character.py
-Character system containing:
-- `Character`: Dataclass with stats, HP, AC, and display methods
-- `create_character_interactive()`: Full character creation flow
-- `quick_create_character()`: Random character generation
-- D&D races and classes lists
-
-### requirements.txt
-```
-google-generativeai>=0.8.0
-python-dotenv>=1.0.0
+### Run All Unit Tests
+```bash
+pytest tests/ -v
 ```
 
-### .env.example
-Template for creating your `.env` file with required API configuration.
+### Test Coverage
+- **821+ unit tests** across all game systems
+- **125 security tests** (hostile player testing)
+- All 16 identified vulnerabilities fixed
 
 ---
 
-## Configuration
+## Development
 
-### Environment Variables (.env)
+### VS Code Tasks
+The workspace includes predefined tasks:
+- **🎮 Start Backend (Flask)** - Start API server on port 5000
+- **🌐 Start Frontend (React)** - Start dev server on port 3000
+- **🚀 Start Full Stack** - Start both simultaneously
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GOOGLE_API_KEY` | Your Google AI API key | Required |
-| `GEMINI_MODEL` | AI model to use | `gemini-2.0-flash` |
-
-### Available Models
-- `gemini-2.0-flash` - Fast, cost-effective (recommended)
-- `gemini-1.5-pro` - More capable, slower
-- `gemini-1.5-flash-latest` - Latest flash version
-
----
-
-## Roadmap
-
-See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for full roadmap including:
-- Phase 1: Core Foundation (1.1 ✅ Complete)
-- Phase 2: Game Mechanics (dice, combat, inventory)
-- Phase 3: World & Persistence (save/load, locations, NPCs)
-- Phase 4: Advanced AI Features (memory, dynamic generation)
-- Phase 5: Backend API
-- Phase 6: Flutter App
-- Phase 7: Theme Store & Monetization
+### Key Files
+- `src/api_server.py` - Main Flask application
+- `src/dm_engine.py` - DM system prompt and parsing logic
+- `frontend/option1-react/src/store/gameStore.js` - Frontend state
+- `frontend/option1-react/src/components/GameScreen.jsx` - Main game UI
 
 ---
 
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) | Full development roadmap |
-| [DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) | Technical implementation details |
-| [CHANGELOG.md](docs/CHANGELOG.md) | Version history |
-| [UI_DESIGN_SPEC.md](docs/UI_DESIGN_SPEC.md) | UI/UX specifications |
-| [THEME_SYSTEM_SPEC.md](docs/THEME_SYSTEM_SPEC.md) | DLC-ready theme architecture |
-| [FLUTTER_SETUP.md](docs/FLUTTER_SETUP.md) | Flutter installation guide |
-
----
-
-## Development Notes
-
-### What Works Well
-- Gemini creates engaging, contextual narratives
-- Maintains conversation history within session
-- Responds naturally to varied player inputs
-- Provides character backstory and inventory organically
-
-### Known Limitations
-- No persistent save (resets each session)
-- No actual game mechanics (dice, HP, etc.)
-- Character created by AI, not player customizable
-- No structured inventory system
-
----
-
-## Contributing
-
-This is an incremental development project. Each phase builds on the previous one. See `docs/DEVELOPMENT_PLAN.md` for what's next.
+## Credits
+- AI: Google Gemini 2.5 Pro
+- Game System: D&D 5e (simplified)
+- Frontend: React + Vite + Tailwind CSS
+- Backend: Python Flask
 
 ---
 
 ## License
-
-Private project - All rights reserved.
+This project is for educational purposes.

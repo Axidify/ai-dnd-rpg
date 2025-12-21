@@ -32,11 +32,11 @@ load_dotenv()
 
 
 # =============================================================================
-# TEST CHARACTER
+# MOCK CHARACTER
 # =============================================================================
 
-class TestCharacter:
-    """Simple test character for combat."""
+class MockCharacter:
+    """Simple mock character for combat."""
     def __init__(self):
         self.name = "Kira"
         self.char_class = "Fighter"
@@ -226,7 +226,6 @@ def test_combat_context_building():
     print("✅ Enemy attack context built correctly")
     
     print("\n✅ All combat context tests passed!")
-    return True
 
 
 def test_combat_narration_with_ai():
@@ -238,7 +237,7 @@ def test_combat_narration_with_ai():
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         print("⚠️ GOOGLE_API_KEY not set - skipping AI narration test")
-        return True
+        return
     
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(model_name="gemini-2.0-flash")
@@ -299,7 +298,6 @@ def test_combat_narration_with_ai():
     print("✅ AI generated narration for enemy attack")
     
     print("\n✅ All AI narration tests passed!")
-    return True
 
 
 def test_display_combat_narration():
@@ -341,7 +339,6 @@ def test_display_combat_narration():
     print("✅ None narration handled gracefully")
     
     print("\n✅ All display tests passed!")
-    return True
 
 
 def run_narration_tests():
@@ -354,22 +351,22 @@ def run_narration_tests():
     tests_failed = 0
     
     try:
-        if test_combat_context_building():
-            tests_passed += 1
+        test_combat_context_building()
+        tests_passed += 1
     except Exception as e:
         print(f"❌ Context building test failed: {e}")
         tests_failed += 1
     
     try:
-        if test_display_combat_narration():
-            tests_passed += 1
+        test_display_combat_narration()
+        tests_passed += 1
     except Exception as e:
         print(f"❌ Display test failed: {e}")
         tests_failed += 1
     
     try:
-        if test_combat_narration_with_ai():
-            tests_passed += 1
+        test_combat_narration_with_ai()
+        tests_passed += 1
     except Exception as e:
         print(f"❌ AI narration test failed: {e}")
         tests_failed += 1
@@ -389,6 +386,9 @@ DM_COMBAT_PROMPT = """You are an experienced Dungeon Master narrating D&D combat
 
 ## YOUR ONLY JOB
 Narrate combat cinematically based on results YOU RECEIVE. You are a NARRATOR only.
+
+## COMBAT LOCATION
+This combat takes place in a dark forest clearing at dusk. The trees loom overhead, and the ground is littered with fallen leaves.
 
 ## ABSOLUTE RULES - BREAKING THESE RUINS THE GAME:
 
@@ -691,7 +691,7 @@ def main():
     print("      ⚔️ AI DM + COMBAT INTEGRATION TEST ⚔️")
     print("=" * 60)
     
-    character = TestCharacter()
+    character = MockCharacter()
     enemies, surprise_player = select_enemies()
     
     print(f"\nYou are: {character.name} ({character.race} {character.char_class})")
@@ -1010,10 +1010,11 @@ def main():
                                 'target': 'escape',
                                 'weapon': 'none',
                                 'outcome': 'success',
-                                'is_player_attack': True
+                                'is_player_attack': True,
+                                'location': 'a dark forest clearing'  # Generic test location
                             }
                             import json
-                            escape_prompt = f"Narrate the player's dramatic escape from combat. 2 sentences. Context: {json.dumps(escape_ctx)}"
+                            escape_prompt = f"Narrate the player's dramatic escape from combat. 2 sentences. They flee into the nearby area. Context: {json.dumps(escape_ctx)}"
                             try:
                                 escape_narration = chat.send_message(escape_prompt).text.strip()
                                 display_combat_narration(escape_narration)

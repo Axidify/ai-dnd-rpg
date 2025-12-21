@@ -11,7 +11,8 @@
 3. [Screen Layouts](#screen-layouts)
 4. [Component Library](#component-library)
 5. [Navigation](#navigation)
-6. [Animations](#animations)
+6. [World Map Panel](#world-map-panel) ← **NEW**
+7. [Animations](#animations)
 
 ---
 
@@ -383,7 +384,155 @@ ElevatedButton(
 |------|--------|
 | 🎲 | Open dice roller overlay |
 | 📜 | View adventure log/history |
+| 🗺️ | Toggle world map panel |
 | ⚙️ | Quick settings |
+
+---
+
+## World Map Panel
+
+### Overview
+
+The Interactive World Map is a visual navigation panel that displays locations as clickable nodes on a stylized map. It replaces tedious "go" commands with intuitive one-click travel.
+
+### Layout Options
+
+**Side Panel (Desktop/Tablet):**
+```
+┌──────────────────────────────┬────────────────────┐
+│                              │  🗺️ WORLD MAP      │
+│  💬 Chat/Adventure           │  ┌──────────────┐  │
+│                              │  │   [Forest]   │  │
+│  DM: You stand at the        │  │      ⚠️↑     │  │
+│  village square...           │  │              │  │
+│                              │  │[Shop]←[●]→[Inn]│  │
+│  > What do you do?           │  │  ✓   YOU  ✓  │  │
+│                              │  │      ↓       │  │
+│                              │  │   [Temple]   │  │
+│  [________________] [Send]   │  └──────────────┘  │
+└──────────────────────────────┴────────────────────┘
+```
+
+**Overlay (Mobile):**
+```
+┌─────────────────────────────────────────┐
+│  ⚔️ Village Square          🗺️  ⚙️  🎲 │ ← Tap 🗺️ to open
+├─────────────────────────────────────────┤
+│                                         │
+│        ┌─────────────────────────┐      │
+│        │      🗺️ WORLD MAP       │      │
+│        │                         │      │
+│        │     [🌲 Forest ⚠️]       │      │
+│        │          ↑              │      │
+│        │  [🛠️]←──[●]──→[🍺]       │      │
+│        │  Shop   YOU   Tavern    │      │
+│        │          ↓              │      │
+│        │     [⛪ Temple]         │      │
+│        │                         │      │
+│        │  [✕ Close]              │      │
+│        └─────────────────────────┘      │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### Map Node Styling
+
+| State | Background | Border | Opacity | Effect |
+|-------|------------|--------|---------|--------|
+| Current | Theme primary | 3px gold | 100% | Pulsing glow |
+| Visited | Theme surface | 1px gray | 100% | None |
+| Visible (unvisited) | Gray 600 | 1px dark | 70% | None |
+| Hidden (fog of war) | Black | None | 30% | Blur |
+| Accessible (clickable) | Normal | Normal | 100% | Hover highlight |
+| Locked | Normal | Dashed red | 80% | 🔒 overlay |
+
+### Danger Level Colors
+
+| Level | Node Color | Icon | Description |
+|-------|------------|------|-------------|
+| Safe | Green #228B22 | ✓ | No enemies expected |
+| Uneasy | Yellow #DAA520 | ❓ | Something feels off |
+| Threatening | Orange #FF8C00 | ⚠️ | Known enemy presence |
+| Deadly | Red #DC143C | ☠️ | Boss or lethal area |
+
+### Connection Lines
+
+```css
+/* Normal connection */
+.connection {
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 2px;
+}
+
+/* Locked connection */
+.connection-locked {
+  stroke: rgba(255, 100, 100, 0.5);
+  stroke-width: 2px;
+  stroke-dasharray: 5, 5;
+}
+
+/* Highlighted (hover path) */
+.connection-highlight {
+  stroke: rgba(212, 175, 55, 0.8);
+  stroke-width: 3px;
+}
+```
+
+### Map Regions
+
+Regions provide visual grouping with tinted backgrounds:
+
+| Region | Background Tint | Border Color | Icon |
+|--------|----------------|--------------|------|
+| Village | #4A7C59 (green) | #2D5A3D | 🏘️ |
+| Forest | #2D5A3D (dark green) | #1A3D1A | 🌲 |
+| Cave | #3D3D3D (gray) | #2A2A2A | ⛰️ |
+| Dungeon | #4A3D5A (purple) | #3D2A4A | 🏰 |
+
+### Gestures
+
+| Gesture | Action |
+|---------|--------|
+| Tap node | Travel to location (if adjacent) |
+| Long press node | Show location details tooltip |
+| Pinch | Zoom in/out (0.5x to 3x) |
+| Drag | Pan map |
+| Double tap | Center on current location |
+
+### Tooltip Content
+
+When hovering/long-pressing a map node:
+
+```
+┌─────────────────────────────────┐
+│ 🛠️ The Rusty Anvil             │
+│ ──────────────────────────────  │
+│ Gavin's blacksmith shop.        │
+│                                 │
+│ ✓ Visited  |  🛒 Shop  |  Safe  │
+│                                 │
+│ [TAP TO TRAVEL]                 │
+└─────────────────────────────────┘
+```
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| M | Toggle map panel |
+| Escape | Close map panel |
+| Arrow keys | Pan map |
+| +/- | Zoom in/out |
+| Home | Center on player |
+| 1-9 | Quick travel to adjacent node |
+
+### State Persistence
+
+Map state is saved with game state:
+- `visited_locations`: Set of location IDs
+- `discovered_secrets`: Hidden areas revealed
+- `unlocked_exits`: Doors opened with keys
+- `current_location`: Player position
 
 ---
 

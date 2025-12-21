@@ -1,0 +1,17 @@
+ *  Executing task: Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd "D:\Vibecoding\AI RPG V2"; .venv\Scripts\python.exe src/api_server.py'; Start-Sleep -Seconds 2; cd "D:\Vibecoding\AI RPG V2\frontend"; C:\flutter\bin\flutter.bat run -d chrome 
+
+Set-Location : A positional parameter cannot be found that accepts argument 'RPG'.
+At line:1 char:161
++ ... ; Start-Sleep -Seconds 2; cd D:\Vibecoding\AI RPG V2\frontend; C:\flu ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Set-Location], ParameterBindingException   
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.SetLoc 
+   ationCommand
+ 
+Error: No pubspec.yaml file found.
+This command should be run from the root of your Flutter project.
+
+ *  The terminal process "C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -Command Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd "D:\Vibecoding\AI RPG V2"; .venv\Scripts\python.exe src/api_server.py'; Start-Sleep -Seconds 2; cd "D:\Vibecoding\AI RPG V2\frontend"; C:\flutter\bin\flutter.bat run -d chrome" terminated with exit code: 1. 
+ *  Terminal will be reused by tasks, press any key to close it. 
+
+

@@ -2,6 +2,10 @@
 Inventory + AI DM Integration Test
 Interactive inventory management with AI Dungeon Master narration.
 
+NOTE: The shop system in this test is a PROTOTYPE for testing AI merchant
+interactions. The shop feature is NOT yet implemented in the main game.
+Shop implementation is planned for Phase 3.3 (NPC System).
+
 Run with: python tests/test_inventory_with_dm.py
 """
 
@@ -27,11 +31,11 @@ load_dotenv()
 
 
 # =============================================================================
-# TEST CHARACTER
+# MOCK CHARACTER
 # =============================================================================
 
-class TestCharacter:
-    """Simple test character for inventory testing."""
+class MockCharacter:
+    """Simple mock character for inventory testing."""
     def __init__(self):
         self.name = "Kira"
         self.char_class = "Fighter"
@@ -478,8 +482,8 @@ def run_interactive_test():
     
     merchant_model = create_merchant()
     
-    # Create test character
-    character = TestCharacter()
+    # Create mock character
+    character = MockCharacter()
     
     print(f"\n✨ Welcome, {character.name} the {character.race} {character.char_class}!")
     print(f"💰 You have {character.gold} gold.")
