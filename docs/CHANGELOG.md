@@ -8,7 +8,85 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security
+- **Comprehensive Security Testing (125 Tests Passing)** - Full hostile player testing complete!
+  - 5 testing rounds covering 125 unique security test cases
+  - All 16 identified vulnerabilities have been fixed
+  - Categories: Input validation, prompt injection, state manipulation, API abuse, edge cases
+  - Extended testing: Combat exploits, save/load manipulation, inventory exploits, party/NPC abuse
+  - Advanced testing: Session hijacking, header injection, resource exhaustion, concurrent attacks
+  
+- **Input Validation Hardening** - Stricter input validation across all endpoints!
+  - Character name validation: Required, max 50 characters, trimmed
+  - Action type validation: Must be string, prevents 500 errors
+  - Quantity validation: Positive integers only, max 99
+  - Save name sanitization: Path traversal blocked, dangerous chars removed
+  - Dice notation validation: Zero-sided dice rejected, negative counts blocked
+
+- **Session Security** - Improved session management!
+  - Sessions now expire after 60 minutes of inactivity
+  - Background cleanup thread runs every 5 minutes
+  - `/api/game/end` endpoint for explicit session termination
+  - `/api/sessions/stats` endpoint for monitoring session count
+  - UUID isolation prevents session hijacking
+
+- **Combat Exploit Fixes** - Combat system hardened!
+  - Travel blocked during active combat
+  - Combat endpoints properly validate combat state
+  - "Not in combat" error for attack/flee/defend when not in combat
+
+### Fixed
+- **Character.from_dict() Method** - Save/load now works correctly!
+  - Added missing classmethod to reconstruct Character from saved data
+  - Cross-session save loading now functional
+  
+- **Party.is_full Property Bug** - Recruitment endpoint fixed!
+  - Changed from `is_full()` method call to `is_full` property access
+  
+- **Shop Buy API** - Critical bug fix!
+  - Fixed wrong function signature that caused all buy operations to fail
+  - Proper parameter order: character, shop, item_id, quantity, npc_disposition
+
+- **Quest System Fixes** - Multiple quest-related fixes!
+  - Quest ID type validation added
+  - get_completed_quests method implemented
+  - Quest list error handling improved
+
+- **Dice System Fix** - Zero-sided dice validation!
+  - Added check: "Dice must have at least 1 side"
+
+- **Emoji Encoding (Mojibake Fix)** - Emojis now display correctly!
+  - Fixed double-encoded UTF-8 emojis appearing as garbled text (e.g., `ðŸ"` instead of `📍`)
+  - Root cause: Source file `api_server.py` had corrupted emoji bytes
+  - Used `ftfy` library to detect and fix mojibake in Python source files
+  - Added `app.json.ensure_ascii = False` to Flask for proper JSON UTF-8 output
+  - All API responses now contain proper Unicode emojis
+  - Fixed `notes.log` encoding issue
+
+- **Quest Journal Tracking** - Quests now properly activate and track!
+  - Fixed quests not appearing in journal (were registered but never accepted)
+  - Auto-accept "rescue_lily" and "clear_the_path" quests on scenario start
+  - Combat kills now trigger `on_enemy_killed()` for quest objective tracking
+  - Frontend handles both `COMPLETE`/`completed` status formats
+  - Frontend handles both `current_count`/`current` objective field names
+  - Fixed duplicate Flask endpoint causing startup error (`combat_status` → `combat_status_v2`)
+
+### Changed
+- **Architecture: API-First Design** - Terminal version archived!
+  - `game.py` moved to `backup/legacy/game.py` (no longer maintained)
+  - `api_server.py` is now the only entry point
+  - `dm_engine.py` contains all shared DM logic
+  - All new development follows Core-First methodology
+  - React frontend is the primary UI
+
 ### Added
+- **Quest Journal Updates** - Real-time quest tracking in frontend!
+  - Quest objectives update when items acquired, NPCs talked to
+  - Location travel triggers quest updates
+  - SSE `quest_update` events sent to frontend
+  - NPC talk detection from player actions ("talk to bram")
+  - Tests added in `tests/test_quest_hooks.py`
+
 - **Phase 4.5: Interactive World Map UI** - New development priority!
   - Comprehensive plan for visual clickable map navigation
   - MapNode, MapConnection, MapRegion data structures defined
@@ -205,13 +283,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Multi-chapter campaigns supported in organized folder structure
 
 ### Test Suite Status
-- **821 total tests passing** (December 2025)
+- **821+ unit tests passing** (December 2025)
+- **125 security tests passing** (Hostile Player Testing - 5 rounds)
 - Key test file updates:
   - `test_location.py`: 200 tests (location system)
   - `test_party.py`: 72 tests (companion system)
   - `test_quest.py`: 57 tests (quest tracking)
   - `test_npc.py`: 55 tests (NPC interactions)
   - `test_reputation.py`: 55 tests (disposition system)
+  - `hostile_final.py`: 75 tests (final security round)
+  - `test_combat_travel_block.py`: 3 tests (combat exploit prevention)
 
 ---
 

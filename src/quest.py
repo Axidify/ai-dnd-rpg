@@ -683,6 +683,10 @@ class QuestManager:
         """Get all currently active quests."""
         return list(self.active_quests.values())
     
+    def get_completed_quests(self) -> List[Dict[str, Any]]:
+        """Get list of completed quest info dicts (IDs only, quests are no longer stored)."""
+        return [{"id": qid, "status": "completed"} for qid in self.completed_quests]
+    
     def get_ready_to_complete(self) -> List[Quest]:
         """Get all active quests ready to be turned in."""
         return [q for q in self.active_quests.values() if q.is_ready_to_complete()]

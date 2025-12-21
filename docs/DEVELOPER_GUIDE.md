@@ -25,42 +25,60 @@ This document provides comprehensive technical documentation for developers who 
 14. [Quest System](#quest-system-phase-334)
 15. [Extending the Game](#extending-the-game)
 16. [Testing Guidelines](#testing-guidelines)
-17. [Deployment](#deployment)
-18. [Troubleshooting](#troubleshooting)
+17. [Security](#security) ← **125 tests passing**
+18. [Deployment](#deployment)
+19. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Architecture Overview
 
-### Current Architecture (Phase 1)
+### Current Architecture (API-First Design)
 
 ```
+┌───────────────┐     ┌───────────────┐     ┌───────────────┐
+│  React Web    │     │  Godot Client │     │ Flutter App   │
+│  (Vite)       │     │   (Future)    │     │   (Future)    │
+│ localhost:3000│     │               │     │               │
+└───────┬───────┘     └───────┬───────┘     └───────┬───────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      Terminal (CLI)                         │
-│                   Player Input/Output                       │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      game.py                                │
+│                 api_server.py (Flask REST API)              │
+│                    localhost:5000/api/*                     │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │   main()    │→ │  Chat Loop  │→ │   Output    │         │
-│  │  Initialize │  │   Process   │  │  Response   │         │
+│  │  Endpoints  │→ │ dm_engine   │→ │  Response   │         │
+│  │  /game/*    │  │  (logic)    │  │  SSE Stream │         │
 │  └─────────────┘  └─────────────┘  └─────────────┘         │
 └─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 dm_engine.py (Shared Logic)                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  DM_SYSTEM_PROMPT - Complete AI ruleset             │   │
+│  │  parse_*() - Tag parsing functions                  │   │
+│  │  roll_skill_check() - Dice mechanics                │   │
+│  │  build_full_dm_context() - Prompt construction      │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 Google Gemini API                           │
-│              (generativeai library)                         │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  System Prompt (DM_SYSTEM_PROMPT)                   │   │
-│  │  + Chat History (maintained in session)             │   │
-│  └─────────────────────────────────────────────────────┘   │
+│              (google-generativeai library)                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Planned Architecture (Phase 5-6)
+### Legacy Architecture (Archived)
+
+The original terminal-based game (`backup/legacy/game.py`) has been archived.
+The current architecture uses API-first design where `api_server.py` is the
+only entry point and all game logic is shared via `dm_engine.py`.
+
+### Planned Extensions (Phase 5-6)
 
 ```
 ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
@@ -173,9 +191,10 @@ ai-dnd-rpg/
 │
 ├── docs/
 │   ├── CHANGELOG.md            # Version history
-│   ├── DEVELOPER_GUIDE.md      # This file
+│   ├── DEVELOPER_GUIDE.md      # This file (5000+ lines)
 │   ├── DEVELOPMENT_PLAN.md     # Project roadmap with phases
 │   ├── FLUTTER_SETUP.md        # Flutter installation guide
+│   ├── HOSTILE_PLAYER_TESTING.md # Security testing (125 tests, 16 fixes)
 │   ├── THEME_SYSTEM_SPEC.md    # DLC-ready theme architecture
 │   └── UI_DESIGN_SPEC.md       # UI/UX specifications
 │
@@ -184,27 +203,45 @@ ai-dnd-rpg/
 │
 ├── README.md               # User-facing documentation
 ├── requirements.txt        # Python dependencies
-├── task.py                 # TaskSync task input helper
-├── task.txt                # TaskSync task queue file
 ├── tasksync.md             # Development protocol
 │
 ├── src/
 │   ├── __init__.py         # Package marker
+│   ├── api_server.py       # Flask REST API (main entry point, 35 endpoints)
+│   ├── dm_engine.py        # Shared DM logic (prompts, parsing)
 │   ├── character.py        # Character system (stats, creation, XP/leveling)
 │   ├── combat.py           # Combat system (attacks, damage, multi-enemy)
-│   ├── game.py             # Main game logic, AI integration
 │   ├── inventory.py        # Item and inventory management
 │   ├── npc.py              # NPC system (dialogue, roles, managers)
 │   ├── party.py            # Party/companion system
-│   ├── save_system.py      # Save/Load system (Phase 3.1)
+│   ├── quest.py            # Quest tracking system
+│   ├── save_system.py      # Save/Load system
 │   ├── scenario.py         # Scenario and scene management
 │   └── shop.py             # Shop system (buy/sell/haggle)
 │
-└── tests/                       # 891 tests total
+├── frontend/
+│   └── option1-react/      # React + Vite + Tailwind frontend
+│       ├── src/
+│       │   ├── App.jsx
+│       │   ├── components/
+│       │   │   ├── CharacterCreation.jsx
+│       │   │   ├── GameScreen.jsx
+│       │   │   ├── WorldMap.jsx
+│       │   │   └── DiceRoller.jsx
+│       │   └── store/gameStore.js
+│       └── package.json
+│
+├── backup/
+│   └── legacy/
+│       └── game.py         # Archived terminal version (no longer maintained)
+│
+└── tests/                       # 821+ unit tests + 125 security tests
     ├── run_interactive_tests.py  # Unified test runner (all test modes)
+    ├── hostile_final.py        # Security stress tests (75 tests - Round 5)
     ├── test_ai_stress.py       # AI security stress tests (23 cases)
     ├── test_character.py       # Character system tests (26 tests)
     ├── test_combat.py          # Combat mechanics tests (31 tests)
+    ├── test_combat_travel_block.py # Combat exploit prevention (3 tests)
     ├── test_combat_with_dm.py  # Interactive combat tests (3 tests)
     ├── test_dice.py            # Dice rolling manual tests (standalone)
     ├── test_dice_with_dm.py    # Dice + AI tests
@@ -221,11 +258,12 @@ ai-dnd-rpg/
     ├── test_party.py           # Party/companion tests (72 tests)
     ├── test_prompt_injection.py # Security/injection tests (22 tests)
     ├── test_quest.py           # Quest system tests (57 tests)
+    ├── test_quest_hooks.py     # Quest event hooks tests
     ├── test_reputation.py      # Disposition system tests (55 tests)
     ├── test_reputation_hostile.py # Disposition adversarial tests (36 tests)
     ├── test_save_system.py     # Save/Load system tests (8 tests)
     ├── test_scenario.py        # Scenario system tests (31 tests)
-    ├── test_shop.py            # Shop system tests (70 tests)
+    ├── test_shop.py            # Shop system tests (72 tests)
     ├── test_travel_menu.py     # Travel menu system tests (42 tests)
     └── test_xp_system.py       # XP and leveling tests (10 tests)
 ```
@@ -234,7 +272,8 @@ ai-dnd-rpg/
 
 | File | Purpose | Modify When |
 |------|---------|-------------|
-| `src/game.py` | Core game logic, AI integration | Adding game features |
+| `src/api_server.py` | Flask REST API, SSE streaming | Adding API endpoints |
+| `src/dm_engine.py` | Shared DM logic, prompts, parsing | Adding new DM tags or parsing |
 | `src/character.py` | Character class, stats, XP/leveling | Adding character features |
 | `src/combat.py` | Combat mechanics, multi-enemy | Modifying combat |
 | `src/inventory.py` | Items, equipment, loot | Adding items/equipment |
@@ -249,6 +288,13 @@ ai-dnd-rpg/
 | `docs/DEVELOPMENT_PLAN.md` | Roadmap | Planning new phases |
 | `docs/CHANGELOG.md` | Version tracking | Releasing versions |
 | `docs/THEME_SYSTEM_SPEC.md` | Theme/DLC architecture | Theme system changes |
+
+> **⚠️ IMPORTANT NOTE:** This document contains historical references to `game.py` (the 
+> terminal version). The terminal version has been **archived to `backup/legacy/game.py`**.
+> All new development should use **`api_server.py`** (Flask REST API) as the entry point.
+> Logic that was previously in `game.py` now lives in **`dm_engine.py`** (shared logic)
+> and **`api_server.py`** (request handling). When reading code examples below that 
+> reference `game.py`, mentally substitute with the appropriate API-first equivalent.
 
 ---
 
@@ -676,34 +722,47 @@ parse_roll_request(dm_response)              # Parses [ROLL: ...] tags
 
 ## Game Loop Logic
 
-### State Machine (Current)
+> **NOTE:** The terminal game loop has been replaced with an API-first architecture.
+> The sections below describe the legacy terminal flow for historical reference.
+> See `api_server.py` for the current request/response flow.
+
+### API Request Flow (Current)
 
 ```
-┌─────────────┐
-│  INIT       │ Initialize AI, load config
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│  OPENING    │ AI generates opening narration
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐     quit/exit/q      ┌─────────────┐
-│  PLAYING    │ ─────────────────────▶│    EXIT     │
-│  (loop)     │                       └─────────────┘
-└──────┬──────┘
-       │
-       │ (player input)
-       ▼
-┌─────────────┐
-│  AI RESPOND │ Send to Gemini, display response
-└──────┬──────┘
-       │
-       └─────────────▶ (back to PLAYING)
+┌─────────────────────────────────────────────────────────────────┐
+│                    React Frontend                                │
+│    [CharacterCreation.jsx] → [GameScreen.jsx] → [Modals]        │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ HTTP/SSE
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    api_server.py (Flask)                         │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  POST /api/game/start      → Create session, character  │   │
+│  │  POST /api/game/action/stream → Process action, SSE     │   │
+│  │  POST /api/travel           → Change location           │   │
+│  │  GET  /api/game/state       → Get current state         │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    dm_engine.py (Shared Logic)                   │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  build_full_dm_context() → Construct AI prompt           │   │
+│  │  parse_*() → Extract tags from DM response               │   │
+│  │  roll_skill_check() → Handle dice mechanics              │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Google Gemini API                             │
+│                    (Streaming responses)                         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Future State Machine (Planned)
+### Legacy Terminal State Machine (Archived)
 
 ```
 INIT → CHARACTER_CREATE → SCENARIO_SELECT → PLAYING ⇄ COMBAT → INVENTORY → SAVE/LOAD → EXIT
@@ -5009,7 +5068,7 @@ DM awards XP using tags in responses:
 
 ### Running Tests
 
-**Unit Tests (728 tests total):**
+**Unit Tests (821+ tests total):**
 ```bash
 # Run all unit tests
 cd tests
@@ -5023,6 +5082,14 @@ python -m pytest . --cov=../src --cov-report=html
 
 # Use the interactive test runner
 python run_interactive_tests.py
+```
+
+**Security Tests (125 tests):**
+```bash
+# Run hostile player final test suite
+python tests/hostile_final.py
+
+# Results documented in docs/HOSTILE_PLAYER_TESTING.md
 ```
 
 **Interactive Tests (require AI API key):**
@@ -5043,25 +5110,41 @@ python tests/test_dice_with_dm.py
 |--------|-------|-------------|
 | test_character.py | 26 | Character creation, stats, XP |
 | test_combat.py | 31 | Combat mechanics, attacks |
+| test_combat_travel_block.py | 3 | Combat exploit prevention |
 | test_dialogue.py | 25 | NPC dialogue system |
 | test_flexible_travel.py | 25 | Flexible travel input normalization |
 | test_flow_breaking.py | 29 | Flow breaking/weird input |
 | test_hostile_player.py | 44 | Adversarial exploit testing |
 | test_inventory.py | 35 | Items, inventory management |
-| test_location.py | 174 | Location system, movement, events |
+| test_location.py | 200 | Location system, movement, events |
 | test_location_with_dm.py | 13 | Interactive location unit tests |
 | test_multi_enemy.py | 3 | Multi-enemy combat |
-| test_npc.py | 45 | NPC system, roles, serialization |
+| test_npc.py | 55 | NPC system, roles, serialization |
+| test_party.py | 72 | Party/companion system |
 | test_prompt_injection.py | 22 | Security/injection testing |
 | test_quest.py | 57 | Quest tracking system |
-| test_reputation.py | 62 | Disposition system (including gift/quest types) |
+| test_reputation.py | 55 | Disposition system |
 | test_reputation_hostile.py | 36 | Disposition adversarial tests |
 | test_save_system.py | 7 | Save/load persistence |
 | test_scenario.py | 31 | Scenarios, scenes, objectives |
-| test_shop.py | 70 | Shop system, buy/sell/haggle, transactions |
-| test_traveling_merchant.py | 37 | Traveling merchant spawning |
+| test_shop.py | 72 | Shop system, buy/sell/haggle |
+| test_travel_menu.py | 42 | Travel menu system |
 | test_xp_system.py | 10 | XP and leveling |
-| **TOTAL** | **782** | All unit tests |
+| hostile_final.py | 75 | Security stress tests (Round 5) |
+| **TOTAL** | **821+** | All unit tests |
+
+### Security Testing Summary
+
+| Round | Tests | Pass | Issues Fixed |
+|-------|-------|------|--------------|
+| 1-3 | 25 | 25 | 8 issues |
+| 4 | 25 | 25 | 3 issues |
+| 5 | 75 | 75 | 5 issues |
+| **Total** | **125** | **125** | **16 issues** |
+
+**All 16 security vulnerabilities have been identified and fixed.**
+
+See [HOSTILE_PLAYER_TESTING.md](HOSTILE_PLAYER_TESTING.md) for detailed results.
 
 ### Manual Testing Checklist
 
@@ -5106,6 +5189,55 @@ def test_dm_response():
 
 ---
 
+## Security
+
+### Security Testing Results
+
+The game has undergone comprehensive hostile player testing with **125 unique security tests** across 25 categories:
+
+| Category | Description |
+|----------|-------------|
+| Input Validation | Empty/long names, SQL injection, unicode attacks |
+| Prompt Injection | System prompt override, roleplay escape, delimiter injection |
+| State Manipulation | Invalid sessions, negative values, inventory overflow |
+| API Abuse | Missing/wrong type parameters, method override attempts |
+| Edge Cases | Combat during travel, non-present NPCs, rapid action spam |
+| Combat Exploits | Attack/flee outside combat, invalid targets |
+| Save/Load Manipulation | Path traversal, corrupted saves, cross-session loading |
+| Session Hijacking | UUID guessing, JWT injection, admin flag injection |
+| Header Injection | Host/X-Forwarded-For spoof, XSS in User-Agent |
+| Resource Exhaustion | Rapid session creation, 1MB payloads, concurrent attacks |
+
+### Security Fixes Applied (16 total)
+
+1. **Character name validation** - Required, max 50 chars, trimmed
+2. **Action type validation** - Must be string, prevents 500 errors
+3. **Shop buy API** - Fixed broken function signature
+4. **Quantity validation** - Positive integers only, max 99
+5. **Unicode/SSE encoding** - `ensure_ascii=False` for proper emoji support
+6. **Session cleanup** - 60-minute timeout, background cleanup thread
+7. **Travel during combat** - Blocked with proper error message
+8. **Party.is_full property** - Fixed method vs property access
+9. **Character.from_dict()** - Added missing method for save/load
+10. **Save name sanitization** - Path traversal blocked, dangerous chars removed
+11. **Quest ID type validation** - Proper type checking
+12. **Zero-sided dice** - Validation added
+13. **NPCManager access** - Fixed method calls
+14. **QuestManager get_completed_quests** - Method implemented
+15. **Quest list error handling** - Improved error responses
+16. **Action string type** - Proper type validation before .strip()
+
+### Security Best Practices
+
+- All user input is validated before processing
+- Session IDs use UUID4 (128-bit random, brute-force infeasible)
+- AI DM resists prompt injection (tested with 25+ attack vectors)
+- Save files are sanitized to prevent path traversal
+- Combat state is checked before allowing travel
+- Unknown API parameters are ignored (no cheat_mode, god_mode)
+
+---
+
 ## Deployment
 
 ### Local Development
@@ -5115,7 +5247,7 @@ def test_dm_response():
 git clone https://github.com/Axidify/ai-dnd-rpg.git
 cd ai-dnd-rpg
 
-# Setup
+# Setup Backend
 python -m venv .venv
 .venv\Scripts\activate  # Windows
 source .venv/bin/activate  # Mac/Linux
@@ -5123,11 +5255,22 @@ pip install -r requirements.txt
 
 # Configure
 cp .env.example .env
-# Edit .env with your API key
+# Edit .env with your GOOGLE_API_KEY
 
-# Run
-python src/game.py
+# Start Backend API
+python src/api_server.py
+
+# In a new terminal - Setup and Start Frontend
+cd frontend/option1-react
+npm install
+npm run dev
 ```
+
+### VS Code Tasks (Recommended)
+The workspace includes predefined tasks for easy development:
+- **🎮 Start Backend (Flask)** - Start API server on port 5000
+- **🌐 Start Frontend (React)** - Start dev server on port 3000
+- **🚀 Start Full Stack** - Start both simultaneously
 
 ### Production Considerations (Future)
 
@@ -5152,6 +5295,33 @@ python src/game.py
 | "Invalid API key" | Wrong/expired key | Get new key from AI Studio |
 | Import errors | Missing deps | `pip install -r requirements.txt` |
 | "Context window exceeded" | Long conversation | Restart game (future: implement summarization) |
+| Garbled emojis (ðŸ" instead of 📍) | Mojibake - double-encoded UTF-8 | Run `pip install ftfy` then `python -c "import ftfy; f=open('file.py'); open('file.py','w').write(ftfy.fix_text(f.read()))"` |
+| Emojis as `\u1F4CD` in JSON | Flask JSON encoding | Add `app.json.ensure_ascii = False` after Flask app creation |
+
+### Encoding / Emoji Issues
+
+Emojis in Python source files or API responses may become corrupted ("mojibake") when:
+- Files are saved with wrong encoding (Latin-1 instead of UTF-8)
+- Copy-paste from browser to editor with encoding mismatch
+- Git or editor auto-converts line endings with wrong charset
+
+**Detecting Mojibake:**
+```python
+# Common mojibake patterns (UTF-8 interpreted as Latin-1):
+# 📍 → ðŸ" | 🔥 → ðŸ"¥ | ⭐ → â­ | 💰 → ðŸ'°
+```
+
+**Fixing Mojibake in Files:**
+```bash
+pip install ftfy
+python -c "import ftfy; content=open('file.py','r',encoding='utf-8').read(); open('file.py','w',encoding='utf-8').write(ftfy.fix_text(content))"
+```
+
+**Flask UTF-8 JSON Configuration:**
+```python
+app = Flask(__name__)
+app.json.ensure_ascii = False  # Required for proper emoji in JSON responses
+```
 
 ### Debug Mode
 

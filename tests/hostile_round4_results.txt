@@ -1,0 +1,95 @@
+HOSTILE PLAYER TESTING - ROUND 4 RESULTS
+==================================================
+
+PASS: 6.1 Attack not in combat
+  Detail: {"error":"Not in combat"}
+
+
+PASS: 6.2 Invalid target index
+  Detail: Skipped - no combat active
+
+PASS: 6.3 Flee not in combat
+  Detail: {"error":"Not in combat"}
+
+
+PASS: 6.4 Defend not in combat
+  Detail: {"error":"Not in combat"}
+
+
+PASS: 6.5 Negative target index
+  Detail: {"error":"Not in combat"}
+
+
+PASS: 7.1 Path traversal save
+  Detail: Sanitized to: Game saved as etcpasswd
+
+PASS: 7.2 Load nonexistent
+  Detail: {"error":"Save not found"}
+
+
+PASS: 7.3 Special chars save name
+  Detail: {"message":"Game saved as testsav","save_path":"D:\\Vibecoding\\AI RPG V2\\src\\..\\saves\\testsav.j
+
+PASS: 7.4 Long save name
+  Detail: {"message":"Game saved as AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","save_path":"D:\\Vibec
+
+PASS: 7.5 Cross-session load
+  Detail: {"game_state":{"character":{"armor_class":10,"char_class":"Fighter","charisma":15,"constitution":12,
+
+PASS: 8.1 Use fake item
+  Detail: {"message":"No 'Sword of Infinite Power' in inventory.","success":false}
+
+
+PASS: 8.2 Equip consumable
+  Detail: {"message":"Can't equip that.","success":false}
+
+
+PASS: 8.3 Buy insufficient gold
+  Detail: {"error":"Maximum 99 items per purchase"}
+
+
+PASS: 8.4 Sell fake item
+  Detail: {"error":"Item name is required"}
+
+
+PASS: 8.5 Buy quantity 0
+  Detail: {"error":"Quantity must be a positive integer"}
+
+
+PASS: 9.1 Recruit fake NPC
+  Detail: {"message":"Can't recruit 'fake_npc_xyz'.","success":false}
+
+
+PASS: 9.2 Party view invalid session
+  Detail: {"error":"Invalid session"}
+
+
+PASS: 9.3 Complete fake quest
+  Detail: {"message":"Quest not found.","success":false}
+
+
+PASS: 9.4 Levelup no XP
+  Detail: {"message":"Not enough XP","success":false}
+
+
+PASS: 9.5 Rest endpoint
+  Detail: {"message":"Already at full health!","success":false}
+
+
+PASS: 10.1 JSON in action string
+  Detail: AI treated as roleplay text
+
+PASS: 10.2 Null char in action
+  Detail: {"combat_started":false,"game_state":{"character":{"armor_class":13,"char_class":"Fighter","charisma
+
+PASS: 10.3 Very long action
+  Detail: Status 200
+
+PASS: 10.4 Emoji flood
+  Detail: Handled gracefully
+
+PASS: 10.5 Control chars in action
+  Detail: {"combat_started":false,"game_state":{"character":{"armor_class":13,"char_class":"Fighter","charisma
+
+
+SUMMARY: 25 PASS, 0 FAIL, 0 WARN
