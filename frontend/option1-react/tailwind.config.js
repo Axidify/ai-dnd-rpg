@@ -7,16 +7,23 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Dark Fantasy theme (default from UI_DESIGN_SPEC.md)
         rpg: {
-          dark: '#0a0a0f',
-          bg: '#1a1a2e',
-          panel: '#16213e',
-          accent: '#e94560',
-          gold: '#ffd700',
-          silver: '#c0c0c0',
-          health: '#e53935',
-          mana: '#1e88e5',
-          xp: '#8e24aa',
+          dark: '#1A1A1A',        // Background - Near Black
+          bg: '#1A1A1A',          // Background
+          surface: '#2D2D2D',     // Surface - Dark Gray
+          panel: '#2D2D2D',       // Panel surface
+          primary: '#D4AF37',     // Gold primary
+          accent: '#8B4513',      // Saddle Brown accent
+          gold: '#D4AF37',        // Gold
+          silver: '#c0c0c0',      // Silver
+          health: '#DC143C',      // Crimson for health/errors
+          mana: '#1e88e5',        // Blue for mana
+          xp: '#9932CC',          // Purple for XP
+          text: '#F5F5DC',        // Beige text primary
+          'text-secondary': '#A0A0A0', // Gray text secondary
+          'dm-bubble': '#2D2D2D', // DM message bubble
+          'player-bubble': '#3D3D1A', // Player message bubble
         }
       },
       fontFamily: {

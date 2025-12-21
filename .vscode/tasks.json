@@ -2,45 +2,81 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "🎮 Start Backend",
+			"label": "🎮 Start Backend (Flask)",
 			"type": "shell",
 			"command": "${workspaceFolder}/.venv/Scripts/python.exe",
 			"args": ["src/api_server.py"],
 			"options": {
-				"cwd": "${workspaceFolder}"
+				"cwd": "${workspaceFolder}",
+				"env": {
+					"API_PORT": "5000",
+					"DEBUG": "false"
+				}
 			},
 			"isBackground": true,
-			"problemMatcher": [],
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^never-match$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^.*Flask app.*$",
+					"endsPattern": "^.*Running on.*$"
+				}
+			},
 			"presentation": {
 				"reveal": "always",
-				"panel": "dedicated",
-				"group": "fullstack"
+				"panel": "new",
+				"clear": true
 			}
 		},
 		{
-			"label": "🌐 Start Frontend",
+			"label": "🌐 Start Frontend (React)",
 			"type": "shell",
-			"command": "C:\\flutter\\bin\\flutter.bat",
-			"args": ["run", "-d", "chrome"],
+			"command": "npm",
+			"args": ["run", "dev"],
 			"options": {
-				"cwd": "${workspaceFolder}/frontend"
+				"cwd": "${workspaceFolder}/frontend/option1-react"
 			},
 			"isBackground": true,
-			"problemMatcher": [],
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^never-match$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^.*vite.*$",
+					"endsPattern": "^.*Local.*$"
+				}
+			},
 			"presentation": {
 				"reveal": "always",
-				"panel": "dedicated",
-				"group": "fullstack"
+				"panel": "new",
+				"clear": true
 			}
 		},
 		{
-			"label": "🔥 Full Stack",
-			"dependsOn": ["🎮 Start Backend", "🌐 Start Frontend"],
+			"label": "🚀 Start Full Stack",
+			"dependsOn": ["🎮 Start Backend (Flask)", "🌐 Start Frontend (React)"],
 			"dependsOrder": "parallel",
 			"problemMatcher": [],
 			"group": {
 				"kind": "build",
 				"isDefault": true
+			}
+		},
+		{
+			"label": "🛑 Stop All Servers",
+			"type": "shell",
+			"command": "taskkill",
+			"args": ["/F", "/IM", "python.exe"],
+			"windows": {
+				"command": "Get-Process -Name python,node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+			},
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
 			}
 		}
 	]

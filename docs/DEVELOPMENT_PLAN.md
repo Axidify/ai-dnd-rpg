@@ -1,15 +1,21 @@
 # AI D&D Text RPG - Development Plan
 
 **Project:** Text-based D&D RPG with AI Dungeon Master  
-**Status:** Phase 4.5 - Interactive World Map UI (NEW PRIORITY)  
+**Status:** Phase 5 - Backend API & Community Modding (IN PROGRESS)  
+**Architecture:** API-First (dm_engine.py → api_server.py → React/Flutter/Godot)  
+**Methodology:** Terminal-First Development (Build → Test → Expose → Display)  
 **Created:** December 15, 2025  
-**Last Updated:** December 19, 2025  
+**Last Updated:** December 20, 2025  
 
 ---
 
 ## Project Overview
 
-A text-based role-playing game where an AI acts as the Dungeon Master, narrating adventures, managing encounters, and responding to player actions in real-time. Built incrementally with testing at each phase.
+A text-based role-playing game where an AI acts as the Dungeon Master, narrating adventures, managing encounters, and responding to player actions in real-time. 
+
+**Target Platforms:** React Web, Flutter Mobile, Godot Game Client  
+**Architecture:** API-first design using `dm_engine.py` → `api_server.py` → Frontend clients  
+**Legacy:** Terminal version (`game.py`) archived in `backup/legacy/`
 
 ---
 
@@ -20,7 +26,7 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
-| 1.1 | Simple Chat Loop | Python script with player input → AI response loop | ✅ Complete |
+| 1.1 | Simple Chat Loop | ~~Python script~~ API endpoint with AI response | ✅ Complete |
 | 1.2 | Basic Character Sheet | Name, class, HP, stats (STR, DEX, CON, INT, WIS, CHA) | ✅ Complete |
 | 1.3 | Starting Scenario | Scene system with structured adventure | ✅ Complete |
 
@@ -538,157 +544,136 @@ Priority 6 - NPC Relationships (LOW): ✅ COMPLETE
         - Complete NPC-specific favor: +15
   
   Step 3 - Threshold-Based Behaviors:
-    [ ] Hostile (<-50):
-        - Refuse to trade (shop closed)
-        - Refuse dialogue (insults/threats only)
-        - May trigger combat if approached
-    [ ] Unfriendly (-50 to -10):
-        - +25% prices on all items
-        - Limited dialogue options
-        - Won't share information
-    [ ] Neutral (-10 to +10):
+    [x] Hostile (<-50):
+        - Refuse to trade (can_trade() returns False)
+        - Refuse dialogue - NOT IMPLEMENTED
+        - Combat trigger - NOT IMPLEMENTED
+    [x] Unfriendly (-50 to -10):
+        - +25% prices (get_disposition_modifier() returns 1.25)
+        - Limited dialogue - NOT IMPLEMENTED
+    [x] Neutral (-10 to +10):
         - Normal prices and interactions
         - Standard dialogue access
-    [ ] Friendly (+10 to +50):
-        - -10% price discount
-        - Extra dialogue options unlocked
-        - Shares more information
-    [ ] Trusted (>+50):
-        - -20% price discount
-        - Unlock special/secret quests
-        - Recruitment checks easier (-2 DC)
-        - May offer free items/help
+    [x] Friendly (+10 to +50):
+        - -10% price discount (modifier 0.9)
+        - Extra dialogue - NOT IMPLEMENTED
+    [x] Trusted (>+50):
+        - -20% price discount (modifier 0.8)
+        - Quest unlocks - NOT IMPLEMENTED
+        - Recruitment DC reduction - NOT IMPLEMENTED
   
   Step 4 - Reputation Command:
-    [ ] 'reputation' or 'rep' command to show all known NPC relationships
-    [ ] Display format with colored indicators:
-        ┌─────────────────────────────────────────────┐
-        │ 📊 REPUTATION                               │
-        ├─────────────────────────────────────────────┤
-        │ 🟢 Bram the Farmer     - Friendly (+25)     │
-        │ 🟡 The Barkeep         - Neutral (+5)       │
-        │ 🔴 Goblin Chief        - Hostile (-80)      │
-        └─────────────────────────────────────────────┘
-    [ ] 'reputation <npc>' for detailed relationship view:
-        - Current disposition value and level
-        - Recent actions that affected it
-        - Available at this level (discounts, quests)
+    [ ] 'reputation' or 'rep' command - NOT IMPLEMENTED
+    [ ] Display format with colored indicators - PLANNED
+    [ ] 'reputation <npc>' for detailed view - PLANNED
   
   Step 5 - Dialogue Integration:
     [ ] AI prompt includes disposition level for tone adjustment
-    [ ] Threshold-locked dialogue topics:
-        - "ask about secret" requires Friendly+
-        - "ask about rumors" requires Neutral+
-        - "recruit" easier at Trusted
-    [ ] Hostile NPCs respond with threats/refusal only
+    [ ] Threshold-locked dialogue topics - NOT IMPLEMENTED
+    [ ] Hostile NPCs respond with threats/refusal only - NOT IMPLEMENTED
   
   Step 6 - Quest Unlocks:
     [ ] Add min_disposition field to quest requirements
     [ ] Some side quests require Friendly+ with NPC
     [ ] Special quests unlock at Trusted level
-    [ ] Quest reward bonus based on disposition (+10% at Friendly, +20% at Trusted)
+    [ ] Quest reward bonus based on disposition
   
   Step 7 - Persistence:
-    [ ] Track modified dispositions: Dict[str, int] (npc_id → current_disposition)
-    [ ] Save to game state in save file
-    [ ] Load and apply on game restore
-    [ ] Reset to default disposition on new game
+    [x] NPC.disposition field persists (NPC.to_dict/from_dict)
+    [x] NPC state saved in game sessions
+    [x] Load and apply on game restore
+    [ ] Track dispositions in session state - PARTIAL
   
   Step 8 - Testing:
-    [ ] Create tests/test_reputation.py
-    [ ] Test disposition threshold detection
-    [ ] Test modify_disposition clamping
-    [ ] Test action-based changes (trade, quest, gift)
-    [ ] Test threshold behaviors:
-        - Price changes per level
-        - Dialogue locks/unlocks
-        - Trade refusal at Hostile
-    [ ] Test reputation command display
-    [ ] Test save/load persistence of dispositions
+    [x] tests/test_reputation.py - 47 tests passing
+    [x] tests/test_reputation_hostile.py - 36 adversarial tests
+    [x] Test disposition threshold detection
+    [x] Test modify_disposition clamping
+    [x] Test action-based changes (trade, quest, gift)
+    [x] Test threshold behaviors:
+        - Price changes per level ✓
+        - Trade refusal at Hostile ✓
+    [ ] Test reputation command display - N/A (not implemented)
+    [x] Test save/load persistence of dispositions
 
 Priority 7 - Party System (MEDIUM): ✅ COMPLETE
 
   Implementation Steps:
   
   Step 1 - PartyMember Data Structure:
-    [ ] Create src/party.py with PartyMember dataclass
-    [ ] Fields: id, name, char_class, description, portrait
-    [ ] Combat stats: level, max_hp, current_hp, armor_class, attack_bonus, damage_dice
-    [ ] Add special_ability: str for unique skill per class
-    [ ] Recruitment fields: recruitment_location, recruitment_condition, recruitment_dialogue
-    [ ] State fields: disposition, recruited (bool)
+    [x] Create src/party.py with PartyMember dataclass (723 lines)
+    [x] Fields: id, name, char_class, description, portrait
+    [x] Combat stats: level, max_hp, current_hp, armor_class, attack_bonus, damage_dice
+    [x] Add special_ability: SpecialAbility dataclass per class
+    [x] Recruitment fields: recruitment_location, recruitment_conditions, recruitment_dialogue
+    [x] State fields: disposition, recruited (bool), is_dead, initiative
   
   Step 2 - Party Management in Game State:
-    [ ] Add party_members: List[PartyMember] to game state
-    [ ] Add party_hp: Dict[str, int] for current HP tracking
-    [ ] Add party_disposition: Dict[str, int] for relationship tracking
-    [ ] Enforce party limit: 2 companions max (player + 2)
+    [x] Party class with members: List[PartyMember]
+    [x] HP tracked per member (current_hp field)
+    [x] Disposition tracked per member
+    [x] Enforce party limit: 2 companions max (player + 2)
   
-  Step 3 - Party Commands:
-    [ ] 'party' command - show party roster with status/HP
-    [ ] 'party stats' command - detailed party member statistics
-    [ ] 'recruit <npc>' command with conditions check
-    [ ] 'dismiss <name>' command - remove party member (affects disposition)
-    [ ] 'talk <party_member>' command - AI personality chat
+  Step 3 - Party Commands (API endpoints):
+    [x] GET /api/party/view - show party roster with status/HP
+    [x] POST /api/party/recruit - recruit NPC with conditions check
+    [x] [RECRUIT: npc_id] DM tag for AI-driven recruitment
+    [x] [PAY: amount, reason] DM tag for gold transactions
+    [x] Party.remove_member() - dismiss affects disposition (-10)
   
   Step 4 - Recruitment System:
-    [ ] Implement condition parsing: skill check, item, gold, objective
-    [ ] Skill check format: "skill:charisma:14" (CHA DC 14)
-    [ ] Item requirement: "has_item:eliras_bow"
-    [ ] Gold requirement: "gold:50"
-    [ ] Objective requirement: "objective:cleared_camp"
-    [ ] Multiple conditions with OR logic support
-    [ ] Recruitment success/failure dialogue
+    [x] RecruitmentCondition.parse() - skill check, item, gold, objective
+    [x] Skill check format: "skill:charisma:14" (CHA DC 14)
+    [x] Item requirement: "item:eliras_bow"
+    [x] Gold requirement: "gold:50"
+    [x] Objective requirement: "objective:cleared_camp"
+    [x] check_recruitment_condition() with OR logic (any condition met)
+    [x] pay_recruitment_cost() handles gold/item costs
   
   Step 5 - Define Recruitable NPCs:
-    [ ] Elira the Ranger (forest_clearing)
+    [x] Elira the Ranger (forest_clearing)
         - Condition: CHA DC 12 OR objective:find_scout_body
         - Ability: Hunter's Mark (+1d4 damage to marked target)
         - Personality: Reserved, vengeful, knows goblin tactics
-    [ ] Marcus the Mercenary (tavern_main)
-        - Condition: gold:25 OR CHA DC 15
+    [x] Marcus the Mercenary (tavern_main)
+        - Condition: gold:20 OR CHA DC 15
         - Ability: Shield Wall (+2 AC to adjacent allies)
         - Personality: Gruff, practical, experienced
-    [ ] Shade the Rogue (goblin_camp_shadows)
-        - Condition: Must find + CHA DC 14
+    [x] Shade the Rogue (goblin_camp_shadows)
+        - Condition: skill:charisma:14
         - Ability: Sneak Attack (+2d6 if flanking)
         - Personality: Cryptic, hidden agenda
   
   Step 6 - Combat Integration:
-    [ ] Turn order: Player -> Party Members -> Enemies
-    [ ] Party member auto-actions (AI-controlled):
-        - Attack nearest/weakest enemy
-        - Use special ability when appropriate
-        - Protect low-HP player
-        - Heal party (if healer class)
-    [ ] Flanking bonus: +2 attack when party member adjacent to same target
-    [ ] Combined attacks: Party attacks same target player attacked
-    [ ] One special ability use per combat per member
+    [x] Turn order defined (initiative system in party.py)
+    [x] Party member combat stats (attack_bonus, damage_dice, AC)
+    [ ] Party member auto-actions (AI-controlled) - PARTIAL
+    [ ] Flanking bonus implementation - NOT YET
+    [ ] Combined attacks display - NOT YET
+    [x] One special ability use per combat per member (ability_uses_remaining)
   
   Step 7 - Class Abilities:
-    [ ] Fighter - Shield Wall: +2 AC to party for 1 round
-    [ ] Ranger - Hunter's Mark: +1d4 damage to marked target
-    [ ] Rogue - Sneak Attack: +2d6 damage if flanking
-    [ ] Cleric - Healing Word: Heal 1d8+2 HP to ally
-    [ ] Wizard - Magic Missile: Auto-hit 1d4+1 damage
+    [x] Fighter - Shield Wall: +2 AC to party for 1 round
+    [x] Ranger - Hunter's Mark: +1d4 damage to marked target
+    [x] Rogue - Sneak Attack: +2d6 damage if flanking
+    [x] Cleric - Healing Word: Heal 1d8+2 HP to ally
+    [x] Wizard - Magic Missile: Auto-hit 1d4+1 damage
   
   Step 8 - Persistence:
-    [ ] Save party_members list (IDs) to save file
-    [ ] Save party_hp dict to save file
-    [ ] Save party_disposition dict to save file
-    [ ] Load and reconstruct party on game restore
-    [ ] HP restores on long rest
+    [x] PartyMember.to_dict() / from_dict() serialization
+    [x] Party.to_dict() / from_dict() serialization
+    [x] Party state saved in session.to_dict()
+    [x] HP persists (current_hp field)
+    [x] Party member rest() method for full heal
   
   Step 9 - Testing:
-    [ ] Create tests/test_party.py
-    [ ] Test PartyMember dataclass creation
-    [ ] Test recruitment condition parsing
-    [ ] Test recruitment success/failure
-    [ ] Test party commands (party, dismiss)
-    [ ] Test combat turn order with party
-    [ ] Test flanking bonus application
-    [ ] Test special ability usage
-    [ ] Test party save/load persistence
+    [x] tests/test_party.py - 72 tests all passing
+    [x] Test PartyMember dataclass creation
+    [x] Test recruitment condition parsing
+    [x] Test recruitment success/failure
+    [x] Test party add/remove members
+    [x] Test special ability usage
+    [x] Test party save/load serialization
 ```
 
 **NPC System Features (3.3.1-3.3.2):**
@@ -943,19 +928,19 @@ Ending affects:
 
 *3.3 NPC System:*
 - [x] NPCs have personalities that affect dialogue (Personality dataclass)
-- [ ] Player can buy/sell items at shops
-- [ ] Player can accept and track quests
-- [ ] Traveling merchants add variety
-- [ ] Party members can be recruited via skill checks or objectives
-- [ ] Party members provide combat bonuses
-- [ ] Party members persist across saves
-- [ ] Player can interact with NPCs for quests/trading
+- [x] Player can buy/sell items at shops (shop.py + API)
+- [x] Player can accept and track quests (quest.py + Quest Journal UI)
+- [x] Traveling merchants add variety (traveling_merchant in npc.py)
+- [x] Party members can be recruited via skill checks or objectives
+- [x] Party members provide combat bonuses (abilities defined)
+- [x] Party members persist across saves (to_dict/from_dict)
+- [x] Player can interact with NPCs for quests/trading
 
 *3.4 Moral Choices & Consequences:*
 - [ ] Player choices have visible consequences
 - [ ] Multiple ways to resolve encounters
 - [ ] At least 3 distinct endings per scenario
-- [ ] Reputation affects NPC interactions
+- [x] Reputation affects NPC interactions (disposition system)
 
 *3.4.1 LocationAtmosphere System (Planned):*
 - [ ] LocationAtmosphere dataclass for sensory/mood details
@@ -1205,18 +1190,18 @@ The mood is [ominous] - let that inform your tone without stating emotions direc
 
 ---
 
-### Phase 4.5: Interactive World Map UI 🚧 IN PROGRESS (NEW PRIORITY)
+### Phase 4.5: Interactive World Map UI ✅ Mostly Complete
 **Goal:** Visual clickable map panel for intuitive travel and exploration
 
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
-| 4.5.1 | Map Data Structures | Add coordinates, icons, connections to locations | ⬜ |
-| 4.5.2 | MapNode Dataclass | Visual representation of a location on the map | ⬜ |
-| 4.5.3 | WorldMap Class | Manages map rendering, connections, state | ⬜ |
-| 4.5.4 | Region System | Group locations into map regions/zones | ⬜ |
-| 4.5.5 | Flutter Map Widget | Clickable, zoomable, pannable map component | ⬜ |
-| 4.5.6 | Map State Sync | Sync fog of war, visited, current location | ⬜ |
-| 4.5.7 | Scenario Map Definitions | Add map data to Goblin Cave scenario | ⬜ |
+| 4.5.1 | Map Data Structures | Add coordinates, icons, connections to locations | ✅ |
+| 4.5.2 | MapNode Dataclass | Visual representation of a location on the map | ✅ |
+| 4.5.3 | WorldMap Class | Manages map rendering, connections, state | ✅ |
+| 4.5.4 | Region System | Group locations into map regions/zones | ✅ |
+| 4.5.5 | React Map Component | Clickable map with markers, connections, travel | ✅ |
+| 4.5.6 | Map State Sync | Sync fog of war, visited, current location | ✅ |
+| 4.5.7 | Scenario Map Definitions | Add map data to Goblin Cave scenario | ✅ |
 
 **Why Map UI First:**
 - Travel is the #1 pain point in text-based gameplay
@@ -1743,18 +1728,152 @@ Effects:
 
 ---
 
-### Phase 5: Backend API & Community Modding ⬜ Not Started
+### Phase 5: Backend API & Community Modding 🔄 In Progress
 **Goal:** Create API backend to support mobile app AND enable community campaign creation
 
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
-| 5.1 | REST API Setup | FastAPI/Flask backend for game logic | ⬜ |
+| 5.0 | **DM Engine Extraction** | **Shared dm_engine.py module for all interfaces** | ✅ |
+| 5.1 | REST API Setup | Flask backend for game logic | ✅ |
 | 5.2 | Scenario Folder System | Organize scenarios in modular folder structure | ⬜ |
 | 5.3 | Community Campaigns | Local modding support, campaign import/export | ⬜ |
 | 5.4 | Authentication | User accounts, login, session management | ⬜ |
 | 5.5 | Cloud Save | Database for persistent game saves | ⬜ |
-| 5.6 | API Endpoints | Chat, character, inventory, combat endpoints | ⬜ |
+| 5.6 | API Endpoints | Chat, character, inventory, combat endpoints | ✅ |
 | 5.7 | Campaign Workshop | Cloud-hosted community campaign repository | ⬜ |
+
+---
+
+## 🏗️ ARCHITECTURE: Shared DM Engine (CRITICAL)
+
+**The correct multiplatform architecture:**
+
+```
+                    dm_engine.py
+                    (Pure Logic)
+                         │
+                         ▼
+                  api_server.py      ← Production interface
+                  (Flask REST)
+                         │
+           ┌─────────────┴─────────────┐
+           │                           │
+           ▼                           ▼
+       React Web                   Godot/Flutter
+       (localhost:3000)            (future clients)
+```
+
+**dm_engine.py contains (single source of truth):**
+- `DM_SYSTEM_PROMPT` - Complete AI ruleset (~9600 chars)
+- `build_full_dm_context()` - Constructs prompts with scenario/NPC/quest context
+- `parse_roll_request()` - Extracts [ROLL: Skill DC X] tags
+- `parse_combat_trigger()` - Extracts [COMBAT: enemy1, enemy2] tags  
+- `parse_item_rewards()` - Extracts [ITEM: item_name] tags
+- `parse_gold_rewards()` - Extracts [GOLD: amount] tags
+- `parse_xp_rewards()` - Extracts [XP: amount | reason] tags
+- `parse_buy_transactions()` - Extracts [BUY: item, price] tags
+- `apply_rewards()` - Applies items/gold/XP to character
+- `roll_skill_check()` - D20 + modifiers
+
+**Why this matters:**
+1. **Feature parity** - All interfaces get the same DM behavior
+2. **No drift** - One change updates everything
+3. **Testable** - Pure functions, no I/O side effects
+4. **Extensible** - New frontends just import dm_engine
+
+**Current Status:**
+- `src/api_server.py` → ✅ Imports from dm_engine (production)
+- `backup/legacy/game.py` → 📦 Archived terminal version (no longer maintained)
+
+---
+
+## 🛠️ DEVELOPMENT METHODOLOGY: Core-First Development
+
+**Core Philosophy: Build features in core modules, test with pytest, expose via API to frontend.**
+
+This project follows the "Core + Shell" pattern (also known as Hexagonal Architecture):
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                      DEVELOPMENT FLOW                          │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. BUILD          2. TEST           3. EXPOSE      4. DISPLAY │
+│  ─────────         ──────────        ─────────      ────────── │
+│  dm_engine.py  →   pytest tests  →   api_server  →  React UI   │
+│  character.py      (unit tests)      (Flask)        (frontend) │
+│  combat.py                                                      │
+│  inventory.py                                                   │
+│                                                                 │
+│  [Pure Logic]      [Fast Debug]      [REST API]    [Pretty UI] │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Why This Works
+
+| Benefit | Explanation |
+|---------|-------------|
+| **Faster Iteration** | Terminal: Type → Instant feedback (3-5x faster than UI debugging) |
+| **Easier Debugging** | See raw DM output without React state, network, or SSE layers |
+| **Forced Clean APIs** | If terminal can do it, API can expose it cleanly |
+| **Single Source of Truth** | Logic lives in dm_engine.py, tested once, used everywhere |
+| **Feature Parity** | All interfaces (terminal, web, mobile) get identical behavior |
+
+### Development Workflow
+
+**When adding a new feature:**
+
+1. **Implement in Core** (`src/dm_engine.py`, `src/character.py`, etc.)
+   - Write pure functions with no I/O dependencies
+   - Example: `Character.roll_stat()`, `parse_xp_rewards()`
+
+2. **Write Unit Tests** (`tests/test_*.py`)
+   - Test the core logic in isolation
+   - Run with pytest for fast feedback
+   - Example: `test_quest_hooks.py`, `test_character.py`
+
+3. **Expose via API** (`src/api_server.py`)
+   - Create/update endpoint that uses the core logic
+   - Handle serialization (e.g., `_serialize_character()` for enums)
+   - Add proper error handling
+
+4. **Display in Frontend** (`frontend/option1-react/`)
+   - Call the API endpoint
+   - Update state store (Zustand)
+   - Render in React components
+
+### Examples in Practice
+
+| Feature | Core Module | Unit Tests | API Endpoint | Frontend |
+|---------|-------------|------------|--------------|----------|
+| Stat rolling | `Character.roll_stat()` | `test_character.py` | `POST /game/start` | CharacterCreation.jsx |
+| Combat | `combat.py` | `test_combat.py` | `POST /game/action` | GameScreen.jsx |
+| XP rewards | `dm_engine.parse_xp_rewards()` | `test_xp_system.py` | SSE streaming | XP bar in sidebar |
+| Inventory | `inventory.py` | `test_inventory.py` | `game_state.inventory` | Inventory modal |
+| Quest tracking | `quest.py` | `test_quest_hooks.py` | `game_state.quest_log` | Quest Journal modal |
+
+### Testing Strategy
+
+```
+dm_engine.py  ←── Unit tests (tests/test_*.py) - Fast, reliable
+     │
+api_server.py ←── Integration tests (tests/test_api_integration.py)
+     │
+React frontend ←── Uses same tested API (no separate testing needed)
+```
+
+**Key Insight:** By testing the core and API thoroughly, the frontend inherits correctness automatically. The frontend is purely a display layer—it just shows what the API returns.
+
+### Benefits of This Approach
+
+1. **No Logic Duplication** - Frontend never recalculates stats, HP, or game rules
+2. **Consistent Behavior** - React, Flutter, Godot all behave identically
+3. **Easy Onboarding** - New devs can run tests to understand the system
+4. **Safe Refactoring** - Change core logic, all interfaces update automatically
+5. **Fast Iteration** - pytest runs in seconds, no UI needed
+
+---
 
 **Scenario Folder System Details (5.2):**
 ```
@@ -2026,16 +2145,45 @@ Priority 3 - Moderation & Safety: ⬜ NOT STARTED
 - ✅ Comprehensive scenario documentation
 - ✅ SCENARIO_TEMPLATE.py for scenario authors
 - ✅ **Priority 5: Conditional Exits** - Locked doors with key requirements!
+- ✅ **Phase 4.5: World Map UI** - React WorldMap.jsx with visual map, click-to-travel
+- ✅ **Phase 3.3.7: Party System** - 72 tests, 3 recruitable NPCs, class abilities
 
 **Next Priority Actions:**
-1. Priority 6: Cardinal aliases (n/s/e/w → descriptive exits)
-2. Priority 7: Random encounter system
-3. Priority 8: Optional/secret areas
+1. **Phase 3.4: Moral Choices & Consequences** - Branching dialogue, multiple endings
+2. **Phase 3.5: Campaign System** - Episode chaining, persistent flags
+3. **Phase 5.2: Scenario Folder System** - Community modding support
 
-**Quick Wins Available:**
-- Add traveling merchant to forest_clearing
-- Implement 1-2 random encounters on forest path
-- Add secret cave with perception check
+**Remaining Party System Work:**
+- Party member auto-actions in combat (AI-controlled)
+- Flanking bonus implementation (+2 attack)
+- Combined attacks display
+
+---
+
+## 📋 Low-Risk Work Queue (Safe to Implement)
+
+Items that are **additive** and unlikely to break existing functionality:
+
+### 🟢 Quick Wins (1-2 hours each)
+| Task | Risk | Status | Notes |
+|------|------|--------|-------|
+| Add Party panel to React frontend | 🟢 Low | ✅ DONE | Already in GameScreen.jsx modal |
+| Add secret cave location with perception check | 🟢 Low | ✅ DONE | 2 exist: secret_cave, treasure_nook |
+| Add LocationAtmosphere dataclass | 🟢 Low | ✅ DONE | scenario.py lines 139-220 |
+| Add 'reputation' API endpoint | 🟢 Low | ✅ DONE | GET /api/reputation added |
+
+### 🟡 Medium Tasks (2-4 hours each)
+| Task | Risk | Notes |
+|------|------|------|
+| LocationAtmosphere for all Goblin Cave locations | 🟡 Med | Update scenario.py |
+| AI prompt includes disposition level | 🟡 Med | Update dm_engine.py |
+| Add Party display in GameScreen sidebar | 🟡 Med | Frontend state changes |
+
+### 🟠 Larger Features (4+ hours)
+| Task | Risk | Notes |
+|------|------|-------|
+| Phase 3.4.1 Alternative Resolutions | 🟠 Med | New dialogue paths |
+| Phase 3.5 Campaign dataclass | 🟠 Med | Foundation for episodes |
 
 ---
 
@@ -2065,7 +2213,13 @@ Track essential RPG features across phases:
 | Locked doors | 3.2.1 | ✅ | ExitCondition, storage_key |
 | Cardinal aliases | 3.2.1 | ✅ | n/s/e/w shortcuts |
 | Random encounters | 3.2.1 | ✅ | Wolf, spider encounters |
-| Secret areas | 3.2.1 | ⬜ | Hidden content |
+| Secret areas | 3.2.1 | ✅ | 2 hidden locations with skill checks |
+| **World Map UI** | | | |
+| Visual map display | 4.5 | ✅ | React WorldMap.jsx |
+| Click-to-travel | 4.5 | ✅ | One-click movement |
+| Fog of war | 4.5 | ✅ | Hidden/visited locations |
+| Current location marker | 4.5 | ✅ | Gold ring + animation |
+| Connection lines | 4.5 | ✅ | Shows paths between |
 | **NPCs & Dialogue** | | | |
 | NPC definitions | 3.3.1 | ✅ | NPC dataclass with roles |
 | Dialogue trees | 3.3.2 | ✅ | AI-enhanced with DM |

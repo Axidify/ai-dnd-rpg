@@ -4,47 +4,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar */
+/* Custom scrollbar - Dark Fantasy theme */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: #1A1A1A;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #e94560;
+  background: #D4AF37;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #ff6b8a;
+  background: #e8c547;
 }
 
-/* Base styles */
+/* Base styles - Dark Fantasy theme */
 body {
   font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+  background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
   min-height: 100vh;
+  color: #F5F5DC;
 }
 
 /* Utility classes */
 @layer components {
   .rpg-card {
-    @apply bg-rpg-panel rounded-xl border border-rpg-accent/30 shadow-lg;
+    @apply bg-rpg-surface rounded-xl border border-rpg-primary/30 shadow-lg;
   }
   
   .rpg-button {
-    @apply bg-rpg-accent hover:bg-rpg-accent/80 text-white font-semibold 
+    @apply bg-rpg-primary hover:bg-rpg-primary/80 text-rpg-dark font-semibold 
            px-6 py-3 rounded-lg transition-all duration-200 
-           hover:shadow-lg hover:shadow-rpg-accent/30;
+           hover:shadow-lg hover:shadow-rpg-primary/30;
   }
   
   .rpg-input {
-    @apply bg-rpg-dark border border-rpg-accent/30 rounded-lg px-4 py-3 
-           text-white placeholder-gray-500 focus:border-rpg-accent 
-           focus:ring-1 focus:ring-rpg-accent outline-none transition-all;
+    @apply bg-rpg-dark border border-rpg-primary/30 rounded-lg px-4 py-3 
+           text-rpg-text placeholder-rpg-text-secondary focus:border-rpg-primary 
+           focus:ring-1 focus:ring-rpg-primary outline-none transition-all;
   }
   
   .stat-bar {
@@ -53,5 +54,14 @@ body {
   
   .stat-bar-fill {
     @apply h-full rounded-full transition-all duration-500 ease-out;
+  }
+  
+  /* Message bubbles */
+  .dm-message {
+    @apply bg-rpg-dm-bubble rounded-lg p-4 text-rpg-text;
+  }
+  
+  .player-message {
+    @apply bg-rpg-player-bubble rounded-lg p-4 text-rpg-text;
   }
 }

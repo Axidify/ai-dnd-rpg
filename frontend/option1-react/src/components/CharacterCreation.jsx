@@ -1,31 +1,45 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Sword, Wand2, Dagger, Cross, Bow, Axe } from 'lucide-react'
+import { Sword, Sparkles, Crosshair, Cross, Target, Axe, Shield, Flame, Music, Hand, Leaf, Star, Map } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
 import DiceRoller from './DiceRoller'
 
+// All D&D 5e classes matching character.py
 const classes = [
-  { name: 'Fighter', icon: Sword, desc: 'Master of martial combat', color: '#e53935' },
-  { name: 'Wizard', icon: Wand2, desc: 'Wielder of arcane magic', color: '#8e24aa' },
-  { name: 'Rogue', icon: Dagger, desc: 'Stealthy and cunning', color: '#43a047' },
-  { name: 'Cleric', icon: Cross, desc: 'Divine healer and warrior', color: '#ffd700' },
-  { name: 'Ranger', icon: Bow, desc: 'Skilled hunter and tracker', color: '#1e88e5' },
-  { name: 'Barbarian', icon: Axe, desc: 'Fierce primal warrior', color: '#ff5722' },
+  { name: 'Fighter', icon: Sword, desc: 'Master of martial combat', color: '#DC143C' },
+  { name: 'Wizard', icon: Sparkles, desc: 'Wielder of arcane magic', color: '#9932CC' },
+  { name: 'Rogue', icon: Crosshair, desc: 'Stealthy and cunning', color: '#228B22' },
+  { name: 'Cleric', icon: Cross, desc: 'Divine healer and warrior', color: '#D4AF37' },
+  { name: 'Ranger', icon: Target, desc: 'Skilled hunter and tracker', color: '#1e88e5' },
+  { name: 'Barbarian', icon: Axe, desc: 'Fierce primal warrior', color: '#8B4513' },
+  { name: 'Paladin', icon: Shield, desc: 'Holy knight of justice', color: '#FFD700' },
+  { name: 'Warlock', icon: Flame, desc: 'Pact-bound spellcaster', color: '#4B0082' },
+  { name: 'Bard', icon: Music, desc: 'Magical musician', color: '#FF69B4' },
+  { name: 'Monk', icon: Hand, desc: 'Master of martial arts', color: '#708090' },
+  { name: 'Druid', icon: Leaf, desc: 'Nature\'s guardian', color: '#32CD32' },
+  { name: 'Sorcerer', icon: Star, desc: 'Innate magic wielder', color: '#FF4500' },
 ]
 
-const races = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Half-Orc', 'Tiefling']
+// All D&D 5e races matching character.py
+const races = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Half-Orc', 'Tiefling', 'Dragonborn', 'Gnome', 'Half-Elf']
 
 export default function CharacterCreation() {
   const [name, setName] = useState('')
   const [selectedClass, setSelectedClass] = useState(null)
   const [selectedRace, setSelectedRace] = useState('Human')
+  const [selectedScenario, setSelectedScenario] = useState(null)
   const [showDice, setShowDice] = useState(false)
   
-  const { createCharacter, isLoading, error } = useGameStore()
+  const { createCharacter, fetchScenarios, scenarios, isLoading, error } = useGameStore()
+  
+  // Fetch scenarios on mount
+  useEffect(() => {
+    fetchScenarios()
+  }, [fetchScenarios])
   
   const handleCreate = () => {
     if (name && selectedClass) {
-      createCharacter(name, selectedClass.name, selectedRace)
+      createCharacter(name, selectedClass.name, selectedRace, selectedScenario?.id || null)
     }
   }
   
@@ -64,7 +78,7 @@ export default function CharacterCreation() {
           <label className="block text-rpg-gold font-medieval text-lg mb-4">
             Choose Your Class
           </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {classes.map((cls) => {
               const Icon = cls.icon
               const isSelected = selectedClass?.name === cls.name
@@ -77,7 +91,7 @@ export default function CharacterCreation() {
                   onClick={() => setSelectedClass(cls)}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     isSelected
-                      ? 'border-rpg-accent bg-rpg-accent/20'
+                      ? 'border-rpg-primary bg-rpg-primary/20'
                       : 'border-gray-700 hover:border-gray-500'
                   }`}
                   style={isSelected ? { boxShadow: `0 0 20px ${cls.color}40` } : {}}
@@ -114,6 +128,51 @@ export default function CharacterCreation() {
                 }`}
               >
                 {race}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Scenario Selection */}
+        <div className="rpg-card p-6 mb-6">
+          <label className="block text-rpg-gold font-medieval text-lg mb-4">
+            <Map size={20} className="inline mr-2" />
+            Choose Your Adventure
+          </label>
+          <div className="space-y-3">
+            {/* Free Play option */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setSelectedScenario(null)}
+              className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                !selectedScenario
+                  ? 'border-rpg-primary bg-rpg-primary/20'
+                  : 'border-gray-700 hover:border-gray-500'
+              }`}
+            >
+              <div className="font-semibold text-rpg-gold">🌍 Free Adventure</div>
+              <div className="text-sm text-rpg-text-secondary">Explore Willowbrook village freely</div>
+            </motion.button>
+            
+            {/* Available scenarios */}
+            {scenarios.map((scenario) => (
+              <motion.button
+                key={scenario.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSelectedScenario(scenario)}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                  selectedScenario?.id === scenario.id
+                    ? 'border-rpg-primary bg-rpg-primary/20'
+                    : 'border-gray-700 hover:border-gray-500'
+                }`}
+              >
+                <div className="font-semibold text-rpg-gold">🏰 {scenario.name}</div>
+                <div className="text-sm text-rpg-text-secondary">{scenario.description}</div>
+                {scenario.duration && (
+                  <div className="text-xs text-rpg-primary mt-1">⏱️ {scenario.duration}</div>
+                )}
               </motion.button>
             ))}
           </div>
