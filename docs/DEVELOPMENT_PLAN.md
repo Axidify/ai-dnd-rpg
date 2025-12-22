@@ -3,9 +3,9 @@
 **Project:** Text-based D&D RPG with AI Dungeon Master  
 **Status:** Phase 5 - Backend API & Community Modding (IN PROGRESS)  
 **Architecture:** API-First (dm_engine.py → api_server.py → React/Flutter/Godot)  
-**Methodology:** Terminal-First Development (Build → Test → Expose → Display)  
+**Methodology:** Core-First Development (Build → Test → Expose → Display)  
 **Created:** December 15, 2025  
-**Last Updated:** December 21, 2025  
+**Last Updated:** December 22, 2025  
 
 ---
 
@@ -106,6 +106,9 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 - Natural 20 → CRITICAL SUCCESS: AI narrates legendary/epic outcomes
 - Natural 1 → CRITICAL FAILURE: AI narrates dramatic/comedic disasters
 - Enhanced context sent to AI for memorable critical narration
+- Perception vs Investigation distinction (10+ examples in DM prompt)
+- Stealth movement rules: "any quiet movement = Stealth"
+- 25 AI skill check tests at 100% pass rate (tests/test_skill_check_ai.py)
 ```
 
 **Leveling System Design (Planned):**
@@ -493,7 +496,7 @@ Priority 4 - Quest System (MEDIUM): ✅ COMPLETE
       - Integration hooks
   [x] tests/test_scenario.py - 5 new tests for quest integration
   [x] tests/test_save_system.py - 1 new test for quest save/load
-  Total: 821 tests passing
+  Total: 950+ tests passing
 
 Priority 5 - Traveling Merchants (LOW): ✅ COMPLETE
   [x] Add spawn_chance: float to merchant NPCs
@@ -523,7 +526,7 @@ Priority 6 - NPC Relationships (LOW): ✅ COMPLETE
     [x] Added tests/test_reputation.py with 47 tests (all passing)
     [x] Added tests/test_reputation_hostile.py with 36 adversarial tests (all passing)
     [x] Updated test_dialogue.py: "allied" → "trusted" (2 tests fixed)
-    Total: 821 tests passing
+    Total: 950+ tests passing
   
   Step 2 - Action-Based Disposition Changes: ✅ COMPLETE
     [x] Trade actions:
@@ -575,7 +578,7 @@ Priority 6 - NPC Relationships (LOW): ✅ COMPLETE
     [x] Summary stats (total NPCs, counts by tier)
   
   Step 5 - Dialogue Integration:
-    [ ] AI prompt includes disposition level for tone adjustment
+    [x] AI prompt includes disposition level for tone adjustment (via get_context_for_dm)
     [ ] Threshold-locked dialogue topics - NOT IMPLEMENTED
     [ ] Hostile NPCs respond with threats/refusal only - NOT IMPLEMENTED
   
@@ -949,11 +952,12 @@ Ending affects:
 - [ ] At least 3 distinct endings per scenario
 - [x] Reputation affects NPC interactions (disposition system)
 
-*3.4.1 LocationAtmosphere System (Planned):*
-- [ ] LocationAtmosphere dataclass for sensory/mood details
-- [ ] Integrate atmosphere into location context for DM
-- [ ] Add atmospheres to all Goblin Cave locations
-- [ ] DM prompts use atmosphere for consistent descriptions
+*3.4.1 LocationAtmosphere System (Complete):*
+- [x] LocationAtmosphere dataclass for sensory/mood details
+- [x] Integrate atmosphere into location context for DM
+- [x] Add atmospheres to key Goblin Cave locations (4 locations)
+- [x] DM prompts use atmosphere for consistent descriptions
+- [x] stealth_dc and perception_dc fields for approach mechanics
 
 *3.5 Campaign System:*
 - [ ] Campaign dataclass to group scenarios as episodes
@@ -1083,16 +1087,16 @@ Campaign: "The Goblin Menace" (Base Game)
 
 ---
 
-### Phase 3.4.1: Location Atmosphere System ⬜ Planned
+### Phase 3.4.1: Location Atmosphere System ✅ Complete
 **Goal:** Add structured sensory and mood data to locations for consistent, immersive descriptions
 
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
-| 3.4.1.1 | LocationAtmosphere Dataclass | Sensory details and mood hints for DM | ⬜ |
-| 3.4.1.2 | Location Integration | Add atmosphere field to Location class | ⬜ |
-| 3.4.1.3 | DM Prompt Enhancement | Include atmosphere in location context | ⬜ |
-| 3.4.1.4 | Goblin Cave Atmospheres | Add atmospheres to all scenario locations | ⬜ |
-| 3.4.1.5 | Tests | Unit tests for atmosphere serialization | ⬜ |
+| 3.4.1.1 | LocationAtmosphere Dataclass | Sensory details and mood hints for DM | ✅ |
+| 3.4.1.2 | Location Integration | Add atmosphere field to Location class | ✅ |
+| 3.4.1.3 | DM Prompt Enhancement | Include atmosphere in location context | ✅ |
+| 3.4.1.4 | Goblin Cave Atmospheres | Add atmospheres to scenario locations | ✅ |
+| 3.4.1.5 | Tests | Unit tests for atmosphere serialization | ✅ |
 
 **LocationAtmosphere Dataclass Design:**
 ```python
@@ -1161,12 +1165,13 @@ The mood is [ominous] - let that inform your tone without stating emotions direc
 ```
 
 **Success Criteria:**
-- [ ] LocationAtmosphere dataclass with serialization
-- [ ] Location class has optional atmosphere field
-- [ ] DM prompts include atmosphere data
-- [ ] All Goblin Cave locations have atmospheres
-- [ ] Descriptions feel consistent but not repetitive
-- [ ] AI maintains creative freedom while using hints
+- [x] LocationAtmosphere dataclass with serialization (to_dict/from_dict)
+- [x] Location class has optional atmosphere field
+- [x] DM prompts include atmosphere data (build_location_context)
+- [x] Key Goblin Cave locations have atmospheres (village_square, cave_entrance, main_tunnel, boss_chamber)
+- [x] Descriptions feel consistent but not repetitive
+- [x] AI maintains creative freedom while using hints
+- [x] Added stealth_dc/perception_dc for travel menu approach mechanics
 
 ---
 

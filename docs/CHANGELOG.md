@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **AI Skill Check Improvements** - Enhanced DM prompt for 100% correct skill assignments!
+  - Added Perception vs Investigation distinction with 10+ examples
+  - Added Stealth movement rules ("any quiet movement = Stealth")
+  - Enforced existing NPC requirement for Persuasion checks
+  - Created `tests/test_skill_check_ai.py` with 25 automated tests
+  - Pass rate improved from 72% to 100%
+
 - **Party Combat Integration (Priority 7 Step 6)** - Complete party member combat system!
   - Extended `determine_turn_order()` with `party_members` parameter for unified initiative
   - `Combatant.is_ally` field and `is_enemy()` method for proper faction identification
