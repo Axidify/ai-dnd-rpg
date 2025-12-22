@@ -14,14 +14,16 @@ API_URL = "http://localhost:5000"
 
 # Test definitions: (test_id, category, player_input, expected_skill, min_dc, max_dc)
 # Tests use generic targets that always exist (villagers, people, the area)
-# Avoid specific NPCs like "guard", "elder", "merchant" that may not be in scene
+# Includes edge cases for Investigation vs Perception and Stealth movement
+# Persuasion tests now require existing NPC context (scenario starts with quest giver present)
 SKILL_CHECK_TESTS = [
-    # Persuasion Tests (1-5) - Use generic NPCs/situations
-    (1, "Persuasion", "I try to convince one of the villagers to pay me more for helping", "Persuasion", 12, 15),
-    (2, "Persuasion", "I ask a nearby person to help me with supplies", "Persuasion", 12, 15),
-    (3, "Persuasion", "I try to convince someone to give me a better reward", "Persuasion", 12, 15),
-    (4, "Persuasion", "I try to talk my way out of paying for something", "Persuasion", 12, 15),
-    (5, "Persuasion", "I attempt to haggle with someone for a better deal", "Persuasion", 12, 15),
+    # Persuasion Tests (1-5) - Require existing NPC from scenario
+    # Note: Starting scenario has Bram (quest giver) - tests negotiate with him
+    (1, "Persuasion", "I ask Bram for half the payment upfront", "Persuasion", 12, 15),
+    (2, "Persuasion", "I negotiate with the quest giver for a better reward", "Persuasion", 12, 15),
+    (3, "Persuasion", "I try to convince the farmer to pay me more", "Persuasion", 12, 15),
+    (4, "Persuasion", "I try to talk my way out of paying", "Persuasion", 12, 15),
+    (5, "Persuasion", "I plead with the quest giver for additional supplies", "Persuasion", 11, 14),
     
     # Intimidation Tests (6-8) - Use generic NPCs
     (6, "Intimidation", "I threaten someone nearby: tell me what you know or else", "Intimidation", 12, 16),
@@ -33,31 +35,31 @@ SKILL_CHECK_TESTS = [
     (10, "Deception", "I deceive someone into thinking reinforcements are coming", "Deception", 13, 15),
     (11, "Deception", "I pretend to be a simple traveler to avoid suspicion", "Deception", 12, 14),
     
-    # Perception Tests (12-14) - Work anywhere
+    # Perception Tests (12-14) - Initial spotting/noticing
     (12, "Perception", "I carefully scan my surroundings for hidden threats", "Perception", 12, 14),
     (13, "Perception", "I look for traps or ambushes in this area", "Perception", 10, 15),
     (14, "Perception", "I try to spot anything unusual or out of place", "Perception", 10, 13),
     
-    # Investigation Tests (15-16) - Use existing objects
-    (15, "Investigation", "I examine the area closely for clues about what happened here", "Investigation", 12, 15),
-    (16, "Investigation", "I investigate the nearby cart to figure out what happened", "Investigation", 12, 15),
+    # Investigation Tests (15-17) - EDGE CASES: analysis/deduction
+    (15, "Investigation", "I investigate the broken cart to figure out what happened", "Investigation", 12, 15),
+    (16, "Investigation", "I analyze the tracks to deduce their origin", "Investigation", 12, 15),
+    (17, "Investigation", "I examine the damage to understand how it was caused", "Investigation", 12, 15),
     
-    # Athletics Tests (17-19) - Physical challenges
-    (17, "Athletics", "I try to climb the large oak tree", "Athletics", 11, 14),
-    (18, "Athletics", "I leap across the stream with a running start", "Athletics", 11, 15),
-    (19, "Athletics", "I try to push the heavy cart out of the way", "Athletics", 12, 16),
+    # Stealth Tests (18-20) - EDGE CASES: includes quiet movement
+    (18, "Stealth", "I try to move through the area without being noticed", "Stealth", 12, 15),
+    (19, "Stealth", "I hide in the shadows to avoid detection", "Stealth", 12, 14),
+    (20, "Stealth", "I slip past quietly while avoiding attention", "Stealth", 12, 14),
     
-    # Stealth Tests (20-21) - Work anywhere
-    (20, "Stealth", "I try to move through the area without being noticed", "Stealth", 12, 15),
-    (21, "Stealth", "I hide in the shadows to avoid detection", "Stealth", 12, 14),
+    # Athletics Tests (21-22) - Physical challenges
+    (21, "Athletics", "I try to climb the large oak tree", "Athletics", 11, 14),
+    (22, "Athletics", "I leap across the stream with a running start", "Athletics", 11, 15),
     
-    # Knowledge Tests (22-23) - Work anywhere
-    (22, "Arcana", "I try to identify any magical auras or enchantments here", "Arcana", 13, 16),
-    (23, "History", "I try to recall legends or stories about this place", "History", 11, 14),
+    # Knowledge Tests (23-24) - Works anywhere
+    (23, "Arcana", "I try to identify any magical auras or enchantments here", "Arcana", 13, 16),
+    (24, "History", "I try to recall legends or stories about this place", "History", 11, 14),
     
-    # Insight Tests (24-25) - Use generic targets
-    (24, "Insight", "I study someone nearby to see if they're hiding something", "Insight", 11, 14),
-    (25, "Insight", "I try to read someone's body language to judge their honesty", "Insight", 10, 14),
+    # Insight Test (25) - Reading NPCs
+    (25, "Insight", "I study the quest giver to see if he's hiding something", "Insight", 11, 14),
 ]
 
 class SkillCheckTester:
