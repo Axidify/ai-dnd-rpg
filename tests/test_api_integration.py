@@ -237,6 +237,90 @@ def test_hp_fields():
     assert char['max_hp'] >= 3, f"Max HP too low: {char['max_hp']}"
 
 
+def test_reputation_list():
+    """Test the /api/reputation endpoint returns all NPCs."""
+    client = APITestClient()
+    result = client.create_character("TestHero", "Fighter", "Human", "goblin_cave")
+    session_id = result.get('session_id')
+    
+    assert session_id, "No session ID returned"
+    
+    # Call reputation endpoint
+    response = requests.get(
+        f"{BASE_URL}/reputation",
+        params={'session_id': session_id}
+    )
+    
+    assert response.status_code == 200, f"Reputation endpoint failed: {response.status_code}"
+    
+    data = response.json()
+    assert data.get('success') is True, "Reputation request not successful"
+    assert 'relationships' in data, "Missing 'relationships' in response"
+    
+    relationships = data['relationships']
+    assert len(relationships) > 0, "No NPCs returned"
+    
+    # Check NPC structure
+    first_npc = relationships[0]
+    assert 'npc_id' in first_npc, "NPC missing 'npc_id'"
+    assert 'name' in first_npc, "NPC missing 'name'"
+    assert 'disposition' in first_npc, "NPC missing 'disposition'"
+    assert 'level' in first_npc, "NPC missing 'level'"
+    assert 'label' in first_npc, "NPC missing 'label'"
+    assert 'can_trade' in first_npc, "NPC missing 'can_trade'"
+    
+    # Label should contain emoji
+    assert any(emoji in first_npc['label'] for emoji in ['🔴', '🟠', '🟡', '🟢', '🔵', '💚']), \
+        f"Label should contain tier emoji: {first_npc['label']}"
+    
+    # Check summary stats exist
+    assert 'summary' in data, "Missing summary in response"
+    assert 'total_npcs' in data['summary'], "Missing total_npcs in summary"
+
+
+def test_reputation_detail():
+    """Test the /api/reputation/<npc_id> endpoint returns NPC detail."""
+    client = APITestClient()
+    result = client.create_character("TestHero", "Fighter", "Human", "goblin_cave")
+    session_id = result.get('session_id')
+    
+    assert session_id, "No session ID returned"
+    
+    # Call reputation detail endpoint for barkeep (common NPC in tavern)
+    response = requests.get(
+        f"{BASE_URL}/reputation/barkeep",
+        params={'session_id': session_id}
+    )
+    
+    assert response.status_code == 200, f"Reputation detail failed: {response.status_code}"
+    
+    data = response.json()
+    assert data.get('success') is True, "Reputation detail not successful"
+    assert 'npc' in data, "Missing 'npc' in response"
+    
+    npc = data['npc']
+    assert npc['id'] == 'barkeep', f"Wrong NPC returned: {npc['id']}"
+    assert 'disposition' in npc, "Missing disposition"
+    assert 'price_modifier' in npc, "Missing price_modifier"
+    assert 'description' in npc, "Missing description"
+    assert 'level' in npc, "Missing level"
+    assert 'label' in npc, "Missing label"
+
+
+def test_reputation_not_found():
+    """Test that non-existent NPC returns 404."""
+    client = APITestClient()
+    result = client.create_character("TestHero", "Fighter", "Human", "goblin_cave")
+    session_id = result.get('session_id')
+    
+    response = requests.get(
+        f"{BASE_URL}/reputation/nonexistent_npc",
+        params={'session_id': session_id}
+    )
+    
+    assert response.status_code == 404, f"Expected 404, got {response.status_code}"
+
+
 def main():
     """Run all API integration tests."""
     print("=" * 60)
@@ -263,6 +347,9 @@ def main():
         ("Inventory Serialization (Enums)", test_inventory_serialization),
         ("XP Field Name", test_xp_field),
         ("HP Fields (current_hp/max_hp)", test_hp_fields),
+        ("Reputation List", test_reputation_list),
+        ("Reputation Detail", test_reputation_detail),
+        ("Reputation Not Found", test_reputation_not_found),
     ]
     
     passed = 0

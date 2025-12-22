@@ -9,6 +9,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Party Combat Integration (Priority 7 Step 6)** - Complete party member combat system!
+  - Extended `determine_turn_order()` with `party_members` parameter for unified initiative
+  - `Combatant.is_ally` field and `is_enemy()` method for proper faction identification
+  - `party_member_attack(member, target, has_flanking)` - rolls attack with optional advantage
+  - `get_party_member_action(member, enemies, allies_hp)` - AI decision logic for attack/heal/ability
+  - `check_flanking(attackers_on_target)` - returns True if 2+ allies attacking same target
+  - `format_party_member_attack()` with class-specific emoji formatting (🛡️ Fighter, 🏹 Ranger, etc.)
+  - Integrated party member combat processing in `/api/combat/attack` endpoint
+  - Party members execute actions after player attack each turn
+  - Healing Word ability triggers when ally HP drops below 50%
+  - "Party contributed X total damage!" summary on combat victory
+  - 7 new unit tests in `tests/test_party_combat.py`
+
+- **Reputation Command System** - View NPC disposition standings!
+  - New `GET /api/reputation` endpoint returns all NPC relationships sorted by disposition
+  - Each NPC includes: npc_id, name, disposition, level, label (with emoji), can_trade, location, role
+  - Summary stats: total NPCs, counts by tier (hostile/unfriendly/neutral/friendly/trusted)
+  - New `GET /api/reputation/<npc_id>` endpoint for detailed single NPC view
+  - Includes: price_modifier (discounts for friendly NPCs), available_skill_checks, full description
+  - Disposition tier labels with color-coded emojis (🔴 Hostile, 🟠 Unfriendly, 🟡 Neutral, 🟢 Friendly, 💚 Trusted)
+
 - **SkillCheckOption System** - Comprehensive skill check framework for NPCs!
   - New `SkillCheckOption` dataclass in `npc.py` with:
     * `id`, `skill`, `dc` - Check identification and difficulty
@@ -103,6 +124,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   * Lockpicks: Lily skill check, SkillCheckOption fields, item description
   * Poison: Character field, use_item application, damage bonus, consumption
   * Total test count: 927 passing
+
+- **Phase 3.6.7 Torch Darkness Mechanics** - Dark locations require light! ✅ NEW
+  * Added `is_dark: bool` field to Location dataclass
+  * Added `has_light()` method to Character class
+  * Added `check_darkness_penalty()` helper in dm_engine
+  * Added `roll_attack_with_disadvantage()` for dark combat
+  * Cave locations marked as dark: cave_tunnel, goblin_camp_shadows, goblin_storage
+  * Combat in darkness without torch: attacks have DISADVANTAGE
+  * Updated torch item description and effect
+
+- **Phase 3.6.7b Darkness Combat Integration** - Combat now applies darkness disadvantage! ✅ NEW
+  * Integrated `check_darkness_penalty()` into `/api/combat/attack` endpoint
+  * Imported `roll_attack_with_disadvantage()` in combat attack handler
+  * Attack logic: Surprise advantage + Darkness disadvantage = cancel out (normal roll)
+  * Darkness warning message prepended to combat results
+  * Full hostile player testing: 10/10 security tests pass
+  * Created `tests/test_darkness_combat.py` for integration verification
+
+- **Phase 3.6.8 Rope Utility** - Rope enables cage escape! ✅ NEW
+  * Added `bend_cage_bars` SkillCheckOption to Lily NPC (Athletics DC 14)
+  * Rope item consumed on attempt
+  * Updated rope item description with "cage escape" effect
+  * Alternative to lockpicks (Sleight of Hand) or key
+
+- **Phase 3.6.7/3.6.8 Integration Tests** - Tests for torch and rope!
+  * 11 new tests added for torch darkness mechanics
+  * 2 new tests for rope utility
+  * Total test count: 938 passing
+
+**🎉 Phase 3.6 Item Utility System: COMPLETE (8/8 features)**
 
 ### Fixed
 - **Barkeep NPC Location Dialogue** - Barkeep no longer implies all recruitable NPCs are in tavern!

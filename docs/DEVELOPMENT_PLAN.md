@@ -566,10 +566,13 @@ Priority 6 - NPC Relationships (LOW): ✅ COMPLETE
         - Quest unlocks - NOT IMPLEMENTED
         - Recruitment DC reduction - NOT IMPLEMENTED
   
-  Step 4 - Reputation Command:
-    [ ] 'reputation' or 'rep' command - NOT IMPLEMENTED
-    [ ] Display format with colored indicators - PLANNED
-    [ ] 'reputation <npc>' for detailed view - PLANNED
+  Step 4 - Reputation Command: ✅ COMPLETE
+    [x] 'reputation' or 'rep' command - GET /api/reputation endpoint
+    [x] Display format with colored indicators - Emoji tier labels (🔴🟠🟡🟢💚)
+    [x] 'reputation <npc>' for detailed view - GET /api/reputation/<npc_id>
+    [x] Price modifier shown in detailed view
+    [x] Available skill checks listed per NPC
+    [x] Summary stats (total NPCs, counts by tier)
   
   Step 5 - Dialogue Integration:
     [ ] AI prompt includes disposition level for tone adjustment
@@ -589,7 +592,7 @@ Priority 6 - NPC Relationships (LOW): ✅ COMPLETE
     [ ] Track dispositions in session state - PARTIAL
   
   Step 8 - Testing:
-    [x] tests/test_reputation.py - 47 tests passing
+    [x] tests/test_reputation.py - 55 tests passing
     [x] tests/test_reputation_hostile.py - 36 adversarial tests
     [x] Test disposition threshold detection
     [x] Test modify_disposition clamping
@@ -597,7 +600,7 @@ Priority 6 - NPC Relationships (LOW): ✅ COMPLETE
     [x] Test threshold behaviors:
         - Price changes per level ✓
         - Trade refusal at Hostile ✓
-    [ ] Test reputation command display - N/A (not implemented)
+    [x] Test reputation command display - API endpoints tested
     [x] Test save/load persistence of dispositions
 
 Priority 7 - Party System (MEDIUM): ✅ COMPLETE
@@ -651,9 +654,9 @@ Priority 7 - Party System (MEDIUM): ✅ COMPLETE
   Step 6 - Combat Integration:
     [x] Turn order defined (initiative system in party.py)
     [x] Party member combat stats (attack_bonus, damage_dice, AC)
-    [ ] Party member auto-actions (AI-controlled) - PARTIAL
-    [ ] Flanking bonus implementation - NOT YET
-    [ ] Combined attacks display - NOT YET
+    [x] Party member auto-actions (AI-controlled) - get_party_member_action()
+    [x] Flanking bonus implementation - check_flanking(), advantage on attacks
+    [x] Combined attacks display - format_party_member_attack() in combat results
     [x] One special ability use per combat per member (ability_uses_remaining)
   
   Step 7 - Class Abilities:
@@ -1167,7 +1170,7 @@ The mood is [ominous] - let that inform your tone without stating emotions direc
 
 ---
 
-### Phase 3.6: Item Utility System 🔄 In Progress
+### Phase 3.6: Item Utility System ✅ COMPLETE
 **Goal:** Give unused items mechanical purpose beyond flavor
 
 | Step | Feature | Description | Priority | Status |
@@ -1178,8 +1181,8 @@ The mood is [ominous] - let that inform your tone without stating emotions direc
 | 3.6.4 | Ancient Scroll Lore | Reading reveals secret tunnel location | HIGH | ✅ Complete |
 | 3.6.5 | Lockpicks Mechanics | Alternative to getting cage key | MEDIUM | ✅ Complete |
 | 3.6.6 | Poison Vial Combat | Apply for +1d4 poison damage | MEDIUM | ✅ Complete |
-| 3.6.7 | Torch Darkness | Required in dark locations | LOW | ⬜ |
-| 3.6.8 | Rope Utility | Climb/escape alternative routes | LOW | ⬜ |
+| 3.6.7 | Torch Darkness | Required in dark locations | LOW | ✅ Complete |
+| 3.6.8 | Rope Utility | Climb/escape alternative routes | LOW | ✅ Complete |
 
 **Item Analysis:**
 
@@ -1191,8 +1194,8 @@ The mood is [ominous] - let that inform your tone without stating emotions direc
 | `ancient_scroll` | Listed, unused | Reveals secret tunnel flag | LOW | ✅ Done |
 | `lockpicks` | No lock system | Cage escape (DC 12 Sleight) | LOW | ✅ Done |
 | `poison_vial` | Effect described | +1d4 damage on next hit | LOW | ✅ Done |
-| `torch` | Flavor only | Required for dark cave areas | MEDIUM | ⬜ |
-| `rope` | Flavor only | Climb shortcut / cage escape | MEDIUM | ⬜ |
+| `torch` | Flavor only | Required for dark cave areas | MEDIUM | ✅ Done |
+| `rope` | Flavor only | Climb shortcut / cage escape | MEDIUM | ✅ Done |
 | `rations` | No hunger system | Keep as flavor (no mechanics) | - | N/A |
 | `bedroll` | No rest system | Keep as flavor (no mechanics) | - | N/A |
 
@@ -1264,6 +1267,8 @@ LockedExit(
 - [x] Ancient scroll reveals tunnel location
 - [x] Lockpicks allow cage escape with skill check
 - [x] Poison vial adds damage to next combat attack
+- [x] Torch required in dark locations (disadvantage without)
+- [x] Rope enables Athletics cage escape option
 - [ ] All item effects documented in SCENARIO_REFERENCE.md
 
 ---
@@ -2260,10 +2265,10 @@ Priority 3 - Moderation & Safety: ⬜ NOT STARTED
   - ✅ Ancient Scroll → Secret Tunnel - Description reveals location
   - ✅ Lockpicks → Cage Escape (DC 12 Sleight of Hand, consumes lockpicks)
   - ✅ Poison Vial Combat Bonus (+1d4 damage, consumed after hit)
+  - ✅ Torch Darkness Mechanics (Required in dark areas, disadvantage without)
+  - ✅ Rope Utility (Athletics DC 14 cage escape)
 
-**Upcoming (Phase 3.6 Remaining):**
-- ⬜ Torch Darkness Mechanics (Required in dark areas)
-- ⬜ Rope Utility (Climb/escape alternatives)
+**🎉 Phase 3.6 Item Utility System: COMPLETE (8/8 features)**
 - ✅ **Phase 4.5: World Map UI** - React WorldMap.jsx with visual map, click-to-travel
 - ✅ **Phase 3.3.7: Party System** - 72 tests, 3 recruitable NPCs, class abilities
 

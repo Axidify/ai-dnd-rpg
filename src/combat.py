@@ -3,6 +3,7 @@ Combat System for AI D&D Text RPG
 Handles attack rolls, damage, and combat encounters.
 """
 
+import html
 import random
 from dataclasses import dataclass, field
 from typing import Optional, Tuple, List
@@ -352,7 +353,12 @@ class Combatant:
     name: str
     initiative: int
     is_player: bool
-    entity: any  # Character or Enemy
+    entity: any  # Character, Enemy, or PartyMember
+    is_ally: bool = False  # True for party members (Phase 3.5 P7 Step 6)
+    
+    def is_enemy(self) -> bool:
+        """Check if this combatant is an enemy."""
+        return not self.is_player and not self.is_ally
 
 
 def roll_initiative(dex_modifier: int) -> dict:
@@ -373,10 +379,17 @@ def format_initiative_roll(name: str, result: dict) -> str:
 
 
 def determine_turn_order(player_name: str, player_dex_mod: int, 
-                         enemies: list[Enemy]) -> list[Combatant]:
+                         enemies: list[Enemy], 
+                         party_members: list = None) -> list[Combatant]:
     """
     Roll initiative for all combatants and determine turn order.
     Returns sorted list of Combatants (highest initiative first).
+    
+    Args:
+        player_name: The player character's name
+        player_dex_mod: Player's DEX modifier
+        enemies: List of Enemy objects
+        party_members: Optional list of PartyMember objects (from party.py)
     """
     combatants = []
     
@@ -389,6 +402,23 @@ def determine_turn_order(player_name: str, player_dex_mod: int,
         entity=None  # Will be set externally
     ))
     
+    # Party member initiatives (Phase 3.5 P7 Step 6)
+    if party_members:
+        for member in party_members:
+            if hasattr(member, 'is_dead') and member.is_dead:
+                continue  # Skip dead party members
+            if hasattr(member, 'recruited') and not member.recruited:
+                continue  # Skip non-recruited members
+            member_init = roll_initiative(getattr(member, 'dex_modifier', 2))
+            member.initiative = member_init['total']
+            combatants.append(Combatant(
+                name=member.name,
+                initiative=member_init['total'],
+                is_player=False,  # Not player, but ally
+                entity=member,
+                is_ally=True  # Mark as party member
+            ))
+    
     # Enemy initiatives
     for enemy in enemies:
         enemy_init = roll_initiative(enemy.dex_modifier)
@@ -397,7 +427,8 @@ def determine_turn_order(player_name: str, player_dex_mod: int,
             name=enemy.name,
             initiative=enemy_init['total'],
             is_player=False,
-            entity=enemy
+            entity=enemy,
+            is_ally=False  # Enemy
         ))
     
     # Sort by initiative (descending), ties go to higher DEX
@@ -554,6 +585,47 @@ def roll_attack_with_advantage(character: Character, target_ac: int, weapon_name
     }
 
 
+def roll_attack_with_disadvantage(character: Character, target_ac: int, weapon_name: str = 'longsword') -> dict:
+    """
+    Roll an attack with DISADVANTAGE (roll 2d20, take lower).
+    Used when player is in darkness without light or other hindering conditions.
+    Returns dict with roll details and hit/miss, plus both rolls shown.
+    """
+    weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['longsword'])
+    attack_bonus = calculate_attack_bonus(character, weapon_name)
+    
+    # Roll 2d20, take lower
+    roll1 = random.randint(1, 20)
+    roll2 = random.randint(1, 20)
+    d20_roll = min(roll1, roll2)
+    total = d20_roll + attack_bonus
+    
+    is_nat_20 = d20_roll == 20 and roll1 == 20 and roll2 == 20  # Both must be 20 for crit with disadvantage
+    is_nat_1 = d20_roll == 1
+    
+    # Nat 20 always hits, Nat 1 always misses
+    if is_nat_20:
+        hit = True
+    elif is_nat_1:
+        hit = False
+    else:
+        hit = total >= target_ac
+    
+    return {
+        'weapon': weapon_name.title(),
+        'd20_roll': d20_roll,
+        'd20_roll_1': roll1,
+        'd20_roll_2': roll2,
+        'has_disadvantage': True,
+        'attack_bonus': attack_bonus,
+        'total': total,
+        'target_ac': target_ac,
+        'hit': hit,
+        'is_crit': is_nat_20,
+        'is_fumble': is_nat_1,
+    }
+
+
 def roll_damage(character: Character, weapon_name: str = 'longsword', is_crit: bool = False) -> dict:
     """
     Roll damage for a weapon hit.
@@ -611,10 +683,13 @@ def format_attack_result(attack: dict) -> str:
     """Format attack roll for display."""
     bonus_sign = '+' if attack['attack_bonus'] >= 0 else ''
     
-    # Format roll display (with advantage shows both rolls)
+    # Format roll display (with advantage/disadvantage shows both rolls)
     if attack.get('has_advantage'):
         roll_display = f"[{attack['d20_roll_1']}, {attack['d20_roll_2']}→{attack['d20_roll']}]"
         adv_label = "⬆️ ADV "
+    elif attack.get('has_disadvantage'):
+        roll_display = f"[{attack['d20_roll_1']}, {attack['d20_roll_2']}→{attack['d20_roll']}]"
+        adv_label = "⬇️ DIS "
     else:
         roll_display = f"[{attack['d20_roll']}]"
         adv_label = ""
@@ -742,6 +817,191 @@ def format_enemy_attack(attack: dict, damage: Optional[dict]) -> str:
         line1 += f"\n   You take {damage['total']} damage{crit_note}!"
     
     return line1
+
+
+# =============================================================================
+# PARTY MEMBER COMBAT (Phase 3.5 P7 Step 6)
+# =============================================================================
+
+def party_member_attack(member, target, has_flanking: bool = False) -> Tuple[dict, Optional[dict]]:
+    """
+    Party member attacks an enemy.
+    
+    Args:
+        member: PartyMember object
+        target: Enemy object
+        has_flanking: True if 2+ allies attacking same target (advantage)
+        
+    Returns (attack_result, damage_result or None).
+    """
+    attack_bonus = getattr(member, 'attack_bonus', 4)
+    damage_dice = getattr(member, 'damage_dice', '1d8+2')
+    
+    # Roll attack (with advantage if flanking)
+    if has_flanking:
+        roll1 = random.randint(1, 20)
+        roll2 = random.randint(1, 20)
+        d20_roll = max(roll1, roll2)
+    else:
+        d20_roll = random.randint(1, 20)
+        roll1, roll2 = d20_roll, None
+    
+    total = d20_roll + attack_bonus
+    
+    is_nat_20 = d20_roll == 20
+    is_nat_1 = d20_roll == 1
+    
+    if is_nat_20:
+        hit = True
+    elif is_nat_1:
+        hit = False
+    else:
+        hit = total >= target.armor_class
+    
+    attack_result = {
+        'attacker': member.name,
+        'd20_roll': d20_roll,
+        'd20_roll_1': roll1,
+        'd20_roll_2': roll2,
+        'has_flanking': has_flanking,
+        'attack_bonus': attack_bonus,
+        'total': total,
+        'target_ac': target.armor_class,
+        'target_name': target.name,
+        'hit': hit,
+        'is_crit': is_nat_20,
+        'is_fumble': is_nat_1,
+    }
+    
+    damage_result = None
+    if hit:
+        damage_total, rolls = roll_dice(damage_dice)
+        if is_nat_20:
+            crit_total, _ = roll_dice(damage_dice)
+            damage_total += crit_total
+        
+        damage_result = {
+            'attacker': member.name,
+            'total': max(1, damage_total),  # Damage bonus already in damage_dice
+            'rolls': rolls,
+            'is_crit': is_nat_20,
+        }
+    
+    return attack_result, damage_result
+
+
+def format_party_member_attack(attack: dict, damage: Optional[dict], member_class: str = "Fighter") -> str:
+    """Format party member attack for display."""
+    # Sanitize user-controlled strings to prevent XSS
+    attacker_name = html.escape(str(attack.get('attacker', 'Unknown')))
+    target_name = html.escape(str(attack.get('target_name', 'Enemy')))
+    
+    # Class emoji mapping
+    class_emoji = {
+        "Fighter": "🛡️",
+        "Ranger": "🏹",
+        "Rogue": "🗡️",
+        "Cleric": "✝️",
+        "Wizard": "🔮",
+    }
+    emoji = class_emoji.get(member_class, "⚔️")
+    bonus_sign = '+' if attack['attack_bonus'] >= 0 else ''
+    
+    # Format roll display
+    if attack.get('has_flanking') and attack.get('d20_roll_2'):
+        roll_display = f"[{attack['d20_roll_1']}, {attack['d20_roll_2']}→{attack['d20_roll']}]"
+        flank_label = "⚔️ FLANKING "
+    else:
+        roll_display = f"[{attack['d20_roll']}]"
+        flank_label = ""
+    
+    line1 = (
+        f"{emoji} {attacker_name} {flank_label}attacks {target_name}: "
+        f"{roll_display}{bonus_sign}{attack['attack_bonus']} = {attack['total']} "
+        f"vs AC {attack['target_ac']}"
+    )
+    
+    if attack['is_crit']:
+        line1 += " → ⚡ CRITICAL HIT!"
+    elif attack['is_fumble']:
+        line1 += " → 💥 MISS!"
+        return line1
+    elif attack['hit']:
+        line1 += " → ✅ HIT!"
+    else:
+        line1 += " → ❌ MISS"
+        return line1
+    
+    if damage:
+        crit_note = " (CRITICAL!)" if damage['is_crit'] else ""
+        line1 += f" {damage['total']} damage{crit_note}!"
+    
+    return line1
+
+
+def check_flanking(attackers_on_target: int) -> bool:
+    """
+    Check if flanking bonus applies (simplified D&D 5e flanking).
+    In this simplified version, 2+ allies attacking same target = flanking.
+    
+    Args:
+        attackers_on_target: Number of party members (including player) targeting this enemy
+        
+    Returns True if flanking bonus applies.
+    """
+    return attackers_on_target >= 2
+
+
+def get_party_member_action(member, enemies: list, allies_hp: dict) -> dict:
+    """
+    AI decision for what a party member does on their turn.
+    
+    Args:
+        member: PartyMember object
+        enemies: List of living Enemy objects
+        allies_hp: Dict mapping ally name -> (current_hp, max_hp)
+        
+    Returns dict with: action_type, target, use_ability
+    """
+    char_class = getattr(member, 'char_class', None)
+    class_name = char_class.value if hasattr(char_class, 'value') else str(char_class)
+    
+    # Check if should use ability
+    can_use_ability = getattr(member, 'can_use_ability', lambda: False)()
+    
+    # Cleric: Heal if any ally below 50% HP
+    if class_name == "Cleric" and can_use_ability:
+        for ally_name, (current, maximum) in allies_hp.items():
+            if current / maximum < 0.5:
+                return {
+                    'action_type': 'ability',
+                    'target': ally_name,
+                    'use_ability': True,
+                    'ability_name': 'Healing Word'
+                }
+    
+    # Fighter: Use Shield Wall if any ally below 30% HP
+    if class_name == "Fighter" and can_use_ability:
+        for ally_name, (current, maximum) in allies_hp.items():
+            if current / maximum < 0.3:
+                return {
+                    'action_type': 'ability',
+                    'target': None,
+                    'use_ability': True,
+                    'ability_name': 'Shield Wall'
+                }
+    
+    # Default: Attack lowest HP enemy
+    if enemies:
+        target = min(enemies, key=lambda e: e.current_hp)
+        return {
+            'action_type': 'attack',
+            'target': target,
+            'use_ability': False,
+            'ability_name': None
+        }
+    
+    return {'action_type': 'wait', 'target': None, 'use_ability': False}
 
 
 # =============================================================================

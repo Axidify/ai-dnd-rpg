@@ -1,0 +1,434 @@
+{
+  "timestamp": "2025-12-22T13:04:08.585256",
+  "total_tests": 25,
+  "passed": 18,
+  "failed": 6,
+  "warned": 1,
+  "results": [
+    {
+      "test_id": 1,
+      "category": "Persuasion",
+      "player_input": "I try to convince one of the villagers to pay me more for helping",
+      "expected_skill": "Persuasion",
+      "expected_dc_range": "12-15",
+      "status": "FAIL",
+      "dm_response": "You approach a group of villagers chatting near the well. As you speak of being paid for help, a farmer with a grim expression and calloused hands turns to you. He eyes your weapons and armor with a mix of hope and weariness.\n\n\"Help?\" he says, his voice rough. \"Aye, the whole village needs help. Goblins from the northern caves have been getting bolder. Stole two of my best sheep last week.\" He spits on the ground. \"But we're farmers, not lords. We have little coin to spare for sellswords, no mat",
+      "analysis": {
+        "has_skill_check": false,
+        "skill_found": null,
+        "dc_found": null,
+        "correct_skill": false,
+        "correct_dc": false,
+        "error": "No skill check found in response"
+      }
+    },
+    {
+      "test_id": 2,
+      "category": "Persuasion",
+      "player_input": "I ask a nearby person to help me with supplies",
+      "expected_skill": "Persuasion",
+      "expected_dc_range": "12-15",
+      "status": "FAIL",
+      "dm_response": "You spot a young woman with flour dusting her apron, her arms loaded with a basket of fresh loaves from the baker. She seems charitable, perhaps a bit naive. Deciding to try your luck, you approach her with a carefully crafted story in mind, hoping to secure some provisions without parting with your coin.\n\nAdopting an air of urgent importance, you intercept her near the fountain. \"Pardon me, good woman,\" you say, your voice low and serious. \"I've been tasked by the village elder to scout the nor",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Deception",
+        "dc_found": 13,
+        "correct_skill": false,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 3,
+      "category": "Persuasion",
+      "player_input": "I try to convince someone to give me a better reward",
+      "expected_skill": "Persuasion",
+      "expected_dc_range": "12-15",
+      "status": "FAIL",
+      "dm_response": "You look around the square, trying to find someone who looks like they might be in need of a hero's service. The villagers you see are simple folk, busy with their daily lives. A woman is drawing water from the well, a farmer is haggling over the price of potatoes with a street vendor, and a few children are chasing a stray dog through the square.\n\nNone of them seem to be offering a quest, and when you try to catch their eye, they simply offer a polite but brief nod before returning to their bus",
+      "analysis": {
+        "has_skill_check": false,
+        "skill_found": null,
+        "dc_found": null,
+        "correct_skill": false,
+        "correct_dc": false,
+        "error": "No skill check found in response"
+      }
+    },
+    {
+      "test_id": 4,
+      "category": "Persuasion",
+      "player_input": "I try to talk my way out of paying for something",
+      "expected_skill": "Persuasion",
+      "expected_dc_range": "12-15",
+      "status": "PASS",
+      "dm_response": "As you stand in the center of the square, a burly man in a slightly-too-small leather jerkin, emblazoned with the faded crest of a willow tree, approaches you. He plants his feet wide, resting a calloused hand on the pommel of a worn longsword at his hip. His expression is one of pure, unadulterated boredom.\n\n\"Hold there, traveler,\" he says, his voice a low monotone. \"By order of the village elder, all armed folk new to Willowbrook must pay the five-coin visitor's tax. For... uh... road maintena",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Persuasion",
+        "dc_found": 12,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 5,
+      "category": "Persuasion",
+      "player_input": "I attempt to haggle with someone for a better deal",
+      "expected_skill": "Persuasion",
+      "expected_dc_range": "12-15",
+      "status": "FAIL",
+      "dm_response": "You stand in the middle of the square, a desire for a good bargain in your heart. The villagers milling about are engrossed in their own conversations, trading pleasantries and rumors rather than goods. There are no market stalls set up, no merchants hawking their wares for you to test your silver tongue against.\n\nIf you're looking to buy or sell, you'd likely need to visit a proper establishment. The rhythmic clang of the blacksmith's hammer from the east suggests a place of business, and the l",
+      "analysis": {
+        "has_skill_check": false,
+        "skill_found": null,
+        "dc_found": null,
+        "correct_skill": false,
+        "correct_dc": false,
+        "error": "No skill check found in response"
+      }
+    },
+    {
+      "test_id": 6,
+      "category": "Intimidation",
+      "player_input": "I threaten someone nearby: tell me what you know or else",
+      "expected_skill": "Intimidation",
+      "expected_dc_range": "12-16",
+      "status": "PASS",
+      "dm_response": "You grab the arm of a startled-looking farmer who is leading a stubborn donkey laden with firewood. He's a man of simple means, with dirt under his fingernails and a weathered face that has seen too many seasons. He flinches at your sudden, aggressive action, his eyes wide with fear. The donkey lets out a disgruntled bray.\n\n\"W-what? What's this all about?\" the farmer stammers, trying to pull his arm away from your grip. \"I'm just a simple man, I know nothing of any importance!\" He glances around",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Intimidation",
+        "dc_found": 13,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 7,
+      "category": "Intimidation",
+      "player_input": "I grab a villager by the collar and demand answers",
+      "expected_skill": "Intimidation",
+      "expected_dc_range": "13-16",
+      "status": "PASS",
+      "dm_response": "You stride forward and seize the nearest villager, a portly man in a flour-dusted apron, by the collar of his simple tunic. He lets out a startled yelp, his eyes wide with terror. A half-eaten apple drops from his hand and rolls into the gutter. He raises his hands in a gesture of panicked surrender, his whole body trembling under your grip.\n\n\"W-what do you want?\" he stammers, his voice barely a whisper. \"Please, I... I don't have any coin, just... just on my way home.\" He's clearly terrified, h",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Intimidation",
+        "dc_found": 13,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 8,
+      "category": "Intimidation",
+      "player_input": "I use threatening body language to make someone talk",
+      "expected_skill": "Intimidation",
+      "expected_dc_range": "12-15",
+      "status": "PASS",
+      "dm_response": "You fix your gaze on a nearby villager, a farmer leading a stubborn goat on a rope. You square your shoulders, puff out your chest, and let your hand rest deliberately on the pommel of your weapon. Your expression hardens as you take a slow, deliberate step towards him, your eyes narrowed.\n\nThe farmer, a man with a sun-weathered face and dirt under his fingernails, stops in his tracks. He sees your approach, and his eyes widen slightly. He swallows hard, pulling his goat a little closer as if fo",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Intimidation",
+        "dc_found": 13,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 9,
+      "category": "Deception",
+      "player_input": "I lie about being sent here on official business",
+      "expected_skill": "Deception",
+      "expected_dc_range": "13-16",
+      "status": "PASS",
+      "dm_response": "As you stand there, trying to project an air of importance, a portly man in a flour-dusted apron sweeping the steps of a nearby bakery pauses and squints at you. He leans on his broom, his expression a mixture of curiosity and suspicion. \"Haven't seen you 'round these parts before, stranger,\" he calls out, his voice wary.\n\nYou seize the opportunity, puffing out your chest and adopting a stern, official tone. \"I am here on official business,\" you declare, hoping the authority in your voice masks ",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Deception",
+        "dc_found": 14,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 10,
+      "category": "Deception",
+      "player_input": "I deceive someone into thinking reinforcements are coming",
+      "expected_skill": "Deception",
+      "expected_dc_range": "13-15",
+      "status": "PASS",
+      "dm_response": "You approach a pair of villagers huddled near the central well, their faces etched with worry. One, a stout man with a leather apron, is speaking in a low voice to a woman clutching a basket of laundry. You clear your throat, adopting an air of confidence and authority.\n\n\"Fear not,\" you announce, your voice carrying across the square. \"I've just come from the capital. The King's guard is on its way. A full platoon will be here by week's end to deal with this goblin nuisance for good.\"\n\nThe villa",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Deception",
+        "dc_found": 14,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 11,
+      "category": "Deception",
+      "player_input": "I pretend to be a simple traveler to avoid suspicion",
+      "expected_skill": "Deception",
+      "expected_dc_range": "12-14",
+      "status": "PASS",
+      "dm_response": "You consciously relax your warrior's posture, letting your shoulders slump and your hand drift away from the pommel of your weapon. You adopt the air of a simple traveler, perhaps a farmhand looking for seasonal work or a merchant's guard on a day off, hoping to appear unassuming to the locals. You put on a placid expression, observing the village life as if it were a passing curiosity.\n\nThe question is, how convincing is your performance? Do the wary villagers see a harmless journeyman, or do t",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Deception",
+        "dc_found": 12,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 12,
+      "category": "Perception",
+      "player_input": "I carefully scan my surroundings for hidden threats",
+      "expected_skill": "Perception",
+      "expected_dc_range": "12-14",
+      "status": "PASS",
+      "dm_response": "You take a moment to pause, your hand resting instinctively on the hilt of your weapon. Your gaze sweeps across the square, moving from the thatched rooftops to the shadowed alleyways between buildings. You watch the villagers, noting their casual gaits and easy conversations, but also pay attention to the darker corners and the silent spaces where a threat might lurk.\n\n[ROLL: Perception DC 12]\n\n\ud83c\udfb2 Perception Check (DC 12): rolled 11 -1 = 10 \u274c\n\nYou scan the square, your eyes trained for any sign ",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Perception",
+        "dc_found": 12,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 13,
+      "category": "Perception",
+      "player_input": "I look for traps or ambushes in this area",
+      "expected_skill": "Perception",
+      "expected_dc_range": "10-15",
+      "status": "PASS",
+      "dm_response": "You pause, your hand resting instinctively near the hilt of your weapon. Your gaze sweeps across the square, scanning the thatched rooftops for hidden archers, the dark alleyways for lurking figures, and the faces of the few villagers for any sign of ill intent. The village seems peaceful, but experience has taught you that danger can hide in the most unassuming places.\n\n[ROLL: Perception DC 10]\n\n\ud83c\udfb2 Perception Check (DC 10): rolled 14 -1 = 13 \u2705\n\nYour keen eyes find no signs of an ambush. The vill",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Perception",
+        "dc_found": 10,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 14,
+      "category": "Perception",
+      "player_input": "I try to spot anything unusual or out of place",
+      "expected_skill": "Perception",
+      "expected_dc_range": "10-13",
+      "status": "PASS",
+      "dm_response": "You take a moment to slow your breathing, your gaze sweeping across the scene with a practiced eye. You tune out the rhythmic clang of the blacksmith's hammer and the low murmur of the villagers, focusing instead on the details. You scan the thatched rooftops for hidden watchers, the dark alleyways for lurking figures, and the faces in the crowd for anyone who seems more than just a concerned local.\n\nThe scene is one of quiet desperation, but your training tells you there might be more to it tha",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Perception",
+        "dc_found": 12,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 15,
+      "category": "Investigation",
+      "player_input": "I examine the area closely for clues about what happened here",
+      "expected_skill": "Investigation",
+      "expected_dc_range": "12-15",
+      "status": "FAIL",
+      "dm_response": "You decide to take a moment to survey the square more intently, your gaze sweeping past the obvious landmarks to search for details that others might overlook. You scan the cobblestones for unusual tracks, study the notice board for fresh postings, and observe the expressions of the villagers as they pass, hoping to piece together a clearer picture of the troubles plaguing this small settlement.\n\n[ROLL: Perception DC 12]\n\n\ud83c\udfb2 Perception Check (DC 12): rolled 1 +1 = 2 \ud83d\udc80 CRITICAL FAILURE!\n\nAs you sc",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Perception",
+        "dc_found": 12,
+        "correct_skill": false,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 16,
+      "category": "Investigation",
+      "player_input": "I investigate the nearby cart to figure out what happened",
+      "expected_skill": "Investigation",
+      "expected_dc_range": "12-15",
+      "status": "PASS",
+      "dm_response": "You approach a small, overturned handcart resting near the central well, its presence a stark contrast to the otherwise orderly square. One of its wooden wheels is shattered, the spokes jutting out at odd angles. A few burlap sacks have been torn open, spilling a meager collection of potatoes and onions across the cobblestones. It looks as though it was abandoned in a great hurry.\n\nYou kneel, running a hand over the splintered wood of the wheel and observing the scattered produce. The scene tell",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Investigation",
+        "dc_found": 12,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 17,
+      "category": "Athletics",
+      "player_input": "I try to climb the large oak tree",
+      "expected_skill": "Athletics",
+      "expected_dc_range": "11-14",
+      "status": "PASS",
+      "dm_response": "The ancient oak tree stands as a silent guardian of the square, its thick, gnarled branches reaching towards the sky like weathered arms. Its rough bark offers what looks like a decent purchase for a determined climber. A few villagers glance over, their curiosity piqued by your sudden interest in scaling the local landmark.\n\nYou approach the massive trunk, eyeing a path upwards through the twisting limbs. The lowest branches are just out of reach, requiring a strong leap and a firm grip to begi",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Athletics",
+        "dc_found": 12,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 18,
+      "category": "Athletics",
+      "player_input": "I leap across the stream with a running start",
+      "expected_skill": "Athletics",
+      "expected_dc_range": "11-15",
+      "status": "WARN",
+      "dm_response": "You back up a few paces, your boots crunching on the gravelly edge of the square. Ahead of you is a wide, muddy drainage ditch, a gurgling stream of runoff from the well. It's about ten feet across, a leap that will require some effort to clear cleanly.\n\nTaking a deep breath, you break into a sprint, your eyes fixed on the far side. You plant your foot, preparing to launch yourself across the gap.\n\n[ROLL: Athletics DC 10]\n\n\ud83c\udfb2 Athletics Check (DC 10): rolled 4 +1 = 5 \u274c\n\nYou push off, but your timi",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Athletics",
+        "dc_found": 10,
+        "correct_skill": true,
+        "correct_dc": false,
+        "error": null
+      }
+    },
+    {
+      "test_id": 19,
+      "category": "Athletics",
+      "player_input": "I try to push the heavy cart out of the way",
+      "expected_skill": "Athletics",
+      "expected_dc_range": "12-16",
+      "status": "PASS",
+      "dm_response": "You eye a large, two-wheeled cart parked near the center of the square, laden with what appear to be heavy sacks of flour. It's blocking a direct path towards the tavern. It looks like its owner has left it unattended for the moment.\n\nPlanting your feet on the uneven cobblestones, you grip the rough, splintery wood of the cart's frame. You tense your muscles and put your shoulder into it, attempting to shove the dead weight aside. The cart groans, creaking in protest, but barely moves an inch. I",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Athletics",
+        "dc_found": 13,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 20,
+      "category": "Stealth",
+      "player_input": "I try to move through the area without being noticed",
+      "expected_skill": "Stealth",
+      "expected_dc_range": "12-15",
+      "status": "FAIL",
+      "dm_response": "You attempt to move with a quiet purpose, keeping to the edges of the crowd and avoiding direct eye contact. You use the flow of villagers crossing the square as cover, your eyes scanning faces and darting into the shadowed alleyways between buildings. The general din of village life\u2014merchants hawking their wares, children shouting, the blacksmith's steady hammer\u2014provides a decent cover for observation.\n\nWhile most people are absorbed in their daily routines, you wonder if there's anything more ",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Perception",
+        "dc_found": 12,
+        "correct_skill": false,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 21,
+      "category": "Stealth",
+      "player_input": "I hide in the shadows to avoid detection",
+      "expected_skill": "Stealth",
+      "expected_dc_range": "12-14",
+      "status": "PASS",
+      "dm_response": "You glance around the bustling square, seeking a pocket of shadow to melt into. The midday sun offers little in the way of deep cover, but you spot a narrow, refuse-strewn alleyway between the blacksmith's forge and a tanner's shop. It stinks of curing hides and hot metal, but it might just be enough to conceal you from a casual glance.\n\nYou attempt to slip out of the main square unnoticed, using the flow of villagers as a screen. Your goal is to press yourself into the alley's entrance, hoping ",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Stealth",
+        "dc_found": 13,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 22,
+      "category": "Arcana",
+      "player_input": "I try to identify any magical auras or enchantments here",
+      "expected_skill": "Arcana",
+      "expected_dc_range": "13-16",
+      "status": "PASS",
+      "dm_response": "You close your eyes for a moment, focusing your senses beyond the mundane sights and sounds of the square. You attempt to feel the subtle flows of magical energy, searching for any lingering enchantments or potent auras that might be present in the open air, on the cobblestones, or emanating from the nearby buildings.\n\n[ROLL: Arcana DC 14]\n\n\ud83c\udfb2 Arcana Check (DC 14): rolled 6 +3 = 9 \u274c\n\nYou focus intently, trying to attune your senses to the weave of magic, but the world remains stubbornly mundane. ",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Arcana",
+        "dc_found": 14,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 23,
+      "category": "History",
+      "player_input": "I try to recall legends or stories about this place",
+      "expected_skill": "History",
+      "expected_dc_range": "11-14",
+      "status": "PASS",
+      "dm_response": "You take a moment, closing your eyes and filtering out the sounds of the village. You reach back into your memory, sifting through the tales told by grizzled merchants in roadside inns and the fragmented histories you may have read in the past. You try to place Willowbrook, the Whisperwood, or any local legends of note.\n\nIt's a familiar process, trying to connect the dots of folklore and fact, to see if any old warnings or heroic tales surface in your mind that might be of use now.\n\n[ROLL: Histo",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "History",
+        "dc_found": 12,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 24,
+      "category": "Insight",
+      "player_input": "I study someone nearby to see if they're hiding something",
+      "expected_skill": "Insight",
+      "expected_dc_range": "11-14",
+      "status": "PASS",
+      "dm_response": "You focus your attention on the small clusters of villagers scattered around the square. Their faces are etched with worry, and they cast nervous glances towards the northern road that leads into the darkening woods. Their conversations are low and furtive, and they pull their children a little closer as evening approaches.\n\nYou try to read their expressions and body language, hoping to glean more than just general unease. Is this the typical caution of a small village on the edge of the wilds, ",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Insight",
+        "dc_found": 12,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    },
+    {
+      "test_id": 25,
+      "category": "Insight",
+      "player_input": "I try to read someone's body language to judge their honesty",
+      "expected_skill": "Insight",
+      "expected_dc_range": "10-14",
+      "status": "PASS",
+      "dm_response": "You focus your attention on a small group of villagers huddled near a market stall, their backs to the well. A farmer, a woman with a basket of laundry, and a young man in a leather apron are speaking in low, urgent tones. They keep glancing nervously up the northern path leading into the Whispering Woods.\n\nYou watch them from a distance, trying to gauge the truth of the rumors from their expressions alone. Are they merely spooked by old tales, or is their fear rooted in something fresh and real",
+      "analysis": {
+        "has_skill_check": true,
+        "skill_found": "Insight",
+        "dc_found": 11,
+        "correct_skill": true,
+        "correct_dc": true,
+        "error": null
+      }
+    }
+  ]
+}

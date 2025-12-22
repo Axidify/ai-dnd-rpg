@@ -202,15 +202,17 @@ ITEMS = {
     "torch": Item(
         name="Torch",
         item_type=ItemType.MISC,
-        description="Provides light in dark places.",
+        description="Provides light in dark places. Required in dark cave areas to avoid combat disadvantage.",
         stackable=True,
-        value=1
+        value=1,
+        effect="Prevents darkness penalties in dark locations"
     ),
     "rope": Item(
         name="Rope (50 ft)",
         item_type=ItemType.MISC,
-        description="Hempen rope, useful for climbing.",
-        value=1
+        description="Hempen rope, useful for climbing. Can be used for skill checks to free caged prisoners.",
+        value=1,
+        effect="Enables Athletics checks for cage escape"
     ),
     "lockpicks": Item(
         name="Thieves' Tools",

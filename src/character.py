@@ -224,6 +224,20 @@ class Character:
         needed = next_threshold - current_threshold
         return (progress, needed)
     
+    def has_light(self) -> bool:
+        """
+        Check if character has a light source in inventory (Phase 3.6.7).
+        
+        Returns True if character has a torch or lantern.
+        Used for darkness penalties in dark locations.
+        """
+        light_items = ["torch", "lantern"]
+        for item in self.inventory:
+            item_name = item.name.lower() if hasattr(item, 'name') else str(item).lower()
+            if any(light in item_name for light in light_items):
+                return True
+        return False
+    
     def level_up(self) -> dict:
         """
         Level up the character with appropriate benefits.

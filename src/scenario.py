@@ -619,6 +619,9 @@ class Location:
     map_region: str = "default"          # Region/zone this location belongs to
     map_hidden: bool = False             # If True, not shown on map until visited/discovered
     
+    # Phase 3.6.7 - Darkness Mechanics
+    is_dark: bool = False                # If True, requires torch for full visibility
+    
     # State (runtime)
     visited: bool = False
     visit_count: int = 0                                    # Times player has entered this location
@@ -2223,6 +2226,20 @@ def create_goblin_cave_npcs() -> NPCManager:
                 consumes_item=True
             ),
             SkillCheckOption(
+                id="bend_cage_bars",
+                skill="athletics",
+                dc=14,
+                description="Use rope to bend the cage bars apart",
+                success_effect="flag:freed_lily_rope",
+                success_dialogue="You loop the rope around the weakest bar and pull with all your might. "
+                               "*CREAK* The bar bends just enough for Lily to squeeze through! "
+                               "'You're so strong!'",
+                failure_dialogue="The bar groans but holds firm. You'll need more leverage... "
+                               "or a different approach.",
+                requires_item="rope",
+                consumes_item=True
+            ),
+            SkillCheckOption(
                 id="encourage_escape_help",
                 skill="persuasion",
                 dc=8,
@@ -2830,6 +2847,7 @@ def create_goblin_cave_scenario() -> Scenario:
             direction_aliases={"w": "outside", "west": "outside", "u": "outside", "up": "outside", "e": "deeper", "east": "deeper", "d": "deeper", "down": "deeper"},
             npcs=[],
             items=[],
+            is_dark=True,  # Phase 3.6.7: Requires torch for full visibility
             atmosphere_text="Pitch black without light, dripping water, echoing sounds",
             enter_text="You descend into the darkness. The light fades behind you.",
             # Phase 3.2.1 Priority 7: Random encounters
@@ -2902,6 +2920,7 @@ def create_goblin_cave_scenario() -> Scenario:
             direction_aliases={"s": "camp", "south": "camp", "e": "cages", "east": "cages", "n": "chief", "north": "chief"},
             npcs=["shade"],
             items=["poison_vial", "dagger", "storage_key"],
+            is_dark=True,  # Phase 3.6.7: Dark alcove, requires torch
             atmosphere_text="Hidden, good vantage point for surprise attack",
             enter_text="You slip into the shadows. From here you can see the whole camp.",
             events=[
@@ -2924,6 +2943,7 @@ def create_goblin_cave_scenario() -> Scenario:
             direction_aliases={"n": "camp", "north": "camp"},
             npcs=[],
             items=["healing_potion", "healing_potion", "gold_pouch", "shortsword", "leather_armor", "silver_locket", "family_ring"],
+            is_dark=True,  # Phase 3.6.7: No windows, requires torch
             atmosphere_text="Musty, piles of stolen village goods, potential treasure",
             enter_text="The storage door creaks open. You've found the goblins' loot stash!",
             events=[

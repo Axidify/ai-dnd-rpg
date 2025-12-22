@@ -325,3 +325,156 @@ class TestPoisonVialMechanics:
         # Restore character
         restored = Character.from_dict(data)
         assert restored.weapon_poisoned is True
+
+
+# =============================================================================
+# Phase 3.6.7 Tests - Torch Darkness Mechanics
+# =============================================================================
+
+class TestTorchDarknessMechanics:
+    """Test torch requirement for dark locations."""
+    
+    def test_location_has_is_dark_field(self):
+        """Location has is_dark field."""
+        from scenario import Location
+        
+        loc = Location(id="test", name="Test", description="Test")
+        assert hasattr(loc, 'is_dark')
+        assert loc.is_dark is False  # Default is not dark
+    
+    def test_cave_tunnel_is_dark(self):
+        """Cave tunnel location is marked as dark."""
+        from scenario import create_goblin_cave_scenario
+        
+        scenario = create_goblin_cave_scenario()
+        tunnel = scenario.location_manager.locations.get("cave_tunnel")
+        
+        assert tunnel is not None
+        assert tunnel.is_dark is True
+    
+    def test_goblin_shadows_is_dark(self):
+        """Goblin camp shadows location is marked as dark."""
+        from scenario import create_goblin_cave_scenario
+        
+        scenario = create_goblin_cave_scenario()
+        shadows = scenario.location_manager.locations.get("goblin_camp_shadows")
+        
+        assert shadows is not None
+        assert shadows.is_dark is True
+    
+    def test_character_has_light_with_torch(self):
+        """Character with torch has light."""
+        from character import Character
+        from inventory import get_item, add_item_to_inventory
+        
+        char = Character("Test", "fighter")
+        char.inventory = []  # Clear default inventory
+        
+        # Add torch manually
+        torch = get_item("torch")
+        add_item_to_inventory(char.inventory, torch)
+        
+        assert char.has_light() is True
+    
+    def test_character_no_light_without_torch(self):
+        """Character without torch has no light."""
+        from character import Character
+        
+        char = Character("Test", "fighter")
+        # Remove all items
+        char.inventory = []
+        
+        assert char.has_light() is False
+    
+    def test_darkness_penalty_check(self):
+        """check_darkness_penalty returns correct penalty info."""
+        from dm_engine import check_darkness_penalty
+        from character import Character
+        from scenario import Location
+        
+        char = Character("Test", "fighter")
+        char.inventory = []  # No torch
+        
+        dark_loc = Location(id="dark", name="Dark", description="Dark", is_dark=True)
+        
+        result = check_darkness_penalty(dark_loc, char)
+        
+        assert result['in_darkness'] is True
+        assert result['has_light'] is False
+        assert "DISADVANTAGE" in result['penalty_message']
+    
+    def test_no_penalty_with_torch(self):
+        """No darkness penalty when character has torch."""
+        from dm_engine import check_darkness_penalty
+        from character import Character
+        from inventory import get_item, add_item_to_inventory
+        from scenario import Location
+        
+        char = Character("Test", "fighter")
+        char.inventory = []  # Clear inventory
+        
+        # Add torch
+        torch = get_item("torch")
+        add_item_to_inventory(char.inventory, torch)
+        
+        dark_loc = Location(id="dark", name="Dark", description="Dark", is_dark=True)
+        
+        result = check_darkness_penalty(dark_loc, char)
+        
+        assert result['in_darkness'] is False
+        assert result['has_light'] is True
+    
+    def test_roll_attack_with_disadvantage(self):
+        """roll_attack_with_disadvantage takes lower of two d20 rolls."""
+        from combat import roll_attack_with_disadvantage
+        from character import Character
+        
+        char = Character("Test", "fighter")
+        
+        # Run multiple times to verify disadvantage behavior
+        for _ in range(10):
+            result = roll_attack_with_disadvantage(char, 15, "longsword")
+            
+            assert result.get('has_disadvantage') is True
+            assert 'd20_roll_1' in result
+            assert 'd20_roll_2' in result
+            # The d20_roll should be the minimum of the two
+            assert result['d20_roll'] == min(result['d20_roll_1'], result['d20_roll_2'])
+    
+    def test_torch_item_has_effect(self):
+        """Torch item has darkness prevention effect."""
+        torch = get_item("torch")
+        
+        assert torch is not None
+        assert "darkness" in torch.effect.lower() or "dark" in torch.description.lower()
+
+
+# =============================================================================
+# Phase 3.6.8 Tests - Rope Utility
+# =============================================================================
+
+class TestRopeUtility:
+    """Test rope utility mechanics."""
+    
+    def test_lily_has_rope_skill_check(self):
+        """Lily NPC has bend_cage_bars skill check option."""
+        from scenario import create_goblin_cave_npcs
+        
+        manager = create_goblin_cave_npcs()
+        lily = manager.get_npc("lily")
+        
+        assert lily is not None
+        
+        rope_option = lily.get_skill_check_option("bend_cage_bars")
+        assert rope_option is not None
+        assert rope_option.skill == "athletics"
+        assert rope_option.dc == 14
+        assert rope_option.requires_item == "rope"
+        assert rope_option.consumes_item is True
+    
+    def test_rope_item_has_effect(self):
+        """Rope item has skill check effect."""
+        rope = get_item("rope")
+        
+        assert rope is not None
+        assert "athletics" in rope.effect.lower() or "cage" in rope.description.lower()

@@ -194,7 +194,7 @@ ai-dnd-rpg/
 │   ├── DEVELOPER_GUIDE.md      # This file (5000+ lines)
 │   ├── DEVELOPMENT_PLAN.md     # Project roadmap with phases
 │   ├── FLUTTER_SETUP.md        # Flutter installation guide
-│   ├── HOSTILE_PLAYER_TESTING.md # Security testing (125 tests, 16 fixes)
+│   ├── HOSTILE_PLAYER_TESTING.md # Security testing (160 tests, 16 fixes)
 │   ├── THEME_SYSTEM_SPEC.md    # DLC-ready theme architecture
 │   └── UI_DESIGN_SPEC.md       # UI/UX specifications
 │
@@ -1201,10 +1201,16 @@ DM Response with [COMBAT: enemy_types] or [COMBAT: enemies | SURPRISE]
 |----------|---------|
 | `roll_attack(char, ac, weapon)` | Standard attack roll |
 | `roll_attack_with_advantage(char, ac, weapon)` | 2d20 take higher (surprise) |
-| `roll_damage(char, weapon, is_crit)` | Damage calculation |
+| `roll_attack_with_disadvantage(char, ac, weapon)` | 2d20 take lower (darkness) |
+| `roll_damage(char, weapon, is_crit)` | Damage calculation (+1d4 if poisoned) |
 | `enemy_attack(enemy, player_ac)` | Enemy attack against player |
 | `roll_initiative(dex_mod)` | d20 + DEX modifier |
 | `create_enemy(enemy_type)` | Create enemy from template |
+| `determine_turn_order(player, enemies, party_members)` | Unified initiative with allies |
+| `party_member_attack(member, target, has_flanking)` | Party member attack roll |
+| `get_party_member_action(member, enemies, allies_hp)` | AI decision for party action |
+| `check_flanking(attackers_on_target)` | True if 2+ allies on target |
+| `format_party_member_attack(attack, damage, class)` | Format party attack display |
 
 ### Surprise & Advantage System
 
@@ -1216,6 +1222,65 @@ When player ambushes enemies:
    - Player gets ADVANTAGE on first attack
 4. `roll_attack_with_advantage()` rolls 2d20, takes higher
 5. Display shows both dice: `[8, 15→15]+5 = 20`
+
+### Darkness & Disadvantage System (Phase 3.6.7)
+
+When player attacks in darkness without light:
+1. `/api/combat/attack` checks `check_darkness_penalty(location, character)`
+2. If `in_darkness=True`:
+   - Player attacks use `roll_attack_with_disadvantage()` (2d20, take lower)
+   - Warning message prepended to combat result
+3. Darkness + Surprise cancel out = normal roll
+4. Torch or other light source prevents disadvantage
+5. Display shows: `⬇️ DIS [15, 8→8]+5 = 13`
+
+### Poison Damage Bonus (Phase 3.6.6)
+
+When weapon is poisoned via Poison Vial:
+1. `character.weapon_poisoned = True` set by `use_item()`
+2. On next hit, `roll_damage()` adds +1d4 poison damage
+3. Poison consumed after single use (weapon_poisoned = False)
+4. Display shows: `💥 Damage: [6]+3 + 🧪[3] poison = 12`
+
+### Party Combat Integration (Phase 3.6.8)
+
+Party members participate in combat as AI-controlled allies:
+
+#### Turn Order
+```python
+# All combatants roll initiative together
+turn_order = determine_turn_order(player, enemies, party_members=[marcus, elira])
+# Returns list of Combatant objects sorted by initiative (highest first)
+```
+
+#### Party Member Actions
+Each turn after the player attacks, party members execute:
+1. **AI Decision**: `get_party_member_action()` chooses attack/heal/ability
+2. **Flanking Check**: If 2+ allies attack same target, grant advantage
+3. **Attack Roll**: `party_member_attack()` with optional flanking bonus
+4. **Display**: `format_party_member_attack()` with class-specific emoji
+
+#### AI Decision Logic
+```python
+action = get_party_member_action(member, enemies, allies_hp)
+# Returns: "attack", "ability", or "heal"
+# - "attack": Always if no ability or allies healthy
+# - "ability": Use special ability if available  
+# - "heal": Cleric uses Healing Word if ally HP < 50%
+```
+
+#### Flanking Bonus
+```python
+if check_flanking(num_attackers_on_target):  # >= 2
+    attack, damage = party_member_attack(member, target, has_flanking=True)
+    # Rolls 2d20, takes higher (advantage)
+```
+
+#### Display Format
+```
+🛡️ Marcus attacks Goblin: [17]+5 = 22 vs AC 12 → ✅ HIT! 8 damage!
+🏹 Elira ⚔️ FLANKING attacks Goblin: [11, 14→14]+5 = 19 vs AC 12 → ✅ HIT! 10 damage!
+```
 
 ### Available Enemies
 
@@ -5374,7 +5439,15 @@ def test_dm_response():
 
 ### Security Testing Results
 
-The game has undergone comprehensive hostile player testing with **125 unique security tests** across 25 categories:
+The game has undergone comprehensive hostile player testing with **160 unique security tests** across 7 rounds:
+
+| Round | Tests | Focus Areas |
+|-------|-------|-------------|
+| 1-3 | 25 | Input validation, prompt injection, state manipulation, API abuse |
+| 4 | 25 | Combat exploits, save/load manipulation, session hijacking |
+| 5 | 75 | Header injection, resource exhaustion, inventory exploits |
+| 6 | 25 | Reputation endpoints, SkillCheckOption, poison, darkness, rope/lockpick |
+| 7 | 10 | Darkness combat integration, light source manipulation |
 
 | Category | Description |
 |----------|-------------|

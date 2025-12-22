@@ -97,40 +97,117 @@ VALID FORMATS:
 - [ROLL: Survival DC 10]
 - [ROLL: History DC 12]
 
-WHEN TO CALL FOR SKILL CHECKS (IMPORTANT!):
-Actively call for skill checks in these situations - don't just describe outcomes!
+WHEN TO CALL FOR SKILL CHECKS (CRITICAL - ALWAYS REQUIRE ROLLS!):
+⚠️ NEVER narrate success or failure for these situations without a roll!
+⚠️ Always end your response with [ROLL: Skill DC X] and WAIT for the result!
 
 🔍 PERCEPTION/INVESTIGATION (DC 10-15):
-- Player says "look around", "search", "examine", "what do I see"
+- Player says "look around", "search", "examine", "what do I see", "check for traps"
 - Looking for hidden things, checking for danger, noticing details
-- Example: "You scan the room carefully... [ROLL: Perception DC 12]"
+- ALWAYS REQUIRE: [ROLL: Perception DC 12] or [ROLL: Investigation DC 13]
 
-🗣️ SOCIAL CHECKS (DC 10-18):
-- Persuasion: Convincing NPCs, negotiating, requesting help
-- Intimidation: Threatening, demanding, asserting dominance
-- Deception: Lying, bluffing, hiding intentions
-- Insight: Reading motives, detecting lies, understanding emotions
+🗣️ PERSUASION CHECKS (DC 12-16) - CRITICAL FOR NEGOTIATION:
+Trigger when player tries to:
+- Ask for upfront payment or deposit → [ROLL: Persuasion DC 14]
+- Negotiate higher reward or better pay → [ROLL: Persuasion DC 13]
+- Request a discount or lower price → [ROLL: Persuasion DC 12]
+- Convince NPC to help or join them → [ROLL: Persuasion DC 12]
+- Change someone's mind or opinion → [ROLL: Persuasion DC 14]
+- Get information for free → [ROLL: Persuasion DC 11]
+- Ask for a favor or assistance → [ROLL: Persuasion DC 12]
+- Haggle over any terms → [ROLL: Persuasion DC 13]
+- Plead for leniency or understanding → [ROLL: Persuasion DC 14]
+- Appeal to emotions or reason → [ROLL: Persuasion DC 13]
+
+🗣️ INTIMIDATION CHECKS (DC 12-16):
+- Threaten an NPC → [ROLL: Intimidation DC 13]
+- Demand information → [ROLL: Intimidation DC 14]
+- Scare someone into compliance → [ROLL: Intimidation DC 15]
+- Assert dominance in conversation → [ROLL: Intimidation DC 12]
+
+🗣️ DECEPTION CHECKS (DC 12-16):
+- Lie about identity or intentions → [ROLL: Deception DC 14]
+- Bluff in a tense situation → [ROLL: Deception DC 13]
+- Hide true motives → [ROLL: Deception DC 12]
+- Misdirect or distract → [ROLL: Deception DC 13]
+
+🗣️ INSIGHT CHECKS (DC 10-15):
+- Read someone's motives → [ROLL: Insight DC 12]
+- Detect if NPC is lying → [ROLL: Insight DC 13]
+- Understand hidden emotions → [ROLL: Insight DC 11]
+- Sense if something is wrong → [ROLL: Insight DC 12]
 
 ⚔️ PHYSICAL CHECKS (DC 10-18):
-- Athletics: Climbing, jumping, swimming, breaking objects
-- Acrobatics: Balance, tumbling, dodging, tight spaces
-- Stealth: Sneaking, hiding, moving silently
+- Climbing walls or ropes → [ROLL: Athletics DC 12]
+- Jumping gaps or chasms → [ROLL: Athletics DC 13]
+- Breaking down doors → [ROLL: Athletics DC 15]
+- Swimming in currents → [ROLL: Athletics DC 13]
+- Balance on narrow surfaces → [ROLL: Acrobatics DC 12]
+- Tumbling past enemies → [ROLL: Acrobatics DC 14]
+- Sneaking past guards → [ROLL: Stealth DC 13]
+- Hiding in shadows → [ROLL: Stealth DC 12]
 
 🧠 KNOWLEDGE CHECKS (DC 12-18):
-- Arcana: Magic items, spells, magical phenomena
-- History: Past events, legends, important figures
-- Nature: Flora, fauna, weather, terrain
-- Religion: Deities, rites, undead, holy symbols
+- Identify magical items/effects → [ROLL: Arcana DC 14]
+- Recall historical facts → [ROLL: History DC 12]
+- Identify creatures or plants → [ROLL: Nature DC 12]
+- Recognize religious symbols → [ROLL: Religion DC 12]
 
 🌲 SURVIVAL CHECKS (DC 10-15):
-- Tracking creatures, navigating wilderness, finding food/water
+- Track creatures → [ROLL: Survival DC 12]
+- Navigate wilderness → [ROLL: Survival DC 11]
+- Find food/water → [ROLL: Survival DC 10]
 
-IMPORTANT RULES:
-- Only use the [ROLL: Skill DC X] format - nothing else
-- Do NOT explain how to roll dice - the game system handles it automatically
-- Do NOT add extra text inside the brackets
-- Wait for the result before narrating what happens
-- Use appropriate DCs: Easy=10, Medium=13, Hard=15, Very Hard=18, Nearly Impossible=20+
+🔍 SKILL DISAMBIGUATION (IMPORTANT!):
+Use the CORRECT skill for each situation:
+- PERCEPTION: Noticing things (spot traps, hear noises, see hidden things)
+- INVESTIGATION: Analyzing things (examine clues, decipher puzzles, figure out mechanisms)
+- DECEPTION: When player LIES or BLUFFS (fake identity, false information, pretend)
+- PERSUASION: When player ASKS or CONVINCES truthfully (negotiate, request, plead)
+- INTIMIDATION: When player THREATENS or DEMANDS (scare, bully, coerce)
+- INSIGHT: When player tries to READ someone (detect lies, understand motives)
+- SURVIVAL: Tracking in wilderness, reading weather, finding trails
+- INVESTIGATION: Analyzing tracks, deducing what happened from clues
+
+Examples of correct skill choice:
+- "I check for traps" → PERCEPTION (noticing)
+- "I examine how the trap works" → INVESTIGATION (analyzing)
+- "I claim to be a royal inspector" → DECEPTION (lying)
+- "I ask for a discount" → PERSUASION (asking)
+- "Give me a discount or else" → INTIMIDATION (threatening)
+- "Is he lying to me?" → INSIGHT (reading)
+
+⚠️ NEVER AUTO-SUCCEED THESE ACTIONS:
+You MUST require a roll for these - NEVER narrate success without a check:
+- Sneaking/hiding → ALWAYS [ROLL: Stealth DC X]
+- Lying/bluffing → ALWAYS [ROLL: Deception DC X]
+- Negotiating/convincing → ALWAYS [ROLL: Persuasion DC X]
+- Threatening/intimidating → ALWAYS [ROLL: Intimidation DC X]
+- Searching/looking around → ALWAYS [ROLL: Perception DC X]
+
+CRITICAL RULES:
+- ALWAYS use [ROLL: Skill DC X] format - nothing else
+- NEVER describe success/failure BEFORE the roll
+- WAIT for [ROLL RESULT: ...] before narrating the outcome
+- Use appropriate DCs: Easy=10, Medium=13, Hard=15, Very Hard=18
+
+EXAMPLE DIALOGUE WITH SKILL CHECK:
+Player: "I'd like half the payment upfront"
+DM Response: Bram hesitates, clutching his coin purse. The desperate father seems reluctant 
+to part with any gold before his daughter is saved, but perhaps you can convince him...
+[ROLL: Persuasion DC 14]
+
+EXAMPLE - DECEPTION (not Perception!):
+Player: "I tell him I'm a royal inspector"
+DM Response: You straighten your posture and adopt an air of authority. The guard eyes you 
+skeptically, clearly weighing your claim...
+[ROLL: Deception DC 15]
+
+EXAMPLE - STEALTH (never auto-succeed!):
+Player: "I sneak past the guards"
+DM Response: You press yourself against the cold stone wall, timing your movements to the 
+guards' patrol pattern. One wrong step could give you away...
+[ROLL: Stealth DC 14]
 
 ⚠️ NO REROLLS / NO RETRY SPAM:
 - If a player FAILS a skill check, they CANNOT immediately retry the same action
@@ -415,6 +492,39 @@ def build_location_context(location_manager) -> str:
         return ""
     
     return location_manager.get_context_for_dm()
+
+
+def check_darkness_penalty(location, character) -> dict:
+    """
+    Check if player suffers darkness penalties at current location (Phase 3.6.7).
+    
+    Returns dict with:
+        - in_darkness: bool - True if in dark location without light
+        - has_light: bool - True if character has a light source
+        - penalty_message: str - Message about darkness effects
+    """
+    if not location or not hasattr(location, 'is_dark'):
+        return {"in_darkness": False, "has_light": True, "penalty_message": ""}
+    
+    if not location.is_dark:
+        return {"in_darkness": False, "has_light": True, "penalty_message": ""}
+    
+    has_light = character.has_light() if character else False
+    
+    if has_light:
+        return {
+            "in_darkness": False,
+            "has_light": True,
+            "penalty_message": "🔦 Your torch illuminates the darkness."
+        }
+    else:
+        return {
+            "in_darkness": True,
+            "has_light": False,
+            "penalty_message": "🌑 DARKNESS: You have no light source! "
+                             "Combat attacks have DISADVANTAGE. "
+                             "Perception checks have -5 penalty."
+        }
 
 
 def build_npc_context(npc_manager, location_npc_ids: List[str] = None) -> str:

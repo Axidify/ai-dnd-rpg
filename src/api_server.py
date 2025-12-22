@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import uuid
+import random
 import threading
 import time
 from dataclasses import asdict
@@ -1626,10 +1627,12 @@ def combat_status():
 def combat_attack():
     """Player attacks an enemy."""
     from combat import (
-        create_enemy, roll_attack, roll_attack_with_advantage, roll_damage,
-        format_attack_result, format_damage_result, enemy_attack, format_enemy_attack,
-        get_enemy_loot_for_class
+        create_enemy, roll_attack, roll_attack_with_advantage, roll_attack_with_disadvantage,
+        roll_damage, format_attack_result, format_damage_result, enemy_attack, format_enemy_attack,
+        get_enemy_loot_for_class, determine_turn_order, party_member_attack, format_party_member_attack,
+        get_party_member_action, check_flanking
     )
+    from dm_engine import check_darkness_penalty
     
     data = request.get_json() or {}
     session_id = data.get('session_id')
@@ -1680,14 +1683,31 @@ def combat_attack():
                 weapon_name = item.name.lower().replace(' ', '_')
                 break
     
-    # Roll attack
+    # Check darkness penalty (Phase 3.6.7 integration)
+    darkness_penalty = False
+    darkness_message = ""
+    if hasattr(session, 'location') and session.location:
+        darkness_check = check_darkness_penalty(session.location, session.character)
+        if darkness_check.get('in_darkness', False):
+            darkness_penalty = True
+            darkness_message = darkness_check.get('penalty_message', '')
+    
+    # Roll attack (advantage from surprise, disadvantage from darkness)
     has_surprise = session.combat_state.get('surprise', False) and session.combat_state.get('round', 1) == 1
-    if has_surprise:
+    if has_surprise and not darkness_penalty:
+        # Surprise gives advantage (darkness would cancel it out)
         attack = roll_attack_with_advantage(session.character, target.armor_class, weapon_name)
+    elif darkness_penalty and not has_surprise:
+        # Darkness gives disadvantage
+        attack = roll_attack_with_disadvantage(session.character, target.armor_class, weapon_name)
     else:
+        # Normal roll (or advantage/disadvantage cancel out)
         attack = roll_attack(session.character, target.armor_class, weapon_name)
     
-    result_messages = [format_attack_result(attack)]
+    result_messages = []
+    if darkness_message:
+        result_messages.append(darkness_message)
+    result_messages.append(format_attack_result(attack))
     damage_dealt = 0
     target_killed = False
     
@@ -1709,6 +1729,78 @@ def combat_attack():
     living_enemies = [e for e in enemies if not e.is_dead]
     combat_over = len(living_enemies) == 0
     
+    # Phase 3.5 P7 Step 6: Party Member Actions
+    party_damage_dealt = 0
+    if not combat_over and session.party and hasattr(session.party, 'members'):
+        recruited_members = [m for m in session.party.members if m.recruited and not m.is_dead]
+        if recruited_members:
+            result_messages.append("\n--- Party Member Turns ---")
+            
+            # Build allies HP dict for AI decisions
+            allies_hp = {
+                session.character.name: (session.character.current_hp, session.character.max_hp)
+            }
+            for m in recruited_members:
+                allies_hp[m.name] = (m.current_hp, m.max_hp)
+            
+            # Check if flanking (player + party members on same target)
+            # Simplified: if player attacked an enemy and party member attacks same = flanking
+            player_target_name = target.name if target else None
+            
+            for member in recruited_members:
+                living_enemies = [e for e in enemies if not e.is_dead]
+                if not living_enemies:
+                    break  # All enemies dead
+                    
+                # Get AI decision for this party member
+                action = get_party_member_action(member, living_enemies, allies_hp)
+                
+                if action['action_type'] == 'ability' and action.get('use_ability'):
+                    # Use special ability
+                    success, ability_msg = member.use_ability()
+                    if success:
+                        result_messages.append(ability_msg)
+                        # Apply ability effects (simplified)
+                        if action.get('ability_name') == 'Healing Word':
+                            # Heal the target ally
+                            heal_target = action.get('target')
+                            heal_amount = random.randint(1, 8) + 2  # 1d8+2
+                            if heal_target == session.character.name:
+                                session.character.current_hp = min(
+                                    session.character.max_hp,
+                                    session.character.current_hp + heal_amount
+                                )
+                                result_messages.append(f"   💚 You heal {heal_amount} HP!")
+                                allies_hp[session.character.name] = (session.character.current_hp, session.character.max_hp)
+                
+                elif action['action_type'] == 'attack' and action.get('target'):
+                    enemy_target = action['target']
+                    
+                    # Check flanking (same target as player or another party member)
+                    has_flanking = check_flanking(2)  # Simplified: always 2 if party present
+                    
+                    # Get member's class for formatting
+                    member_class = member.char_class.value if hasattr(member.char_class, 'value') else str(member.char_class)
+                    
+                    # Party member attacks
+                    pm_attack, pm_damage = party_member_attack(member, enemy_target, has_flanking)
+                    result_messages.append(format_party_member_attack(pm_attack, pm_damage, member_class))
+                    
+                    if pm_damage:
+                        party_damage_dealt += pm_damage['total']
+                        status_msg = enemy_target.take_damage(pm_damage['total'])
+                        if enemy_target.is_dead:
+                            result_messages.append(f"   💀 {enemy_target.name} falls!")
+                            # Track quest objective
+                            if session.quest_manager:
+                                enemy_id = enemy_target.name.lower().replace(' ', '_')
+                                completed = session.quest_manager.on_enemy_killed(enemy_id)
+                                for quest_id, obj in completed:
+                                    result_messages.append(f"   📜 Quest Objective Complete: {obj.description}")
+    
+    living_enemies = [e for e in enemies if not e.is_dead]
+    combat_over = len(living_enemies) == 0
+    
     rewards = {'xp': 0, 'gold': 0, 'items': []}
     if combat_over:
         session.in_combat = False
@@ -1722,6 +1814,9 @@ def combat_attack():
         if rewards['gold'] > 0:
             session.character.gold += rewards['gold']
             result_messages.append(f"💰 Looted {rewards['gold']} gold!")
+        # Party damage summary
+        if party_damage_dealt > 0:
+            result_messages.append(f"📊 Party contributed {party_damage_dealt} total damage!")
     else:
         result_messages.append("\n--- Enemy Turn ---")
         for enemy in living_enemies:
@@ -2475,6 +2570,74 @@ def get_reputation():
             'neutral': sum(1 for r in relationships if r['level'] == 'neutral'),
             'friendly': sum(1 for r in relationships if r['level'] == 'friendly'),
             'trusted': sum(1 for r in relationships if r['level'] == 'trusted')
+        }
+    })
+
+
+@app.route('/api/reputation/<npc_id>', methods=['GET'])
+def get_reputation_detail(npc_id: str):
+    """
+    Get detailed reputation with a specific NPC.
+    Returns disposition, level, price modifier, and available interactions.
+    """
+    session_id = request.args.get('session_id')
+    
+    if not session_id or session_id not in game_sessions:
+        return jsonify({'error': 'Invalid session'}), 400
+    
+    session = game_sessions[session_id]
+    
+    if not session.npc_manager:
+        return jsonify({'error': 'No NPCs in current scenario'}), 400
+    
+    npc = session.npc_manager.get_npc(npc_id)
+    if not npc:
+        return jsonify({'error': f"NPC '{npc_id}' not found"}), 404
+    
+    # Calculate price modifier based on disposition
+    level = npc.get_disposition_level()
+    price_modifiers = {
+        'hostile': None,  # Can't trade
+        'unfriendly': 1.0,
+        'neutral': 1.0,
+        'friendly': 0.9,  # 10% discount
+        'trusted': 0.8    # 20% discount
+    }
+    
+    # Get available skill checks
+    available_checks = []
+    if hasattr(npc, 'skill_check_options') and npc.skill_check_options:
+        for check in npc.get_available_skill_checks():
+            available_checks.append({
+                'id': check.id,
+                'skill': check.skill,
+                'dc': check.dc,
+                'description': check.description
+            })
+    
+    # Get role value safely
+    role_value = ''
+    if hasattr(npc, 'role'):
+        if hasattr(npc.role, 'value'):
+            role_value = npc.role.value
+        elif hasattr(npc.role, 'name'):
+            role_value = npc.role.name
+        else:
+            role_value = str(npc.role)
+    
+    return jsonify({
+        'success': True,
+        'npc': {
+            'id': npc.id,
+            'name': npc.name,
+            'role': role_value,
+            'disposition': npc.disposition,
+            'level': level,
+            'label': npc.get_disposition_label(),
+            'can_trade': npc.can_trade(),
+            'price_modifier': price_modifiers.get(level),
+            'available_skill_checks': available_checks,
+            'description': npc.description
         }
     })
 
