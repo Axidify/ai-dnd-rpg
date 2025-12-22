@@ -492,14 +492,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Multi-chapter campaigns supported in organized folder structure
 
 ### Test Suite Status
-- **821+ unit tests passing** (December 2025)
+- **950+ unit tests passing** (December 2025)
 - **125 security tests passing** (Hostile Player Testing - 5 rounds)
+- **25 AI skill check tests** (100% pass rate)
 - Key test file updates:
   - `test_location.py`: 200 tests (location system)
   - `test_party.py`: 72 tests (companion system)
   - `test_quest.py`: 57 tests (quest tracking)
   - `test_npc.py`: 55 tests (NPC interactions)
   - `test_reputation.py`: 55 tests (disposition system)
+  - `test_skill_check_ai.py`: 25 tests (AI skill selection)
   - `hostile_final.py`: 75 tests (final security round)
   - `test_combat_travel_block.py`: 3 tests (combat exploit prevention)
 

@@ -680,6 +680,29 @@ The skill check system handles ability checks with critical success/failure narr
 3. **Display Result**: Shows roll, modifier, total, and success/failure
 4. **Send Context to AI**: Enhanced context for criticals
 
+### AI Skill Selection Rules
+
+The DM prompt includes extensive guidance for selecting the correct skill. Key distinctions:
+
+| Action Type | Correct Skill | Example |
+|-------------|---------------|---------|
+| Notice/spot/hear/sense | **Perception** | "I look for hidden threats" |
+| Analyze/deduce/figure out/examine | **Investigation** | "I examine the tracks to deduce their origin" |
+| Move quietly/avoid detection | **Stealth** | "I move through the area without being noticed" |
+| Convince someone (requires NPC) | **Persuasion** | "I negotiate with the merchant for a better price" |
+
+**Perception vs Investigation (Critical Distinction):**
+- **Perception** = Passive/active noticing: see, hear, spot, detect, notice
+- **Investigation** = Mental analysis: figure out, deduce, analyze, examine closely, investigate
+
+**Stealth Rules:**
+- ANY quiet movement = Stealth check (not Perception)
+- Keywords: sneak, creep, quietly, unseen, unnoticed
+
+**Persuasion Requirements:**
+- Persuasion requires an existing NPC to convince
+- The AI does NOT create NPCs for Persuasion checks
+
 ### Critical Success/Failure
 
 | Roll | Context Sent to AI | Expected Narration |
