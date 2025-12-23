@@ -2,6 +2,8 @@
 
 ## AI D&D Text RPG - Technical Guide
 
+**Last Updated:** December 22, 2025
+
 This document provides comprehensive technical documentation for developers who want to understand, maintain, or contribute to the AI D&D Text RPG project.
 
 ---
