@@ -162,94 +162,48 @@ git diff docs/
 - [x] Criterion 2
 ```
 
+### Scenario Reference Entry
+```markdown
+## Item: item_name
+- **Effect:** What happens when used
+- **Trigger:** How to use it ("use item", passive, etc.)
+- **Location:** Where to find it
+- **Tests:** Link to relevant test file
+```
+
+### API Endpoint Entry
+```markdown
+### METHOD /api/endpoint
+**Purpose:** What this endpoint does
+
+**Request:**
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+
+**Response:**
+| Field | Type | Description |
+|-------|------|-------------|
+
+**Example:**
+[code block]
+```
+
 ---
 
-## � Documentation Gaps (To Address)
+## 📂 Document Types & When to Create
 
-### Priority 1: Missing Documentation
-| Document | Purpose | Status | Priority |
-|----------|---------|--------|----------|
-| `SCENARIO_REFERENCE.md` | Item effects, NPC skill checks, quest details | ⬜ Not Created | HIGH |
-| `PLAYER_GUIDE.md` | How to play, commands, gameplay tips | ⬜ Not Created | MEDIUM |
-| `API_REFERENCE.md` | OpenAPI/Swagger style endpoint docs | ⬜ Not Created | LOW |
-
-### Priority 2: Outdated Sections to Watch
-| File | Section | Issue |
-|------|---------|-------|
-| `DEVELOPER_GUIDE.md` | Test count references | May become stale (update on major test additions) |
-| `DEVELOPMENT_PLAN.md` | Phase statuses | Update as features complete |
-| `CHANGELOG.md` | "Unreleased" section | Move to versioned release when tagging |
-
-### Priority 3: Documentation Debt
-- [ ] Add "Last Updated" to all major docs
-- [ ] Add table of contents to CHANGELOG.md
-- [ ] Cross-reference between DEVELOPER_GUIDE.md and DEVELOPMENT_PLAN.md
-- [ ] Add code examples to NPC personality documentation
-- [ ] Document party member AI decision logic
-
----
-
-## 🎯 Documentation Improvement Plan
-
-### SCENARIO_REFERENCE.md (To Create)
-```markdown
-# Scenario Reference: Goblin Cave
-
-## Items & Effects
-| Item | Effect | How to Use |
-|------|--------|------------|
-| mysterious_key | Opens Hidden Hollow | Carry in inventory |
-| poison_vial | +1d4 damage next attack | "use poison" command |
-| ...
-
-## NPC Skill Checks
-| NPC | Skill Check | DC | Effect |
-|-----|-------------|----|----|
-| Bram | Persuasion (upfront_payment) | 14 | Get 25g advance |
-| ...
-
-## Quest Rewards
-...
-```
-
-### PLAYER_GUIDE.md (To Create)
-```markdown
-# Player Guide
-
-## Getting Started
-- Character creation
-- Basic commands
-
-## Combat
-- Attack, defend, flee
-- Party combat
-
-## Exploration
-- Travel menu
-- Secret areas
-
-## NPCs
-- Dialogue, trading, reputation
-```
-
-### API_REFERENCE.md (To Create)
-```markdown
-# API Reference
-
-## Endpoints
-
-### POST /api/game/start
-Creates new game session...
-
-### POST /api/game/action/stream
-Processes player action with SSE streaming...
-```
+| Document Type | Create When | Template |
+|---------------|-------------|----------|
+| `*_REFERENCE.md` | New scenario or complex feature needing lookup tables | Scenario Reference Entry |
+| `*_GUIDE.md` | User/developer audience needs walkthrough | Step-by-step sections |
+| `*_SPEC.md` | Technical design before implementation | Design doc format |
+| `*_REPORT.md` | Test results or analysis complete | Summary + details |
 
 ---
 
 ## 💡 Brainstorm Topics
 
-*Add discussion points below:*
+*Discussion points for future consideration:*
 
 1. **Automated Doc Validation**
    - Script to verify test counts match docs?
@@ -264,8 +218,8 @@ Processes player action with SSE streaming...
    - Where to store design decisions?
 
 4. **User-Facing Docs**
-   - Player guide needed? ✅ YES - see improvement plan above
-   - API documentation (OpenAPI/Swagger)? ✅ YES - see improvement plan above
+   - Player guide needed?
+   - API documentation (OpenAPI/Swagger)?
 
 5. **Localization**
    - Multi-language support planned?
@@ -273,4 +227,4 @@ Processes player action with SSE streaming...
 
 ---
 
-*This document is a living guide. Add sections as patterns emerge.*
+*This document is a living guide for documentation instructions only. Implementation tracking belongs in DEVELOPMENT_PLAN.md.*
