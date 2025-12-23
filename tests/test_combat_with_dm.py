@@ -9,11 +9,15 @@ import os
 import sys
 import random
 import re
+import pytest
+from dotenv import load_dotenv
+
+# Load environment variables FIRST (before skipif decorators are evaluated)
+load_dotenv()
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from dotenv import load_dotenv
 import google.generativeai as genai
 from combat import (
     create_enemy, Enemy, ENEMIES, WEAPONS,
@@ -26,9 +30,6 @@ from dm_engine import (
     build_combat_context, get_combat_narration, display_combat_narration,
     COMBAT_NARRATION_PROMPT
 )
-
-# Load environment variables
-load_dotenv()
 
 
 # =============================================================================
@@ -235,12 +236,20 @@ def test_combat_narration_with_ai():
     print("=" * 60)
     
     api_key = os.getenv("GOOGLE_API_KEY")
+    # Skip if API key not available (runtime check after load_dotenv)
     if not api_key:
-        print("⚠️ GOOGLE_API_KEY not set - skipping AI narration test")
-        return
+        pytest.skip("GOOGLE_API_KEY not set - AI tests require API key")
     
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+    
+    # Validate API key is working before proceeding
+    try:
+        test_response = model.generate_content("Say 'test'")
+        _ = test_response.text  # Force evaluation
+    except Exception as e:
+        pytest.skip(f"AI API not available: {type(e).__name__}")
+    
     chat = model.start_chat(history=[])
     
     # Test narration for a hit

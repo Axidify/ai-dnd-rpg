@@ -8,6 +8,11 @@ import json
 import time
 import sys
 import os
+import pytest
+from dotenv import load_dotenv
+
+# Load environment variables FIRST (before skipif decorators are evaluated)
+load_dotenv()
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -153,6 +158,10 @@ def test_npc_names():
     
     # Check the opening message mentions Bram or Lily (scenario NPCs)
     message = result.get('message', '')
+    
+    # Skip if AI is unavailable (fallback message)
+    if 'AI Dungeon Master Unavailable' in message:
+        pytest.skip("AI DM not available - test requires working AI")
     
     # Should mention the farmer's daughter Lily
     assert 'Lily' in message or 'daughter' in message, \
