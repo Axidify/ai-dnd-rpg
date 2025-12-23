@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from character import Character, CLASSES, RACES
-from scenario import ScenarioManager, LocationManager, Location, create_goblin_cave_quests
+from scenario import ScenarioManager, LocationManager, Location, create_goblin_cave_quests, ChoiceManager, Choice, ChoiceType
 from npc import NPCManager
 from quest import QuestManager
 from combat import (
@@ -247,10 +247,12 @@ class GameSession:
         self.npc_manager = None
         self.quest_manager = None
         self.location_manager = None
+        self.choice_manager = None  # Phase 3.4: Moral choices
         self.party = None
         self.messages = []
         self.current_location = None
         self.current_location_id = None
+        self.player_flags = {}  # Phase 3.4: Player flags for choice triggers
         self.in_combat = False
         self.combat_state = None
         self.created_at = datetime.now()
@@ -664,6 +666,10 @@ def start_game():
             # Use scenario's location manager if available
             if hasattr(scenario, 'location_manager') and scenario.location_manager:
                 session.location_manager = scenario.location_manager
+            
+            # Use scenario's choice manager if available (Phase 3.4)
+            if hasattr(scenario, 'choice_manager') and scenario.choice_manager:
+                session.choice_manager = scenario.choice_manager
             
             # Initialize quests for the scenario
             if scenario_id == 'goblin_cave':
@@ -2639,6 +2645,266 @@ def get_reputation_detail(npc_id: str):
             'available_skill_checks': available_checks,
             'description': npc.description
         }
+    })
+
+
+# =============================================================================
+# MORAL CHOICES ENDPOINTS (Phase 3.4)
+# =============================================================================
+
+@app.route('/api/choices/available', methods=['GET'])
+def get_available_choices():
+    """
+    Get all currently available moral choices based on player's location and flags.
+    
+    Returns choices that can be triggered based on:
+    - Current location matching choice trigger
+    - Player flags matching choice trigger
+    - Quest objectives completed
+    """
+    session_id = request.args.get('session_id')
+    
+    if not session_id or session_id not in game_sessions:
+        return jsonify({'error': 'Invalid session'}), 400
+    
+    session = game_sessions[session_id]
+    
+    if not session.choice_manager:
+        return jsonify({'success': True, 'choices': [], 'message': 'No choice system in current scenario'})
+    
+    # Build player context for checking triggers
+    player_context = {
+        'location_id': getattr(session, 'current_location_id', None) or session.current_location,
+        'flags': getattr(session, 'player_flags', {}),
+        'completed_objectives': []
+    }
+    
+    # Get completed quest objectives
+    if session.quest_manager:
+        for quest in session.quest_manager.get_all_quests():
+            for obj in quest.objectives:
+                if obj.current >= obj.required:
+                    player_context['completed_objectives'].append(obj.id)
+    
+    # Check for triggered choices
+    available = session.choice_manager.check_triggers(player_context)
+    
+    # Format choices for response
+    choices_data = []
+    for choice in available:
+        # Check if already resolved
+        if choice.id in session.choice_manager.choices_made:
+            continue
+            
+        # Format options with availability
+        options_data = []
+        for i, option in enumerate(choice.options):
+            option_available = True
+            requirements = []
+            
+            # Check requirements
+            if option.required_flag and option.required_flag not in player_context['flags']:
+                option_available = False
+                requirements.append(f"Requires: {option.required_flag}")
+            
+            if option.required_item and session.character:
+                has_item = any(item.id == option.required_item for item in session.character.inventory)
+                if not has_item:
+                    option_available = False
+                    requirements.append(f"Requires item: {option.required_item}")
+            
+            if option.min_disposition:
+                # Check NPC disposition if needed
+                requirements.append(f"Requires disposition: {option.min_disposition}")
+            
+            options_data.append({
+                'index': i,
+                'text': option.text,
+                'available': option_available,
+                'requirements': requirements,
+                'skill_check': {
+                    'skill': option.skill_check,
+                    'dc': option.skill_dc
+                } if option.skill_check else None
+            })
+        
+        choices_data.append({
+            'id': choice.id,
+            'prompt': choice.prompt,
+            'type': choice.type.value,
+            'options': options_data,
+            'time_limit': choice.time_limit
+        })
+    
+    return jsonify({
+        'success': True,
+        'choices': choices_data,
+        'player_context': {
+            'location': player_context['location_id'],
+            'flags': list(player_context['flags'].keys()) if isinstance(player_context['flags'], dict) else []
+        }
+    })
+
+
+@app.route('/api/choices/select', methods=['POST'])
+def select_choice():
+    """
+    Select an option for a moral choice.
+    
+    Applies consequences:
+    - XP rewards
+    - Gold changes
+    - Item rewards
+    - Flag changes
+    - Disposition changes
+    - Ending points
+    """
+    data = request.get_json() or {}
+    session_id = data.get('session_id')
+    choice_id = data.get('choice_id')
+    option_index = data.get('option_index')
+    
+    if not session_id or session_id not in game_sessions:
+        return jsonify({'error': 'Invalid session'}), 400
+    
+    if choice_id is None or option_index is None:
+        return jsonify({'error': 'choice_id and option_index required'}), 400
+    
+    session = game_sessions[session_id]
+    
+    if not session.choice_manager:
+        return jsonify({'error': 'No choice system in current scenario'}), 400
+    
+    # Get player context for skill checks
+    player_context = {
+        'flags': getattr(session, 'player_flags', {})
+    }
+    
+    # Get character stats for skill checks
+    if session.character:
+        player_context['stats'] = {
+            'strength': session.character.strength,
+            'dexterity': session.character.dexterity,
+            'constitution': session.character.constitution,
+            'intelligence': session.character.intelligence,
+            'wisdom': session.character.wisdom,
+            'charisma': session.character.charisma
+        }
+    
+    try:
+        result = session.choice_manager.select_option(choice_id, option_index, player_context)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    
+    # Apply consequences
+    rewards = {'xp': 0, 'gold': 0, 'items': []}
+    
+    if result['consequence']:
+        consequence = result['consequence']
+        
+        # Apply XP reward
+        if consequence.xp_reward and session.character:
+            session.character.gain_xp(consequence.xp_reward, f"Choice: {choice_id}")
+            rewards['xp'] = consequence.xp_reward
+        
+        # Apply gold change
+        if consequence.gold_change and session.character:
+            session.character.gold += consequence.gold_change
+            rewards['gold'] = consequence.gold_change
+        
+        # Apply item rewards
+        if consequence.item_rewards and session.character:
+            for item_id in consequence.item_rewards:
+                item = get_item(item_id)
+                if item:
+                    add_item_to_inventory(session.character, item)
+                    rewards['items'].append(item.name)
+        
+        # Apply flag changes
+        if consequence.flag_changes:
+            if not hasattr(session, 'player_flags'):
+                session.player_flags = {}
+            session.player_flags.update(consequence.flag_changes)
+        
+        # Apply disposition changes
+        if consequence.disposition_changes and session.npc_manager:
+            for npc_id, change in consequence.disposition_changes.items():
+                npc = session.npc_manager.get_npc(npc_id)
+                if npc:
+                    npc.modify_disposition(change)
+    
+    return jsonify({
+        'success': True,
+        'choice_id': choice_id,
+        'selected_option': result['option'].text,
+        'skill_check': result.get('skill_check'),
+        'rewards': rewards,
+        'narrative': result.get('narrative', f"You chose: {result['option'].text}"),
+        'ending_points': session.choice_manager.ending_points,
+        'game_state': session.to_dict()
+    })
+
+
+@app.route('/api/choices/history', methods=['GET'])
+def get_choice_history():
+    """
+    Get the history of choices made in this session.
+    Useful for showing player their moral path.
+    """
+    session_id = request.args.get('session_id')
+    
+    if not session_id or session_id not in game_sessions:
+        return jsonify({'error': 'Invalid session'}), 400
+    
+    session = game_sessions[session_id]
+    
+    if not session.choice_manager:
+        return jsonify({'success': True, 'history': [], 'ending_points': {}})
+    
+    history = []
+    for choice_id, option_index in session.choice_manager.choices_made.items():
+        choice = session.choice_manager.get_choice(choice_id)
+        if choice and 0 <= option_index < len(choice.options):
+            option = choice.options[option_index]
+            history.append({
+                'choice_id': choice_id,
+                'prompt': choice.prompt,
+                'type': choice.type.value,
+                'selected_option': option.text,
+                'option_index': option_index
+            })
+    
+    return jsonify({
+        'success': True,
+        'history': history,
+        'ending_points': session.choice_manager.ending_points,
+        'total_choices': len(history)
+    })
+
+
+@app.route('/api/choices/ending', methods=['GET'])
+def get_ending_status():
+    """
+    Get the current ending trajectory based on choices made.
+    Returns the likely ending based on accumulated ending points.
+    """
+    session_id = request.args.get('session_id')
+    
+    if not session_id or session_id not in game_sessions:
+        return jsonify({'error': 'Invalid session'}), 400
+    
+    session = game_sessions[session_id]
+    
+    if not session.choice_manager:
+        return jsonify({'success': True, 'ending': None, 'points': {}})
+    
+    ending = session.choice_manager.determine_ending()
+    
+    return jsonify({
+        'success': True,
+        'ending': ending,
+        'ending_points': session.choice_manager.ending_points,
+        'choices_made': len(session.choice_manager.choices_made)
     })
 
 

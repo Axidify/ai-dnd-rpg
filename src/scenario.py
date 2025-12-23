@@ -568,6 +568,242 @@ class MapRegion:
         )
 
 
+# =============================================================================
+# MORAL CHOICES SYSTEM (Phase 3.4)
+# =============================================================================
+
+class ChoiceType(Enum):
+    """Type of choice for categorization."""
+    MORAL = "moral"           # Ethical decisions (spare/kill)
+    TACTICAL = "tactical"     # Strategic options (fight/sneak/negotiate)
+    DIALOGUE = "dialogue"     # Conversation branches
+    STORY = "story"           # Major plot decisions
+
+
+@dataclass
+class ChoiceConsequence:
+    """
+    Represents a consequence of making a choice.
+    
+    Consequences can be immediate (apply now) or deferred (affect ending).
+    Multiple consequences can stack from different choices.
+    """
+    
+    id: str                         # Unique identifier (e.g., "spared_goblin")
+    description: str                # "You spared the captured goblin"
+    
+    # Immediate effects
+    disposition_changes: Dict[str, int] = field(default_factory=dict)  # {"goblin_prisoner": 30}
+    flag_changes: Dict[str, Any] = field(default_factory=dict)         # {"spared_goblin": True}
+    xp_reward: int = 0              # XP gained/lost for this choice
+    gold_change: int = 0            # Gold gained/lost
+    item_rewards: List[str] = field(default_factory=list)   # Items given
+    item_removes: List[str] = field(default_factory=list)   # Items taken
+    
+    # Deferred effects (affect endings/future scenes)
+    ending_points: Dict[str, int] = field(default_factory=dict)  # {"mercy": 1, "ruthless": -1}
+    unlock_choices: List[str] = field(default_factory=list)      # Choices this unlocks
+    lock_choices: List[str] = field(default_factory=list)        # Choices this locks
+    
+    def to_dict(self) -> dict:
+        """Serialize consequence."""
+        return {
+            "id": self.id,
+            "description": self.description,
+            "disposition_changes": self.disposition_changes,
+            "flag_changes": self.flag_changes,
+            "xp_reward": self.xp_reward,
+            "gold_change": self.gold_change,
+            "item_rewards": self.item_rewards,
+            "item_removes": self.item_removes,
+            "ending_points": self.ending_points,
+            "unlock_choices": self.unlock_choices,
+            "lock_choices": self.lock_choices
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ChoiceConsequence':
+        """Create from dictionary."""
+        return cls(
+            id=data["id"],
+            description=data.get("description", ""),
+            disposition_changes=data.get("disposition_changes", {}),
+            flag_changes=data.get("flag_changes", {}),
+            xp_reward=data.get("xp_reward", 0),
+            gold_change=data.get("gold_change", 0),
+            item_rewards=data.get("item_rewards", []),
+            item_removes=data.get("item_removes", []),
+            ending_points=data.get("ending_points", {}),
+            unlock_choices=data.get("unlock_choices", []),
+            lock_choices=data.get("lock_choices", [])
+        )
+
+
+@dataclass
+class ChoiceOption:
+    """
+    Represents one option the player can select in a choice.
+    
+    Options may have requirements (skill checks, items, reputation)
+    and always have a consequence defining what happens.
+    """
+    
+    id: str                         # Unique identifier (e.g., "spare_goblin")
+    text: str                       # Display text: "Spare the goblin's life"
+    consequence: ChoiceConsequence  # What happens if chosen
+    
+    # Optional requirements (any one requirement met = option available)
+    skill_check: Optional[str] = None       # "charisma:12" - skill:DC format
+    required_item: Optional[str] = None     # Item ID player must have
+    required_flag: Optional[str] = None     # Flag that must be True
+    min_disposition: Optional[Dict[str, int]] = None  # {"npc_id": 10} - minimum disposition
+    
+    # UI hints
+    is_default: bool = False        # Highlighted as suggested option
+    is_hidden: bool = False         # Only shown if requirements met
+    tooltip: str = ""               # Extra info on hover
+    
+    def to_dict(self) -> dict:
+        """Serialize option."""
+        return {
+            "id": self.id,
+            "text": self.text,
+            "consequence": self.consequence.to_dict(),
+            "skill_check": self.skill_check,
+            "required_item": self.required_item,
+            "required_flag": self.required_flag,
+            "min_disposition": self.min_disposition,
+            "is_default": self.is_default,
+            "is_hidden": self.is_hidden,
+            "tooltip": self.tooltip
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ChoiceOption':
+        """Create from dictionary."""
+        return cls(
+            id=data["id"],
+            text=data["text"],
+            consequence=ChoiceConsequence.from_dict(data["consequence"]),
+            skill_check=data.get("skill_check"),
+            required_item=data.get("required_item"),
+            required_flag=data.get("required_flag"),
+            min_disposition=data.get("min_disposition"),
+            is_default=data.get("is_default", False),
+            is_hidden=data.get("is_hidden", False),
+            tooltip=data.get("tooltip", "")
+        )
+    
+    def check_requirements(self, character, game_state: dict) -> Tuple[bool, str]:
+        """
+        Check if player meets requirements for this option.
+        
+        Returns:
+            (can_select, reason) - True if available, reason if not
+        """
+        # Check flag requirement
+        if self.required_flag:
+            flags = game_state.get("flags", {})
+            if not flags.get(self.required_flag, False):
+                return False, f"Requires: {self.required_flag}"
+        
+        # Check item requirement
+        if self.required_item:
+            inventory = [item.id if hasattr(item, 'id') else item 
+                        for item in getattr(character, 'inventory', [])]
+            if self.required_item not in inventory:
+                return False, f"Requires item: {self.required_item}"
+        
+        # Check disposition requirement
+        if self.min_disposition:
+            npcs = game_state.get("npcs", {})
+            for npc_id, min_value in self.min_disposition.items():
+                npc = npcs.get(npc_id)
+                if npc:
+                    disposition = npc.get("disposition", 0)
+                    if disposition < min_value:
+                        return False, f"Requires better relationship with {npc_id}"
+        
+        # Skill check is handled at selection time, not as a blocker
+        return True, ""
+
+
+@dataclass
+class Choice:
+    """
+    Represents a moral or tactical choice point in the game.
+    
+    Choices are triggered by events (entering locations, NPC dialogue,
+    completing objectives) and present the player with options.
+    """
+    
+    id: str                         # Unique identifier (e.g., "spare_prisoner")
+    prompt: str                     # The situation: "The goblin prisoner begs for mercy..."
+    choice_type: ChoiceType         # moral, tactical, dialogue, story
+    options: List[ChoiceOption]     # Available options
+    
+    # Trigger conditions
+    trigger_location: Optional[str] = None    # Location ID that triggers this
+    trigger_flag: Optional[str] = None        # Flag that triggers this
+    trigger_objective: Optional[str] = None   # Objective completion that triggers
+    
+    # State
+    is_triggered: bool = False      # Has been shown to player
+    selected_option: Optional[str] = None  # Which option was chosen
+    
+    # Optional AI enhancement
+    dm_context: str = ""            # Extra context for AI DM narration
+    
+    def to_dict(self) -> dict:
+        """Serialize choice."""
+        return {
+            "id": self.id,
+            "prompt": self.prompt,
+            "choice_type": self.choice_type.value,
+            "options": [opt.to_dict() for opt in self.options],
+            "trigger_location": self.trigger_location,
+            "trigger_flag": self.trigger_flag,
+            "trigger_objective": self.trigger_objective,
+            "is_triggered": self.is_triggered,
+            "selected_option": self.selected_option,
+            "dm_context": self.dm_context
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Choice':
+        """Create from dictionary."""
+        return cls(
+            id=data["id"],
+            prompt=data["prompt"],
+            choice_type=ChoiceType(data["choice_type"]),
+            options=[ChoiceOption.from_dict(opt) for opt in data.get("options", [])],
+            trigger_location=data.get("trigger_location"),
+            trigger_flag=data.get("trigger_flag"),
+            trigger_objective=data.get("trigger_objective"),
+            is_triggered=data.get("is_triggered", False),
+            selected_option=data.get("selected_option"),
+            dm_context=data.get("dm_context", "")
+        )
+    
+    def get_available_options(self, character, game_state: dict) -> List[ChoiceOption]:
+        """Get options available to the player based on requirements."""
+        available = []
+        for option in self.options:
+            can_select, _ = option.check_requirements(character, game_state)
+            if not option.is_hidden or can_select:
+                available.append(option)
+        return available
+    
+    def select_option(self, option_id: str) -> Optional[ChoiceOption]:
+        """Select an option and return it."""
+        for option in self.options:
+            if option.id == option_id:
+                self.selected_option = option_id
+                self.is_triggered = True
+                return option
+        return None
+
+
 @dataclass
 class Location:
     """Represents a physical location in the game world."""
@@ -1684,16 +1920,21 @@ class Scenario:
     # NPC System (Phase 3.3)
     npc_manager: Optional[NPCManager] = field(default=None)
     
+    # Choice System (Phase 3.4)
+    choice_manager: Optional['ChoiceManager'] = field(default=None)
+    
     # Runtime state
     current_scene_id: Optional[str] = None
     is_complete: bool = False
     
     def __post_init__(self):
-        """Initialize location manager and NPC manager if not provided."""
+        """Initialize managers if not provided."""
         if self.location_manager is None:
             self.location_manager = LocationManager()
         if self.npc_manager is None:
             self.npc_manager = NPCManager()
+        if self.choice_manager is None:
+            self.choice_manager = ChoiceManager()
     
     def _setup_scene_locations(self, scene: Scene):
         """Set up locations for a scene."""
@@ -3351,6 +3592,10 @@ LOCATION NOTES:
     # Create NPC manager with Goblin Cave NPCs (Phase 3.3)
     npc_manager = create_goblin_cave_npcs()
     
+    # Create Choice manager with moral choices (Phase 3.4)
+    choice_manager = ChoiceManager()
+    choice_manager.register_choices(create_goblin_cave_choices())
+    
     scenario = Scenario(
         id="goblin_cave",
         name="The Goblin Cave",
@@ -3360,10 +3605,336 @@ LOCATION NOTES:
         scenes=scenes,
         scene_order=["tavern", "journey", "cave_entrance", "goblin_camp", "boss_chamber", "resolution"],
         location_manager=location_manager,
-        npc_manager=npc_manager
+        npc_manager=npc_manager,
+        choice_manager=choice_manager
     )
     
     return scenario
+
+
+# =============================================================================
+# CHOICE MANAGER (Phase 3.4)
+# =============================================================================
+
+class ChoiceManager:
+    """
+    Manages moral choices and tracks consequences across the game.
+    
+    Handles:
+    - Registering available choices
+    - Checking triggers for choices
+    - Recording player decisions
+    - Accumulating ending points
+    - Providing consequence data for save/load
+    """
+    
+    def __init__(self):
+        self.choices: Dict[str, Choice] = {}          # All registered choices
+        self.triggered_choices: List[str] = []        # Choices that have been shown
+        self.selected_choices: Dict[str, str] = {}    # choice_id -> option_id
+        self.ending_points: Dict[str, int] = {}       # Accumulated ending scores
+        self.flags: Dict[str, Any] = {}               # Story flags from choices
+    
+    def register_choice(self, choice: Choice):
+        """Add a choice to the manager."""
+        self.choices[choice.id] = choice
+    
+    def register_choices(self, choices: List[Choice]):
+        """Add multiple choices."""
+        for choice in choices:
+            self.register_choice(choice)
+    
+    def get_choice(self, choice_id: str) -> Optional[Choice]:
+        """Get a choice by ID."""
+        return self.choices.get(choice_id)
+    
+    def check_triggers(self, location_id: Optional[str] = None, 
+                       flag: Optional[str] = None,
+                       objective: Optional[str] = None) -> List[Choice]:
+        """
+        Check if any choices should be triggered.
+        Returns list of newly triggered choices.
+        """
+        triggered = []
+        for choice_id, choice in self.choices.items():
+            if choice.is_triggered:
+                continue  # Already shown
+            
+            should_trigger = False
+            
+            if choice.trigger_location and choice.trigger_location == location_id:
+                should_trigger = True
+            elif choice.trigger_flag and choice.trigger_flag == flag:
+                should_trigger = True
+            elif choice.trigger_objective and choice.trigger_objective == objective:
+                should_trigger = True
+            
+            if should_trigger:
+                triggered.append(choice)
+        
+        return triggered
+    
+    def select_option(self, choice_id: str, option_id: str, 
+                      character, game_state: dict) -> Optional[ChoiceConsequence]:
+        """
+        Player selects an option. Apply immediate consequences.
+        Returns the consequence for the game to apply.
+        """
+        choice = self.choices.get(choice_id)
+        if not choice:
+            return None
+        
+        option = choice.select_option(option_id)
+        if not option:
+            return None
+        
+        # Record the selection
+        self.selected_choices[choice_id] = option_id
+        if choice_id not in self.triggered_choices:
+            self.triggered_choices.append(choice_id)
+        
+        # Apply consequence tracking
+        consequence = option.consequence
+        
+        # Accumulate ending points
+        for ending, points in consequence.ending_points.items():
+            self.ending_points[ending] = self.ending_points.get(ending, 0) + points
+        
+        # Store flags
+        for flag_name, flag_value in consequence.flag_changes.items():
+            self.flags[flag_name] = flag_value
+        
+        return consequence
+    
+    def get_ending_score(self, ending_type: str) -> int:
+        """Get accumulated score for an ending type."""
+        return self.ending_points.get(ending_type, 0)
+    
+    def determine_ending(self) -> str:
+        """
+        Determine which ending the player gets based on accumulated points.
+        Returns ending ID string.
+        """
+        if not self.ending_points:
+            return "neutral"
+        
+        # Find highest scoring ending
+        max_ending = max(self.ending_points, key=self.ending_points.get)
+        max_score = self.ending_points[max_ending]
+        
+        # Require minimum threshold
+        if max_score < 2:
+            return "neutral"
+        
+        return max_ending
+    
+    def to_dict(self) -> dict:
+        """Serialize for save/load."""
+        return {
+            "choices": {k: v.to_dict() for k, v in self.choices.items()},
+            "triggered_choices": self.triggered_choices,
+            "selected_choices": self.selected_choices,
+            "ending_points": self.ending_points,
+            "flags": self.flags
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ChoiceManager':
+        """Create from save data."""
+        manager = cls()
+        
+        for choice_id, choice_data in data.get("choices", {}).items():
+            manager.choices[choice_id] = Choice.from_dict(choice_data)
+        
+        manager.triggered_choices = data.get("triggered_choices", [])
+        manager.selected_choices = data.get("selected_choices", {})
+        manager.ending_points = data.get("ending_points", {})
+        manager.flags = data.get("flags", {})
+        
+        return manager
+
+
+def create_goblin_cave_choices() -> List[Choice]:
+    """
+    Create moral choices for the Goblin Cave scenario.
+    
+    Choices:
+    1. Captured Goblin - spare or kill the prisoner
+    2. Chief's Offer - accept bribe or refuse
+    3. Lily's Revenge - let her kill goblin or stop her
+    """
+    choices = []
+    
+    # ===== CHOICE 1: Spare the Goblin Prisoner =====
+    spare_consequence = ChoiceConsequence(
+        id="spared_goblin",
+        description="You showed mercy to the captured goblin.",
+        flag_changes={"spared_goblin": True},
+        xp_reward=15,  # Mercy XP
+        ending_points={"mercy": 2, "ruthless": -1}
+    )
+    
+    kill_consequence = ChoiceConsequence(
+        id="killed_goblin",
+        description="You executed the goblin prisoner.",
+        flag_changes={"killed_goblin": True},
+        xp_reward=10,  # Combat completion XP
+        ending_points={"ruthless": 2, "mercy": -1}
+    )
+    
+    interrogate_consequence = ChoiceConsequence(
+        id="interrogated_goblin",
+        description="You extracted information from the goblin.",
+        flag_changes={"interrogated_goblin": True, "knows_secret_entrance": True},
+        xp_reward=20,  # Information reward
+        ending_points={"tactical": 1}
+    )
+    
+    spare_goblin_choice = Choice(
+        id="goblin_prisoner",
+        prompt="""The goblin lies bound at your feet, trembling. Its yellow eyes are wide with terror as it croaks in broken Common:
+
+"Please... mercy! I tell you things! Secret way into chief's room! Just... don't kill!"
+
+What do you do with the prisoner?""",
+        choice_type=ChoiceType.MORAL,
+        options=[
+            ChoiceOption(
+                id="spare",
+                text="Spare the goblin's life and release it",
+                consequence=spare_consequence,
+                is_default=False,
+                tooltip="Show mercy - the goblin may spread word of your kindness"
+            ),
+            ChoiceOption(
+                id="kill",
+                text="Execute the goblin - it's too dangerous to leave alive",
+                consequence=kill_consequence,
+                tooltip="Eliminate the threat - goblins cannot be trusted"
+            ),
+            ChoiceOption(
+                id="interrogate",
+                text="[Intimidation DC 14] Demand the secret entrance location first",
+                consequence=interrogate_consequence,
+                skill_check="intimidation:14",
+                tooltip="Extract valuable information before deciding"
+            )
+        ],
+        trigger_location="goblin_camp",
+        dm_context="The player has captured a goblin scout and must decide its fate. This choice affects the 'mercy' vs 'ruthless' ending scores."
+    )
+    choices.append(spare_goblin_choice)
+    
+    # ===== CHOICE 2: Chief's Offer =====
+    accept_bribe_consequence = ChoiceConsequence(
+        id="accepted_bribe",
+        description="You took the chief's gold and left Lily behind.",
+        flag_changes={"accepted_bribe": True, "lily_abandoned": True},
+        gold_change=100,
+        xp_reward=0,  # No XP for abandoning the quest
+        ending_points={"mercenary": 3, "hero": -2}
+    )
+    
+    refuse_consequence = ChoiceConsequence(
+        id="refused_bribe",
+        description="You rejected the chief's offer and prepared to fight.",
+        flag_changes={"refused_bribe": True},
+        xp_reward=25,  # Valor XP
+        ending_points={"hero": 2}
+    )
+    
+    negotiate_consequence = ChoiceConsequence(
+        id="negotiated_release",
+        description="You convinced the chief to release Lily peacefully.",
+        flag_changes={"negotiated_release": True, "chief_alive": True},
+        xp_reward=50,  # Diplomacy bonus
+        gold_change=-50,  # Had to pay ransom
+        ending_points={"peaceful": 3, "hero": 1}
+    )
+    
+    chief_offer_choice = Choice(
+        id="chief_offer",
+        prompt="""Chief Grotnak holds up a bulging pouch of gold coins, his yellowed tusks curving into a cruel smile.
+
+"Smart human, yes? Take gold. Leave girl. Walk away alive. Everyone wins!"
+
+Behind him, Lily struggles against her bonds, eyes pleading.
+
+What do you do?""",
+        choice_type=ChoiceType.STORY,
+        options=[
+            ChoiceOption(
+                id="accept",
+                text="Take the gold and leave - Lily isn't worth dying for",
+                consequence=accept_bribe_consequence,
+                tooltip="Accept 100 gold, abandon the quest"
+            ),
+            ChoiceOption(
+                id="refuse",
+                text="Refuse and attack - Lily's life is not for sale!",
+                consequence=refuse_consequence,
+                is_default=True,
+                tooltip="Fight the chief and his guards"
+            ),
+            ChoiceOption(
+                id="negotiate",
+                text="[Persuasion DC 16] Offer to pay a ransom for her release",
+                consequence=negotiate_consequence,
+                skill_check="persuasion:16",
+                tooltip="Attempt a peaceful resolution (costs 50 gold)"
+            )
+        ],
+        trigger_location="boss_chamber",
+        dm_context="The goblin chief offers a bribe to abandon Lily. This is the major story decision point."
+    )
+    choices.append(chief_offer_choice)
+    
+    # ===== CHOICE 3: Lily's Revenge =====
+    allow_revenge_consequence = ChoiceConsequence(
+        id="lily_revenge",
+        description="You allowed Lily to take her revenge on the goblin.",
+        flag_changes={"lily_revenge": True},
+        ending_points={"dark": 1, "mercy": -1}
+    )
+    
+    stop_revenge_consequence = ChoiceConsequence(
+        id="stopped_revenge",
+        description="You stopped Lily from killing the helpless goblin.",
+        flag_changes={"stopped_revenge": True},
+        ending_points={"mercy": 1, "dark": -1}
+    )
+    
+    lily_revenge_choice = Choice(
+        id="lily_revenge",
+        prompt="""With the chief defeated, Lily picks up a fallen sword. Her eyes are cold as she approaches the wounded goblin who tormented her.
+
+"They hurt me. Every day, they hurt me."
+
+She raises the blade over the cowering creature.
+
+Do you intervene?""",
+        choice_type=ChoiceType.MORAL,
+        options=[
+            ChoiceOption(
+                id="allow",
+                text="Step aside - she has earned this right",
+                consequence=allow_revenge_consequence,
+                tooltip="Let Lily have her vengeance"
+            ),
+            ChoiceOption(
+                id="stop",
+                text="Gently take the sword - this isn't who she should become",
+                consequence=stop_revenge_consequence,
+                is_default=True,
+                tooltip="Prevent Lily from becoming a killer"
+            )
+        ],
+        trigger_flag="chief_defeated",
+        dm_context="After defeating the chief, Lily wants revenge on her captors. This tests the player's moral guidance."
+    )
+    choices.append(lily_revenge_choice)
+    
+    return choices
 
 
 # =============================================================================
