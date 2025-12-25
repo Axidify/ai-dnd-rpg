@@ -5375,6 +5375,87 @@ python tests/test_inventory_with_dm.py
 python tests/test_dice_with_dm.py
 ```
 
+**E2E Tests (Playwright):**
+```bash
+cd frontend/option1-react
+
+# Run all E2E tests (headless)
+npm run test:e2e
+
+# Run with visible browser
+npm run test:e2e:headed
+
+# Run with Playwright UI (interactive)
+npm run test:e2e:ui
+
+# View last HTML report
+npx playwright show-report
+```
+
+### Playwright E2E Testing
+
+The project uses Playwright for browser-based end-to-end testing.
+
+**Location:** `frontend/option1-react/e2e/`
+
+**Configuration:** `frontend/option1-react/playwright.config.ts`
+
+**Test Files:**
+- `e2e/game.spec.ts` - Basic game flow tests
+
+**What E2E Tests Cover:**
+- Page loading and initial render
+- Character creation screen
+- Game UI elements detection
+- Player action submission
+- Screenshot capture
+
+**Screenshots:** `e2e/screenshots/` - Captured during test runs
+
+**Maintaining Playwright Tests:**
+
+1. **Updating Selectors:**
+   When UI changes, update selectors in test files:
+   ```typescript
+   // Before: page.locator('button').filter({ hasText: /start/i })
+   // After: page.getByRole('button', { name: 'Begin Adventure' })
+   ```
+
+2. **Adding New Tests:**
+   ```typescript
+   test('should open inventory modal', async ({ page }) => {
+     await page.goto('/');
+     await page.getByRole('button', { name: /inventory/i }).click();
+     await expect(page.locator('.inventory-modal')).toBeVisible();
+     await page.screenshot({ path: 'e2e/screenshots/inventory.png' });
+   });
+   ```
+
+3. **Debugging Failed Tests:**
+   ```bash
+   # Run single test with visible browser
+   npx playwright test --headed -g "test name"
+   
+   # Debug mode (step through)
+   npx playwright test --debug
+   
+   # Show trace viewer
+   npx playwright show-trace trace.zip
+   ```
+
+4. **Updating Browser:**
+   ```bash
+   npx playwright install chromium
+   ```
+
+5. **Common Issues:**
+   | Issue | Solution |
+   |-------|----------|
+   | "Timeout waiting for element" | Increase timeout or add `waitFor` |
+   | "Element not visible" | Check if modal/overlay blocks it |
+   | "Test flaky" | Add `waitForLoadState('networkidle')` |
+   | "Screenshot differs" | Update expected screenshot |
+
 ### Test Coverage Summary
 
 | Module | Tests | Description |
