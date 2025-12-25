@@ -1,51 +1,114 @@
+📍 **The Rusty Dragon - Main Room**
+
+The warmth of the Rusty Dragon tavern is a welcome shield against the evening chill. The air hangs thick with the comforting scents of wood smoke, roasting meat, and old ale. A fire crackles merrily in a large stone hearth, casting long, dancing shadows across the worn wooden tables. The low murmur of conversation from a few quiet locals provides a steady thrum beneath the clinking of tankards and the creak of the floorboards. In a far corner, a grim-faced sellsword with a notable scar across his cheek watches the room over the rim of his mug, his greatsword leaning against the wall beside him.
+
+The heavy tavern door groans open, letting in a gust of wind that makes the fire sputter. A man stumbles in, his clothes caked with mud and his face a mask of raw desperation. His eyes are wide and bloodshot, scanning the room with frantic energy. They pass over the quiet locals and the watchful sellsword, finally locking onto you, Amir. There's a glint of hope in his gaze as he sees the sword at your hip and the sturdy set of your shoulders.
+
+He hurries over to your table, his hands trembling as he leans on it for support. "Please," he rasps, his voice cracking with emotion. "You look like a warrior. I... I need help. Goblins... they came in the night. They raided my farm, and they... they took my daughter, Lily." He chokes back a sob, his knuckles white on the table. "I don't have much, but I'll give you everything I have. Fifty gold pieces. Please, you have to get her back. They dragged her off towards Darkhollow Cave."
+
+i accept but i want 10 gold up front
+
+You look the distraught farmer in the eye and give a firm nod. "I will bring your daughter back. But a quest like this requires supplies. I'll need ten gold upfront."
+
+Bram flinches as if struck. His hand instinctively goes to a small, worn coin purse tied to his belt. "Ten gold? Now?" he stammers, his hopeful expression clouding with fear and uncertainty. "That's... that's a lot. It's all the savings we have. I need to know you're true to your word, that you'll see this through." He looks from you to his empty hands and back again, his desperation warring with a lifetime of hard-earned caution. He's a man on the brink, and your words could either steady him or send him over the edge.
+
+[ROLL: Persuasion DC 14]
+
+🎲 Persuasion Check (DC 14): rolled 11 +4 = 15 ✅You hold the farmer's gaze, your voice steady and reassuring. "Every moment we waste haggling is another moment she's in their hands. The gold ensures I can get what I need to move quickly and effectively. Your daughter's life is worth that investment, isn't it?"
+
+The truth and confidence in your words seem to cut through Bram's panic. He exhales a shaky breath and nods, his shoulders slumping in a mixture of defeat and relief. "You're right. Of course, you're right. Forgive me." With trembling fingers, he unties the small leather pouch from his belt and carefully counts out ten gold coins onto the sticky tabletop. The clinking sound seems unnaturally loud in the tavern.
+
+[GOLD: 10]
+
+"Thank you," he says, his voice thick with emotion as he pushes the coins toward you. "The rest is yours when you bring Lily back to me. She's all I have." He then fumbles with a pack at his side. "I don't have much else, but I grabbed this from the farm... It's dark in those caves. Please, take it." He hands you a sturdy, unused torch.
+
+[ITEM: torch]
+
+Bram looks utterly spent, but a sliver of hope has returned to his eyes. "They went east, into the woods. Darkhollow Cave... it's about a half-day's journey. May the gods watch over you." He gives you a final, pleading look before stumbling toward a vacant chair by the hearth, burying his face in his hands. The path ahead is clear: the caves lie to the east. You can speak to others in the tavern, or head outside to the village square when you are ready.
+
+📦 Received: Torch
+
+💰 Received 10 gold (Total: 34)
+
+📜 Quest Accepted: Rescue Lily
+
+📜 Quest Accepted: Clear the Path
+
+📜 Quest Accepted: The Chief's Treasure
+
+📜 Quest Accepted: Thin the Herd
+
+recruit marcus
+
+You pocket the coins and the torch, giving Bram a final nod before turning your attention to the corner of the room. The sellsword, Marcus, has been watching your entire exchange with the farmer, his expression unreadable. As you approach his table, he doesn't look up immediately, instead taking a slow sip from his tankard. He sets it down with a heavy thud before his gaze finally meets yours. His eyes are like chips of flint, cold and hard.
+
+"Goblins," he says, his voice a low gravelly rumble. It's not a question. "Nasty business. A man could get himself killed going into a nest like Darkhollow alone." He gestures with his chin to the empty chair opposite him. "You've got the look of a fighter, but you don't have the look of a fool. You're looking for help."
+
+He leans forward, his scarred face illuminated by the firelight. "My sword arm is for hire. For a job like this—clearing a goblin cave—my price is twenty gold. Upfront. You pay, and my greatsword is yours until the job is done." He leans back, crossing his arms over his broad chest, his gaze unwavering. The offer hangs in the air between you, simple and direct.
+
+how about 15?
+
+A short, humorless laugh escapes Marcus's lips, sounding like rocks grinding together. He shakes his head slowly, his flinty eyes never leaving yours.
+
+"Fifteen?" he scoffs. "The price is twenty. My sword has kept me alive through worse than a few scrawny goblins, and it's worth every coin. The farmer's paying you fifty for the girl, isn't he? Don't try to bargain with a man's livelihood."
+
+He leans forward again, his voice dropping to a low, serious tone. "Twenty gold is the price for walking into that cave and walking out again. You want my blade? You pay the price. Unless you can give me a very good reason why I should risk my neck for less."
+
+[ROLL: Persuasion DC 13]
+
+🎲 Persuasion Check (DC 13): rolled 10 +4 = 14 ✅You hold his gaze, not with aggression, but with the quiet confidence of a fellow warrior who understands the value of a coin and the cost of a life. The silence stretches for a moment, broken only by the crackle of the hearth.
+
+Marcus studies you, his flinty eyes seeming to weigh your worth. A slow grunt escapes him, a sound of grudging concession. "Fine," he says, the word clipped. "Fifteen. But you better pull your weight. If I have to do all the work, I'm taking the rest of the farmer's pay as a bonus." He extends a large, calloused hand over the table, palm up.
+
+You count out fifteen gold coins, the metal clinking as you place them in his hand. He closes his fist around them and sweeps them into a belt pouch with a single, practiced motion.
+
+[PAY: 15, Hired Marcus]
+[RECRUIT: marcus]
+
+With the deal struck, he drains the last of his ale and slams the tankard down on the table. He rises to his feet, a solid and intimidating presence, and retrieves the massive greatsword that was leaning against the wall. He settles the weapon's harness onto his back with a familiar motion, the worn leather creaking softly. "Alright, boss," he says, a hint of sarcasm in his tone. "You paid the coin. Where to first?"
+
+💸 Paid 15 gold: Hired Marcus (Gold: 19)
+
+🎉 Marcus joins your party!
+
+📍 You travel to **Village Square**.
+
+A small village square with a well at the center. Most shops are closed for the evening, but warm light and the clang of a hammer spill from the blacksmith's forge to the west.
+
 📍 You travel to **Forest Path**.
 
 A winding dirt path through an ancient forest. Autumn leaves crunch underfoot.
 
 look around
 
-You leave the village behind, and the dirt road quickly narrows into a winding path that plunges into the deep woods. The trees here are old and imposing, their thick branches interlocking overhead to form a dense canopy that swallows the moonlight, casting the path ahead in deep, shifting shadows. The air is still and cool, carrying the scent of damp earth and fallen leaves. The only sound is the crisp crunch of those leaves under your boots, a noise that seems unnervingly loud in the oppressive silence of the ancient forest.
+You and Marcus leave the village behind, heading east along the path Bram indicated. The dense canopy of the ancient forest quickly swallows the open sky, and the air grows cooler. Dappled sunlight filters through the leaves, painting shifting patterns on the forest floor. The only sounds are the crunch of your boots on dry leaves, the distant call of a bird, and the quiet, professional watchfulness of your new companion. Marcus walks with his hand resting near the hilt of his greatsword, his eyes constantly scanning the trees.
 
-You slow your pace, your senses on high alert. The warnings about wolves and goblins echo in your mind. You scan the dark woods on either side of the path, searching for any sign of movement, any tracks left by the raiding party, or any hint of an ambush lying in wait. The dense undergrowth and deep shadows make it difficult to see clearly, and every rustle of the wind in the branches sounds like a footstep.
+The path is clear, but the woods on either side are thick with undergrowth and deep shadows. It's easy to see how a goblin patrol could lay an ambush here. You decide to take a more careful look at your surroundings, searching for any signs of recent passage or potential danger.
 
-[ROLL: Perception DC 12]
+[ROLL: Perception DC 12]As you scan the area, your eyes adjust to the dim light. Most of the forest floor is a chaotic mess of fallen leaves, but your focused search pays off. Just off the main path, you spot a series of small, clumsy footprints in a patch of damp earth. They're clearly not from any normal animal, and the shoddy make of the boot prints screams 'goblin'.
 
-🎲 Perception Check (DC 12): rolled 19 +0 = 19 ✅Your keen eyes cut through the gloom, picking out details that a less experienced traveler would have missed entirely. At the edge of the path, partially obscured by a fresh layer of fallen leaves, you spot a series of tracks. They are small, clawed footprints, haphazardly stamped into the soft earth—goblin prints, without a doubt. Alongside them is a more disturbing sign: a wide, continuous scuff mark in the dirt, as if something heavy was being dragged. You are on the right trail.
+Following the trail with your eyes, you see more signs: a snapped twig here, an overturned rock there. More disturbingly, you notice a long, continuous drag mark through the leaves, as if something—or someone—was being pulled along against their will. The tracks lead deeper into the woods, paralleling the main path before veering off further to the east.
 
-Just as you process this, a flicker of movement in the dense thicket to your right snags your attention. You freeze, your hand instinctively going to the hilt of your weapon. Peering into the darkness, you spot them: two pairs of baleful yellow eyes, glowing with predatory hunger, watching you from the shadows. A low, guttural growl rumbles from the undergrowth, a sound that vibrates through the soles of your boots.
+Marcus notices you've stopped and follows your gaze. He grunts in confirmation. "Goblins, alright. More than a few, by the looks of it. And in a hurry." He points with his chin at the drag mark. "Looks like we're on the right trail. They're heading deeper into the forest, toward the caves." He looks to you, his hand resting on his sword's pommel. "Best be on our guard. No telling what's waiting up ahead." The path continues east, following the goblin tracks.
 
-With a menacing snarl, two large, grey wolves emerge from the bushes. Their fur is matted and their lips are curled back to reveal rows of sharp, yellowed teeth. They spread out, flanking the path ahead, their bodies low to the ground in a predatory crouch. They are not merely passing by; they are hunting, and they have just found their next meal.
+🎲 Perception Check (DC 12): rolled 14 +2 = 16 ✅Your keen eyes pick up more than just the obvious trail. As you crouch down for a closer look, you notice the disturbed earth around the footprints is still dark and damp; these tracks are fresh, no more than a few hours old. The drag mark tells its own grim story—it's uneven, with scuffs and deeper gouges in the dirt where Lily must have tried to dig in her heels and fight back.
 
-[COMBAT: wolf, wolf]
+Then, you spot it: a tiny shred of pale blue, homespun cloth snagged on the thorns of a nearby bush. It's a small, easily missed detail, but it confirms someone was dragged this way against their will. It looks like the kind of simple fabric a farmer's daughter might wear.
 
-⚔️ COMBAT STARTED! Enemies: wolf, wolf
+Marcus follows your gaze to the scrap of cloth and lets out a low whistle. "Good eye," he says, his voice losing its sarcastic edge for a moment. "So, she's a fighter. And they're not far ahead." He draws his greatsword, the rasp of steel on leather unnervingly loud in the quiet forest. "No more strolling. We move carefully from here on out." The path, and the fresh goblin tracks, lead directly east, deeper into the increasingly gloomy woods.
 
-fght
-
-The forest erupts in a cacophony of snarls and the ringing clash of steel. You meet the lunge of the first wolf with your blade, turning its attack aside as its snapping jaws narrowly miss your arm. The second beast circles, trying to get at your flank, its claws scrabbling on the dirt path. You pivot, keeping both predators in your sight, the adrenaline of battle singing in your veins. There's a blur of grey fur, a flash of teeth, and the sharp, coppery scent of blood fills the cool night air.
-
-A moment later, the forest falls silent once more. You stand breathing heavily, your heart pounding in your chest. The two wolves lie still on the path, their predatory hunger extinguished forever. A sharp sting on your arm reminds you that you didn't escape the brief, vicious encounter unscathed. The path ahead is clear for now, but the fight serves as a grim reminder of the dangers that lurk in these woods. You can press on, heading deeper into the forest, or return to the village.
+📜 Quest Objective Complete: Find and rescue Lily
 ============================================================
-🚀 Backend Started: 2025-12-25 18:27:22
+🚀 Backend Started: 2025-12-25 18:56:07
    DEBUG=True, VERBOSE_LOGGING=True
 ============================================================
 
 ============================================================
-🚀 Backend Started: 2025-12-25 18:27:25
+🚀 Backend Started: 2025-12-25 18:56:14
    DEBUG=True, VERBOSE_LOGGING=True
 ============================================================
 
 ============================================================
-🚀 Backend Started: 2025-12-25 18:29:50
-   DEBUG=True, VERBOSE_LOGGING=True
-============================================================
-
-============================================================
-🚀 Backend Started: 2025-12-25 18:29:54
-   DEBUG=True, VERBOSE_LOGGING=True
-============================================================
-
-============================================================
-🚀 Backend Started: 2025-12-25 18:32:16
+🚀 Backend Started: 2025-12-25 18:56:16
    DEBUG=True, VERBOSE_LOGGING=True
 ============================================================

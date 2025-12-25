@@ -122,10 +122,13 @@ def detect_npc_talk(action: str, npc_manager, dm_response: str = None) -> list:
     Args:
         action: Player's action text
         npc_manager: NPC manager instance
-        dm_response: Optional DM response to also check for NPC names
+        dm_response: Optional DM response to check for dialogue indicators
     
     Returns:
         List of NPC IDs that were talked to
+    
+    Note: Only detects actual conversations, not mere mentions of NPC names.
+    A name appearing in DM response (e.g., "they took Lily") does NOT count as talking.
     """
     if not npc_manager:
         return []
@@ -133,12 +136,7 @@ def detect_npc_talk(action: str, npc_manager, dm_response: str = None) -> list:
     talked_to = []
     action_lower = action.lower()
     
-    # Also check DM response for NPC name mentions
-    combined_text = action_lower
-    if dm_response:
-        combined_text += " " + dm_response.lower()
-    
-    # Common talk patterns
+    # Common talk patterns in player action
     talk_patterns = [
         r"talk\s+(?:to|with)\s+(?:the\s+)?(\w+)",
         r"speak\s+(?:to|with)\s+(?:the\s+)?(\w+)",
@@ -154,26 +152,46 @@ def detect_npc_talk(action: str, npc_manager, dm_response: str = None) -> list:
         matches = re.findall(pattern, action_lower)
         potential_names.extend(matches)
     
-    # Check all NPCs
+    # Check all NPCs for pattern matches
     all_npcs = list(npc_manager.get_all_npcs())
     
     for npc in all_npcs:
         npc_name_lower = npc.name.lower()
         npc_id_lower = npc.id.lower().replace('_', ' ')
         
-        # Direct name/id match in action
+        # Direct name/id match in action patterns
         for name in potential_names:
             if name in npc_name_lower or npc_name_lower.startswith(name):
                 if npc.id not in talked_to:
                     talked_to.append(npc.id)
                 break
-        
-        # If NPC name is directly mentioned in the combined text
-        if npc_name_lower in combined_text or npc_id_lower in combined_text:
-            if npc.id not in talked_to:
-                talked_to.append(npc.id)
     
-    # Also check for party member NPCs (Marcus, Elira, etc.)
+    # Check DM response for ACTUAL dialogue (not just name mentions)
+    # Only count if NPC is speaking (quotes, "says", "replies", etc.)
+    if dm_response:
+        dm_lower = dm_response.lower()
+        dialogue_indicators = [
+            r'(\w+)\s+(?:says|said|replies|replied|responds|responded|asks|asked|mutters|murmured|whispers|shouted)',
+            r'\"[^\"]+\"\s+(\w+)\s+(?:says|said|replies)',  # "text" NPC says
+            r'(\w+)\s+(?:looks at you|turns to you|addresses you)',  # Direct address
+        ]
+        
+        dialogue_npcs = []
+        for pattern in dialogue_indicators:
+            matches = re.findall(pattern, dm_lower)
+            dialogue_npcs.extend(matches)
+        
+        for npc in all_npcs:
+            npc_name_lower = npc.name.lower()
+            npc_first_name = npc_name_lower.split()[0] if ' ' in npc_name_lower else npc_name_lower
+            
+            for name in dialogue_npcs:
+                if name in npc_name_lower or name == npc_first_name:
+                    if npc.id not in talked_to:
+                        talked_to.append(npc.id)
+                    break
+    
+    # Also check for party member NPCs with talk patterns
     party_npc_names = {
         'marcus': 'marcus_mercenary',
         'sellsword': 'marcus_mercenary',
@@ -185,7 +203,8 @@ def detect_npc_talk(action: str, npc_manager, dm_response: str = None) -> list:
     }
     
     for keyword, npc_id in party_npc_names.items():
-        if keyword in combined_text and npc_id not in talked_to:
+        # Only trigger on action patterns, not DM mentions
+        if keyword in action_lower and npc_id not in talked_to:
             talked_to.append(npc_id)
     
     return talked_to
