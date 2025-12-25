@@ -910,7 +910,7 @@ def game_action():
         from party import get_recruitable_npc, Party
         if not session.party:
             session.party = Party()
-        if not session.party.is_full():
+        if not session.party.is_full:
             member = get_recruitable_npc(npc_id)
             if member:
                 session.party.add_member(member)
@@ -1110,7 +1110,7 @@ def game_action_stream():
             from party import get_recruitable_npc, Party
             if not session.party:
                 session.party = Party()
-            if not session.party.is_full():
+            if not session.party.is_full:
                 member = get_recruitable_npc(npc_id)
                 if member:
                     session.party.add_member(member)
