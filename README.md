@@ -5,7 +5,7 @@ A text-based Dungeons & Dragons style RPG where Google Gemini AI acts as the Dun
 
 **Architecture**: API-first design with Flask backend and React frontend.
 
-**Security**: 🛡️ 125/125 security tests passing (16 vulnerabilities identified and fixed)
+**Security**: 🛡️ 75/75 security tests passing (16 vulnerabilities identified and fixed)
 
 ---
 
@@ -61,7 +61,7 @@ AI RPG V2/
 │   ├── CHANGELOG.md            # Version history
 │   ├── DEVELOPER_GUIDE.md      # Technical documentation (5000+ lines)
 │   ├── DEVELOPMENT_PLAN.md     # Phased development roadmap
-│   ├── HOSTILE_PLAYER_TESTING.md # Security testing results (125 tests)
+│   ├── HOSTILE_PLAYER_TESTING.md # Security testing results (75 tests)
 │   ├── FLUTTER_SETUP.md        # Flutter installation guide
 │   ├── THEME_SYSTEM_SPEC.md    # DLC-ready theme architecture
 │   └── UI_DESIGN_SPEC.md       # UI/UX specifications
@@ -92,7 +92,7 @@ AI RPG V2/
 ├── backup/
 │   └── legacy/
 │       └── game.py         # Archived terminal version
-└── tests/                  # 821+ unit tests + 125 security tests
+└── tests/                  # 985 unit tests + 75 security tests
     ├── test_api_integration.py  # API integration tests
     ├── test_character.py        # Character system (26 tests)
     ├── test_combat.py           # Combat mechanics (31 tests)

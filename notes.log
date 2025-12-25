@@ -1780,3 +1780,2970 @@
   "query_params": null,
   "has_body": null
 }
+
+============================================================
+🚀 Backend Started: 2025-12-25 16:42:34
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
+[16:42:38] 📡 [API] GET /api/health
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[16:42:40] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[16:42:42] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:42:58] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "4e93ef5c-346a-473a-b0e1-bd2a7891214e",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 14,
+  "quests_available": 5
+}
+[16:43:01] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:43:17] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "687db1cc-d843-4718-81f8-541b2593ec12",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 16,
+  "quests_available": 5
+}
+[16:43:19] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:43:34] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "7942c567-6963-46d0-ad1d-eb4f83dbdd55",
+  "character": "TestHero",
+  "race": "Elf",
+  "class": "Wizard",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 22,
+  "quests_available": 5
+}
+[16:43:36] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "7942c567",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:43:36] 🎮 [ACTION] Player: look around
+[16:43:44] 🎲 [DM] Response length: 779 chars
+[16:43:44] 🎯 [ROLL] Perception check DC 12
+    ↳ {
+  "roll": 17,
+  "modifier": -1,
+  "total": 16,
+  "success": true
+}
+[16:43:54] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "While the desperate farmer, Bram, waits anxiously for your reply, you take a moment to scan the room more carefully. Beyond the immediate plea of the distraught man, the tavern's atmosphere feels heav..."
+}
+[16:43:54] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "marcus",
+    "grotnak",
+    "marcus_mercenary"
+  ]
+}
+[16:43:56] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:44:10] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "a92fd9c8-60a8-440c-8e94-565bdcfa4534",
+  "character": "TestHero",
+  "race": "Half-Elf",
+  "class": "Bard",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 14,
+  "quests_available": 5
+}
+[16:44:12] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "a92fd9c8",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:44:12] 🎮 [ACTION] Player: talk to the farmer
+[16:44:21] 🎲 [DM] Response length: 1296 chars
+[16:44:21] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You give the distraught farmer your full attention, and a flicker of hope ignites in his bloodshot eyes. He pulls a rickety chair from a nearby table and practically collapses into it, leaning forward..."
+}
+[16:44:21] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "lily"
+  ]
+}
+[16:44:23] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:44:33] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "0ffd2954-cdc2-4d1a-9f8f-12d3c43589c5",
+  "character": "TestHero",
+  "race": "Halfling",
+  "class": "Rogue",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 17,
+  "quests_available": 5
+}
+[16:44:36] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "0ffd2954",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:44:36] 🎮 [ACTION] Player: I try to persuade the farmer to give me more details about the goblins
+[16:44:44] 🎲 [DM] Response length: 807 chars
+[16:44:44] 🎯 [ROLL] Persuasion check DC 12
+    ↳ {
+  "roll": 20,
+  "modifier": 0,
+  "total": 20,
+  "success": true
+}
+[16:44:56] 🔍 [PARSE] Found item tags
+    ↳ {
+  "items": [
+    "torch"
+  ]
+}
+[16:44:56] 📦 [ITEM] Received: Torch
+    ↳ {
+  "item_id": "torch"
+}
+[16:44:56] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You place a steadying hand on the farmer's arm, trying to calm his frantic energy. \"Tell me everything you can,\" you say, your voice even. \"Any detail could help.\"\n\nBram looks at you, his eyes unfocus..."
+}
+[16:44:56] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "lily"
+  ]
+}
+[16:44:58] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:45:09] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "bbebb753-7ecf-4390-a105-0da1deee5f2e",
+  "character": "TestHero",
+  "race": "Dwarf",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 25,
+  "quests_available": 5
+}
+[16:45:11] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:45:21] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "5685d002-29b2-4bf8-b86a-f109bd23f65d",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Cleric",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 23,
+  "quests_available": 5
+}
+[16:45:23] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:45:40] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "d2f2c39a-dff2-43ee-8625-92b63859abc2",
+  "character": "TestHero",
+  "race": "Half-Orc",
+  "class": "Barbarian",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 13,
+  "quests_available": 5
+}
+[16:45:42] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:45:53] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "0a3b753c-fd24-4c96-98b3-423f814a3b15",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 21,
+  "quests_available": 5
+}
+[16:45:55] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "0a3b753c",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "0a3b753c-fd24-4c96-98b3-423f814a3b15"
+  },
+  "has_body": null
+}
+[16:45:57] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:46:13] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "d7029522-f3c4-4a1e-b5df-6c63b05c228a",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 18,
+  "quests_available": 5
+}
+[16:46:15] 📡 [API] GET /api/reputation/barkeep
+    ↳ {
+  "session": "d7029522",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "d7029522-f3c4-4a1e-b5df-6c63b05c228a"
+  },
+  "has_body": null
+}
+[16:46:17] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:46:29] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "e29ffaa9-662b-4fbf-8f8a-bf3f667e0cea",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 10,
+  "quests_available": 5
+}
+[16:46:31] 📡 [API] GET /api/reputation/nonexistent_npc
+    ↳ {
+  "session": "e29ffaa9",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "e29ffaa9-662b-4fbf-8f8a-bf3f667e0cea"
+  },
+  "has_body": null
+}
+[16:46:31] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:46:42] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "062a75ad-31f5-41f8-b99d-420f81b4a040",
+  "character": "TestFighter",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 17,
+  "quests_available": 5
+}
+[16:46:42] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "062a75ad",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:46:42] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:46:53] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "b1300455-22c5-4c94-b4dd-c80c683be778",
+  "character": "TestFighter",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 20,
+  "quests_available": 5
+}
+[16:46:53] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "b1300455",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:46:53] 🗺️ [LOCATION] Traveled to Village Square
+    ↳ {
+  "from": "Village Square",
+  "to": "Village Square",
+  "location_id": "village_square",
+  "exits": [
+    "tavern",
+    "east road",
+    "forge"
+  ],
+  "events_triggered": 0
+}
+[16:46:53] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:47:04] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "cd70ca27-abfd-4a3b-9d60-0c3386f5e48b",
+  "character": "TestFighter",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 21,
+  "quests_available": 5
+}
+[16:47:04] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "cd70ca27",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:47:10] 📡 [API] GET /api/health
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[16:47:11] 📡 [API] GET /api/choices/available
+    ↳ {
+  "session": "invalid",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "invalid"
+  },
+  "has_body": null
+}
+[16:47:11] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:47:22] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "164b45c3-7ca0-4b76-876d-6746d892c480",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 13,
+  "quests_available": 0
+}
+[16:47:22] 📡 [API] GET /api/choices/available
+    ↳ {
+  "session": "164b45c3",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "164b45c3-7ca0-4b76-876d-6746d892c480"
+  },
+  "has_body": null
+}
+[16:47:22] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:47:34] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "64688d83-bd27-423e-a94c-1a769682229c",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 20,
+  "quests_available": 0
+}
+[16:47:34] 📡 [API] GET /api/choices/history
+    ↳ {
+  "session": "64688d83",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "64688d83-bd27-423e-a94c-1a769682229c"
+  },
+  "has_body": null
+}
+[16:47:34] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:47:44] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "75e2020a-5eee-443a-96ec-496af7f811db",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 10,
+  "quests_available": 0
+}
+[16:47:44] 📡 [API] GET /api/choices/ending
+    ↳ {
+  "session": "75e2020a",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "75e2020a-5eee-443a-96ec-496af7f811db"
+  },
+  "has_body": null
+}
+[16:47:44] 📡 [API] POST /api/choices/select
+    ↳ {
+  "session": "invalid",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:47:44] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:47:59] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "21bb18a4-b78b-4784-85d3-b90bb58731cd",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 14,
+  "quests_available": 0
+}
+[16:47:59] 📡 [API] POST /api/choices/select
+    ↳ {
+  "session": "21bb18a4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+
+============================================================
+🚀 Backend Started: 2025-12-25 16:48:15
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
+[16:48:18] 📡 [API] GET /api/health
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[16:48:20] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[16:48:23] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:48:34] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "91e070d5-aecb-48c3-8c26-0f7d270e5503",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 19,
+  "quests_available": 5
+}
+[16:48:36] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:48:46] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "be12d724-392f-4cac-9a94-d6758d1003ce",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 25,
+  "quests_available": 5
+}
+[16:48:48] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:48:58] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "1db9020a-c95c-431d-97a7-7bf9ae00cae9",
+  "character": "TestHero",
+  "race": "Elf",
+  "class": "Wizard",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 10,
+  "quests_available": 5
+}
+[16:49:01] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "1db9020a",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:49:01] 🎮 [ACTION] Player: look around
+[16:49:04] 🎲 [DM] Response length: 523 chars
+[16:49:04] 🎯 [ROLL] Perception check DC 10
+    ↳ {
+  "roll": 6,
+  "modifier": 2,
+  "total": 8,
+  "success": false
+}
+[16:49:10] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You cast your eyes around the tavern, taking in the scene more carefully. The flickering firelight makes the shadows dance, and the low murmur of conversation makes it hard to pick out individual deta..."
+}
+[16:49:10] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "marcus",
+    "lily",
+    "marcus_mercenary"
+  ]
+}
+[16:49:12] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:49:26] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "20f8db5e-201b-4a68-93e2-385d5f9d3951",
+  "character": "TestHero",
+  "race": "Half-Elf",
+  "class": "Bard",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[16:49:28] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "20f8db5e",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:49:28] 🎮 [ACTION] Player: talk to the farmer
+[16:49:38] 🎲 [DM] Response length: 1100 chars
+[16:49:38] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You give the farmer a gentle nod, and a wave of desperate relief washes over his face. He closes the distance between you, his voice low and urgent, though the entire tavern seems to be listening in t..."
+}
+[16:49:38] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "marcus",
+    "lily",
+    "marcus_mercenary",
+    "elira_ranger"
+  ]
+}
+[16:49:40] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:49:51] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "63c4ffda-6151-41df-93b5-cb1d323a0c7c",
+  "character": "TestHero",
+  "race": "Halfling",
+  "class": "Rogue",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 14,
+  "quests_available": 5
+}
+[16:49:54] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "63c4ffda",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:49:54] 🎮 [ACTION] Player: I try to persuade the farmer to give me more details about the goblins
+[16:50:05] 🎲 [DM] Response length: 1178 chars
+[16:50:05] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You nod, adopting a calm and steady tone to counter the farmer's panic. \"Of course, I'll help. But first, you must tell me everything you can. How many were there? What did they look like? Anything yo..."
+}
+[16:50:05] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "lily"
+  ]
+}
+[16:50:07] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:50:20] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "a1fbf2d2-4854-43af-adb4-7ed7cf959832",
+  "character": "TestHero",
+  "race": "Dwarf",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 18,
+  "quests_available": 5
+}
+[16:50:22] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:50:32] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "adaddd2a-9075-451d-b2e5-5277a9a7dfe3",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Cleric",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 13,
+  "quests_available": 5
+}
+[16:50:34] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:50:45] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "e41f51a7-e1d9-4d13-905d-24fc5252e170",
+  "character": "TestHero",
+  "race": "Half-Orc",
+  "class": "Barbarian",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 16,
+  "quests_available": 5
+}
+[16:50:47] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:51:04] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "0538ab9b-6082-4535-9586-f4ca9ec7161a",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 13,
+  "quests_available": 5
+}
+[16:51:06] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "0538ab9b",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "0538ab9b-6082-4535-9586-f4ca9ec7161a"
+  },
+  "has_body": null
+}
+[16:51:08] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:51:20] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "1d050ada-b3f2-4a66-996d-b2455bc8dd34",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 20,
+  "quests_available": 5
+}
+[16:51:22] 📡 [API] GET /api/reputation/barkeep
+    ↳ {
+  "session": "1d050ada",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "1d050ada-b3f2-4a66-996d-b2455bc8dd34"
+  },
+  "has_body": null
+}
+[16:51:24] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:51:35] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "e2f2677f-96b5-46f3-821c-a2826e5b5207",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 25,
+  "quests_available": 5
+}
+[16:51:37] 📡 [API] GET /api/reputation/nonexistent_npc
+    ↳ {
+  "session": "e2f2677f",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "e2f2677f-96b5-46f3-821c-a2826e5b5207"
+  },
+  "has_body": null
+}
+[16:51:37] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:51:50] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "caa8eb7b-c48d-463d-be29-96ee3e80c06c",
+  "character": "TestFighter",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 11,
+  "quests_available": 5
+}
+[16:51:50] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "caa8eb7b",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:51:50] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:52:09] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "140ab56e-6b19-44b8-a119-ea9c26905b29",
+  "character": "TestFighter",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[16:52:09] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "140ab56e",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:52:09] 🗺️ [LOCATION] Traveled to Village Square
+    ↳ {
+  "from": "Village Square",
+  "to": "Village Square",
+  "location_id": "village_square",
+  "exits": [
+    "tavern",
+    "east road",
+    "forge"
+  ],
+  "events_triggered": 0
+}
+[16:52:09] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:52:20] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "9aa844c7-ce09-477a-9695-6c17e79e4649",
+  "character": "TestFighter",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 19,
+  "quests_available": 5
+}
+[16:52:20] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "9aa844c7",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:52:26] 📡 [API] GET /api/health
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[16:52:27] 📡 [API] GET /api/choices/available
+    ↳ {
+  "session": "invalid",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "invalid"
+  },
+  "has_body": null
+}
+[16:52:27] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:52:39] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "302368cb-1e67-427a-a06e-902ba6451e79",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 14,
+  "quests_available": 0
+}
+[16:52:39] 📡 [API] GET /api/choices/available
+    ↳ {
+  "session": "302368cb",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "302368cb-1e67-427a-a06e-902ba6451e79"
+  },
+  "has_body": null
+}
+[16:52:39] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:52:51] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "4d006d63-0da4-4030-a88b-f375c7d9970b",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 23,
+  "quests_available": 0
+}
+[16:52:51] 📡 [API] GET /api/choices/history
+    ↳ {
+  "session": "4d006d63",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4d006d63-0da4-4030-a88b-f375c7d9970b"
+  },
+  "has_body": null
+}
+[16:52:51] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:53:00] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "d23d30ff-0a9b-431b-b8db-1d748211cda0",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 14,
+  "quests_available": 0
+}
+[16:53:00] 📡 [API] GET /api/choices/ending
+    ↳ {
+  "session": "d23d30ff",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "d23d30ff-0a9b-431b-b8db-1d748211cda0"
+  },
+  "has_body": null
+}
+[16:53:00] 📡 [API] POST /api/choices/select
+    ↳ {
+  "session": "invalid",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:53:00] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:53:14] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "51804e8f-4895-4caa-ac79-21204a6a7731",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 17,
+  "quests_available": 0
+}
+[16:53:14] 📡 [API] POST /api/choices/select
+    ↳ {
+  "session": "51804e8f",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:53:30] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:53:48] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "30f3b6c3-ef17-4738-b770-ebbf24ba2595",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 22,
+  "quests_available": 5
+}
+[16:53:50] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "30f3b6c3",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:00] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "30f3b6c3-ef17-4738-b770-ebbf24ba2595",
+  "character": "Overwrite",
+  "race": "Elf",
+  "class": "Wizard",
+  "scenario": "free_adventure",
+  "location": "Village Square",
+  "gold": 14,
+  "quests_available": 0
+}
+[16:54:02] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:15] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "f80aa516-5028-42c9-8c9a-c31c8c95ab30",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 23,
+  "quests_available": 5
+}
+[16:54:17] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "f80aa516",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:20] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:34] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "d37a8178-d374-4bcd-9d48-045a6de3573b",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 10,
+  "quests_available": 5
+}
+[16:54:36] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:38] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:40] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": [
+    "a",
+    "b",
+    "c"
+  ],
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:42] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:54] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "fcab3fb1-3ebc-44a1-9d9b-4a3fd71ffa73",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 22,
+  "quests_available": 5
+}
+[16:54:56] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "fcab3fb1",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:54:58] 📡 [API] GET /api/game/state
+    ↳ {
+  "session": "fcab3fb1",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "fcab3fb1-3ebc-44a1-9d9b-4a3fd71ffa73"
+  },
+  "has_body": null
+}
+[16:55:01] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "fcab3fb1",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:01] 🗺️ [LOCATION] Traveled to Village Square
+    ↳ {
+  "from": "Village Square",
+  "to": "Village Square",
+  "location_id": "village_square",
+  "exits": [
+    "tavern",
+    "east road",
+    "forge"
+  ],
+  "events_triggered": 0
+}
+[16:55:03] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "fcab3fb1",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:05] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "fcab3fb1",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:07] 📡 [API] GET /api/location/scan
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[16:55:10] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:22] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "a852802e-dd97-4b1d-9b46-ef210a18dbc3",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 10,
+  "quests_available": 5
+}
+[16:55:24] 📡 [API] POST /api/quests/complete
+    ↳ {
+  "session": "a852802e",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:27] 📡 [API] POST /api/quests/complete
+    ↳ {
+  "session": "a852802e",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:29] 📡 [API] GET /api/quests/list
+    ↳ {
+  "session": "a852802e",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "a852802e-dd97-4b1d-9b46-ef210a18dbc3",
+    "filter": "'; DROP TABLE quests;--"
+  },
+  "has_body": null
+}
+[16:55:31] 📡 [API] POST /api/quests/complete
+    ↳ {
+  "session": "a852802e",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:33] 📡 [API] POST /api/quests/complete
+    ↳ {
+  "session": "a852802e",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:35] 📡 [API] GET /api/quests/list
+    ↳ {
+  "session": "AAAAAAAA",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  },
+  "has_body": null
+}
+[16:55:37] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:51] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "9ed02bc4-d4c5-4ee5-aff0-78c2202bef96",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[16:55:53] 📡 [API] POST /api/game/roll
+    ↳ {
+  "session": "9ed02bc4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:55] 📡 [API] POST /api/game/roll
+    ↳ {
+  "session": "9ed02bc4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:57] 📡 [API] POST /api/game/roll
+    ↳ {
+  "session": "9ed02bc4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:55:59] 📡 [API] POST /api/game/roll
+    ↳ {
+  "session": "9ed02bc4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:01] 📡 [API] POST /api/game/roll
+    ↳ {
+  "session": "9ed02bc4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:03] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:16] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "7981b399-775b-469a-aa6b-a657d0baca97",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 17,
+  "quests_available": 5
+}
+[16:56:18] 📡 [API] POST /api/shop/buy
+    ↳ {
+  "session": "7981b399",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:20] 📡 [API] POST /api/shop/buy
+    ↳ {
+  "session": "7981b399",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:22] 📡 [API] POST /api/shop/sell
+    ↳ {
+  "session": "7981b399",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:24] 📡 [API] GET /api/shop/browse
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[16:56:26] 📡 [API] POST /api/shop/buy
+    ↳ {
+  "session": "7981b399",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:28] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:44] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "8f5f7e40-5ebc-4053-8c1b-be312c7f30b7",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 10,
+  "quests_available": 5
+}
+[16:56:46] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "invalid",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "invalid"
+  },
+  "has_body": null
+}
+[16:56:48] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "8f5f7e40",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:56:55] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "8f5f7e40",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "8f5f7e40-5ebc-4053-8c1b-be312c7f30b7"
+  },
+  "has_body": null
+}
+[16:56:57] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "8f5f7e40",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:57:10] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "8f5f7e40",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "8f5f7e40-5ebc-4053-8c1b-be312c7f30b7",
+    "faction": "<script>alert(1)</script>"
+  },
+  "has_body": null
+}
+[16:57:12] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "8f5f7e40",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "8f5f7e40-5ebc-4053-8c1b-be312c7f30b7",
+    "faction": ""
+  },
+  "has_body": null
+}
+[16:57:14] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:57:25] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "e8adaa19-7fa5-481e-9062-80c79b1c94e6",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[16:57:27] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "invalid",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:57:29] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "e8adaa19",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:57:29] 🎮 [ACTION] Player: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...
+[16:57:44] 🎲 [DM] Response length: 2280 chars
+[16:57:44] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "-  -   -   -\n-ll</strong>-  .. a-a-iv-a--iv-A  -..  -.. .-. . .  s-o-u-ela..\n-..-. ..- -.  m-..- . ..- -..- --s-a-foo-t-b--l-l-..-m-s-g.-c-o-f-f-e-e- -g-r-i-n-d-e-r-s-p-o-r-t-s- -a-n-d- -o-u-t-d-o-li-..."
+}
+[16:57:46] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "e8adaa19",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:57:48] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "e8adaa19",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:57:48] 🎮 [ACTION] Player:  
+[16:57:55] 🎲 [DM] Response length: 646 chars
+[16:57:55] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "The farmer, Bram, recoils slightly, his face a mask of confusion. The low chatter in the tavern dies down as a few patrons turn to look at you, their brows furrowed.\n\n\"Are... are you alright, traveler..."
+}
+[16:57:55] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "lily"
+  ]
+}
+[16:57:57] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "e8adaa19",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:57:57] 🎮 [ACTION] Player: Quick action 0
+[16:58:04] 🎲 [DM] Response length: 409 chars
+[16:58:04] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "Bram's brow furrows in confusion, his already worried expression deepening. \"Quick... action zero? I'm sorry, friend, I don't understand that.\" He shakes his head, as if trying to clear it. \"My mind's..."
+}
+[16:58:04] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "lily"
+  ]
+}
+[16:58:06] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "e8adaa19",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:58:06] 🎮 [ACTION] Player: Quick action 1
+[16:58:11] 🎲 [DM] Response length: 685 chars
+[16:58:11] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "The farmer, Bram, blinks, his expression a mixture of confusion and mounting despair. \"I... I don't follow,\" he says, his voice wavering. \"Is this some kind of adventurer's code? My apologies, I'm jus..."
+}
+[16:58:11] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "lily"
+  ]
+}
+[16:58:13] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "e8adaa19",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:58:13] 🎮 [ACTION] Player: Quick action 2
+[16:58:21] 🎲 [DM] Response length: 772 chars
+[16:58:21] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "Bram's face crumples with a mix of frustration and sorrow. He shakes his head, his voice strained. \"I... I'm sorry, I don't know what that means. Is it a price? Is fifty gold not enough? It's all I ha..."
+}
+[16:58:21] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "marcus",
+    "marcus_mercenary"
+  ]
+}
+[16:58:23] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "e8adaa19",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:58:23] 🎮 [ACTION] Player: Quick action 3
+[16:58:32] 🎲 [DM] Response length: 823 chars
+[16:58:32] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "Bram's shoulders slump, and the last glimmer of hope in his eyes dies out. He looks down at his worn boots, then back up at you with a look of profound disappointment. \"I see,\" he says, his voice flat..."
+}
+[16:58:32] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "marcus",
+    "marcus_mercenary"
+  ]
+}
+[16:58:35] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "e8adaa19",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:58:35] 🎮 [ACTION] Player: Quick action 4
+[16:58:44] 🎲 [DM] Response length: 1020 chars
+[16:58:44] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "Bram stops with his hand on the door latch, turning back to look at you with red-rimmed eyes. The farmer's face is a canvas of despair, and your strange words seem to be the final, confusing blow. \"Pl..."
+}
+[16:58:44] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "marcus",
+    "marcus_mercenary"
+  ]
+}
+[16:58:48] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:58:59] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "6addccfd-22d2-49f8-ac65-487c32299428",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 20,
+  "quests_available": 5
+}
+[16:59:01] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:01] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:01] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:01] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:01] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:11] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "952dcf7e-9021-49d0-81ec-8a51a7589802",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[16:59:11] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "73281f25-fdb8-4f4b-9a34-bb5931d47090",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 19,
+  "quests_available": 5
+}
+[16:59:12] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "2e2eb648-2c96-4c7e-8e99-7611e88c850f",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 23,
+  "quests_available": 5
+}
+[16:59:14] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "e45fd27e-43ce-4f2b-893e-ebb70e3b3d6b",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 25,
+  "quests_available": 5
+}
+[16:59:16] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "e9ca87b1-132f-4a7f-92a1-f4c0a9188806",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 11,
+  "quests_available": 5
+}
+[16:59:18] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:18] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:18] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:18] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:18] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:40] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:40] 💾 [SAVE] Game saved: save_0
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[16:59:40] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:40] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:40] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:40] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:40] 💾 [SAVE] Game saved: save_3
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[16:59:40] 💾 [SAVE] Game saved: save_1
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[16:59:40] 💾 [SAVE] Game saved: save_4
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[16:59:42] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:55] 📡 [API] POST /api/combat/attack
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:55] 📡 [API] POST /api/combat/attack
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:55] 📡 [API] POST /api/combat/attack
+    ↳ {
+  "session": "6addccfd",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[16:59:57] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:00:09] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "df4b5bf4-8d8a-4ecc-9f08-a526b706898c",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 17,
+  "quests_available": 5
+}
+[17:00:11] 📡 [API] POST /api/combat/attack
+    ↳ {
+  "session": "df4b5bf4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:00:11] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "df4b5bf4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:00:11] 📡 [API] POST /api/travel
+    ↳ {
+  "session": "df4b5bf4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:00:11] 📡 [API] POST /api/combat/attack
+    ↳ {
+  "session": "df4b5bf4",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:00:13] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:00:28] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "87257b9c-5bd8-4985-abb1-8f77d8944243",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 25,
+  "quests_available": 5
+}
+[17:00:30] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "87257b9c",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:00:42] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "87257b9c",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:00:52] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "87257b9c",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:09] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "87257b9c",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:20] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "87257b9c",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:32] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:41] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "7e914ede-fb6b-481a-b16b-1c85e148ae0f",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 23,
+  "quests_available": 5
+}
+[17:01:43] 📡 [API] POST /api/shop/buy
+    ↳ {
+  "session": "7e914ede",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:45] 📡 [API] POST /api/shop/sell
+    ↳ {
+  "session": "7e914ede",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:47] 📡 [API] POST /api/shop/buy
+    ↳ {
+  "session": "7e914ede",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:49] 📡 [API] POST /api/shop/buy
+    ↳ {
+  "session": "7e914ede",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:51] 📡 [API] POST /api/shop/buy
+    ↳ {
+  "session": "7e914ede",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:53] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "00000000",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:01:55] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:02:06] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "b23402aa-69ec-422a-8d3c-f1489623970a",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 16,
+  "quests_available": 5
+}
+[17:02:08] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "b23402ab",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:02:10] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "eyJhbGci",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:02:13] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "b23402aa",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:02:20] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:02:30] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "e1e24863-b522-4e85-9130-af563f9a7919",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 18,
+  "quests_available": 5
+}
+[17:02:33] 📡 [API] GET /api/game/character
+    ↳ {
+  "session": "b23402aa",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "b23402aa-69ec-422a-8d3c-f1489623970a",
+    "target_session": "e1e24863-b522-4e85-9130-af563f9a7919"
+  },
+  "has_body": null
+}
+[17:02:35] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:02:52] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "61b88155-b814-4a6d-9b6a-91c1e4cc8274",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[17:02:54] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:02:56] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "61b88155",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:03:06] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "61b88155",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:03:09] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "61b88155",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:03:20] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "61b88155",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:03:31] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:03:47] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "4a310dfe-aa96-455d-ab84-386a321ea219",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 21,
+  "quests_available": 5
+}
+[17:03:49] 📡 [API] GET /api/game/action
+    ↳ {
+  "session": "4a310dfe",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4a310dfe-aa96-455d-ab84-386a321ea219",
+    "action": "test"
+  },
+  "has_body": null
+}
+[17:03:51] 📡 [API] DELETE /api/game/action
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:03:53] 📡 [API] PUT /api/game/action
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:03:57] 📡 [API] HEAD /api/game/state
+    ↳ {
+  "session": "4a310dfe",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4a310dfe-aa96-455d-ab84-386a321ea219"
+  },
+  "has_body": null
+}
+[17:03:59] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:04:12] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "46d51c67-78f1-4667-983e-0aeedcfa75cc",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[17:04:14] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "46d51c67",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:04:24] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "46d51c67",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:04:32] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "46d51c67",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:04:44] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "46d51c67",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:04:56] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "46d51c67",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:05:14] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:05:24] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "c3a6caaa-d636-4753-ac3c-20f0c991137f",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 20,
+  "quests_available": 5
+}
+[17:05:26] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:05:41] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "ee9dea36-d791-4578-a48d-1e2498b3137c",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 14,
+  "quests_available": 5
+}
+[17:05:44] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:05:59] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "fb837faa-1af3-4182-a9da-672a9e1f6400",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 18,
+  "quests_available": 5
+}
+[17:06:01] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:06:13] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "9cc9429c-480a-40f2-ba51-fdf6255af108",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 21,
+  "quests_available": 5
+}
+[17:06:15] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:06:30] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "20c2e31e-f08f-4111-baad-a5ca373a7cbc",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 22,
+  "quests_available": 5
+}
+[17:06:33] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:06:44] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "48cbc941-b69c-43ed-bd28-e445df97c115",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[17:06:46] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:06:58] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "0858ed4e-eb49-4053-93e1-e25ee7d8c39f",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 16,
+  "quests_available": 5
+}
+[17:07:00] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:07:16] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "3a9aa0b8-8b66-4b9f-9240-d57f3b3a8894",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 18,
+  "quests_available": 5
+}
+[17:07:18] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:07:28] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "6df67bbe-5a9c-4150-b135-565affcab403",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 10,
+  "quests_available": 5
+}
+[17:07:30] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:07:42] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "fa4d32db-a1b3-46de-bd23-e3f0eb2bb98a",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 15,
+  "quests_available": 5
+}
+[17:07:45] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:07:57] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "bd01ad97-6b9c-4710-8ea0-4efdb6441451",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 21,
+  "quests_available": 5
+}
+[17:08:00] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:08:12] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "5bb7ad23-7458-430f-bdb1-bc9539c391ee",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 22,
+  "quests_available": 5
+}
+[17:08:14] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:08:25] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "f5bbd342-a531-40c3-a3e7-b2053f34ba3b",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 21,
+  "quests_available": 5
+}
+[17:08:27] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:08:44] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "9652b061-271e-4fac-9dc6-f094f8070034",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 20,
+  "quests_available": 5
+}
+[17:08:46] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:09:03] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "75e7298b-d384-4459-9505-26549ba6ddb7",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 18,
+  "quests_available": 5
+}
+[17:09:05] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:09:17] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "0ecb04ab-d871-4d9e-84a8-920d1896db0d",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 13,
+  "quests_available": 5
+}
+[17:09:19] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:09:30] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "6076dc5c-f5bf-4f7b-9019-54f5803f9a93",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 14,
+  "quests_available": 5
+}
+[17:09:32] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:09:44] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "85f0b541-0cbb-456f-aeb3-59e937cc2406",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 23,
+  "quests_available": 5
+}
+[17:09:46] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:09:58] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "6513173e-3421-4818-8ad4-99bb6eadb3fd",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 20,
+  "quests_available": 5
+}
+[17:10:00] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:10:12] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "f1dbe969-06b9-4882-bcfe-9b69db6babfc",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 20,
+  "quests_available": 5
+}
+[17:10:14] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:10:25] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "19c6fb65-0674-430d-a965-b670d3c439d0",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 20,
+  "quests_available": 5
+}
+[17:10:27] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "19c6fb65",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:10:41] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:10:56] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "d836e187-dad3-4703-99e9-9d945e409483",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 25,
+  "quests_available": 5
+}
+[17:10:59] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:10:59] 💾 [SAVE] Game saved: stress_save_0
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:01] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:01] 💾 [SAVE] Game saved: stress_save_1
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:03] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:03] 💾 [SAVE] Game saved: stress_save_2
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:05] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:05] 💾 [SAVE] Game saved: stress_save_3
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:07] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:07] 💾 [SAVE] Game saved: stress_save_4
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:09] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:09] 💾 [SAVE] Game saved: stress_save_5
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:11] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:11] 💾 [SAVE] Game saved: stress_save_6
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:14] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:14] 💾 [SAVE] Game saved: stress_save_7
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:16] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:16] 💾 [SAVE] Game saved: stress_save_8
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:18] 📡 [API] POST /api/game/save
+    ↳ {
+  "session": "d836e187",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:18] 💾 [SAVE] Game saved: stress_save_9
+    ↳ {
+  "character": "TestHero",
+  "level": 1,
+  "location": "The Rusty Dragon Tavern",
+  "in_combat": false
+}
+[17:11:20] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:37] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d",
+  "character": "TestHero",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 10,
+  "quests_available": 5
+}
+[17:11:39] 📡 [API] POST /api/game/action
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:11:50] 📡 [API] GET /api/health
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:11:52] 📡 [API] GET /api/game/state
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:11:54] 📡 [API] GET /api/classes
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:11:56] 📡 [API] GET /api/races
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:11:58] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:12:00] 📡 [API] GET /api/locations
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:12:02] 📡 [API] GET /api/quests/list
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:12:04] 📡 [API] GET /api/party/view
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:12:04] 🛡️ [PARTY] Party view requested
+    ↳ {
+  "members": [],
+  "count": 0
+}
+[17:12:06] 📡 [API] GET /api/shop/browse
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:12:08] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}
+[17:12:11] 📡 [API] GET /api/location/scan
+    ↳ {
+  "session": "4b977b18",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "4b977b18-4fee-4f0e-8349-7d88704ecd0d"
+  },
+  "has_body": null
+}

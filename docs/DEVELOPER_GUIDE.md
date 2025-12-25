@@ -27,7 +27,7 @@ This document provides comprehensive technical documentation for developers who 
 14. [Quest System](#quest-system-phase-334)
 15. [Extending the Game](#extending-the-game)
 16. [Testing Guidelines](#testing-guidelines)
-17. [Security](#security) ← **125 tests passing**
+17. [Security](#security) ← **75 tests passing**
 18. [Deployment](#deployment)
 19. [Troubleshooting](#troubleshooting)
 
@@ -237,7 +237,7 @@ ai-dnd-rpg/
 │   └── legacy/
 │       └── game.py         # Archived terminal version (no longer maintained)
 │
-└── tests/                       # 821+ unit tests + 125 security tests
+└── tests/                       # 985 unit tests + 75 security tests
     ├── run_interactive_tests.py  # Unified test runner (all test modes)
     ├── hostile_final.py        # Security stress tests (75 tests - Round 5)
     ├── test_ai_stress.py       # AI security stress tests (23 cases)
@@ -5339,7 +5339,7 @@ The AI DM can award 25 XP for **truly exceptional** roleplay:
 
 ### Running Tests
 
-**Unit Tests (821+ tests total):**
+**Unit Tests (985 tests total):**
 ```bash
 # Run all unit tests
 cd tests
@@ -5355,7 +5355,7 @@ python -m pytest . --cov=../src --cov-report=html
 python run_interactive_tests.py
 ```
 
-**Security Tests (125 tests):**
+**Security Tests (75 tests):**
 ```bash
 # Run hostile player final test suite
 python tests/hostile_final.py
@@ -5401,8 +5401,7 @@ python tests/test_dice_with_dm.py
 | test_shop.py | 72 | Shop system, buy/sell/haggle |
 | test_travel_menu.py | 42 | Travel menu system |
 | test_xp_system.py | 10 | XP and leveling |
-| hostile_final.py | 75 | Security stress tests (Round 5) |
-| **TOTAL** | **821+** | All unit tests |
+| **TOTAL** | **985** | All unit tests |
 
 ### Security Testing Summary
 
@@ -5411,7 +5410,7 @@ python tests/test_dice_with_dm.py
 | 1-3 | 25 | 25 | 8 issues |
 | 4 | 25 | 25 | 3 issues |
 | 5 | 75 | 75 | 5 issues |
-| **Total** | **125** | **125** | **16 issues** |
+| **Total** | **75** | **75** | **16 issues** |
 
 **All 16 security vulnerabilities have been identified and fixed.**
 
