@@ -5,7 +5,7 @@
 **Architecture:** API-First (dm_engine.py → api_server.py → React/Flutter/Godot)  
 **Methodology:** Core-First Development (Build → Test → Expose → Display)  
 **Created:** December 15, 2025  
-**Last Updated:** December 22, 2025  
+**Last Updated:** December 25, 2025  
 
 ---
 
@@ -866,15 +866,22 @@ Goblin Cave Integration:
 
 ---
 
-### Phase 3.4: Moral Choices & Consequences ⬜ Not Started
+### Phase 3.4: Moral Choices & Consequences ✅ Complete
 **Goal:** Meaningful player choices with lasting impact
 
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
-| 3.4.1 | Choice System | Branching dialogue with consequences | ⬜ |
-| 3.4.2 | Reputation System | Track player reputation with factions/NPCs | ⬜ |
-| 3.4.3 | Alternative Resolutions | Non-combat solutions to encounters | ⬜ |
-| 3.4.4 | Multiple Endings | Different outcomes based on choices | ⬜ |
+| 3.4.1 | Choice System | Branching dialogue with consequences | ✅ Complete |
+| 3.4.2 | Reputation System | Track player reputation with factions/NPCs | ✅ Complete |
+| 3.4.3 | Alternative Resolutions | Non-combat solutions to encounters | ✅ Complete |
+| 3.4.4 | Multiple Endings | Different outcomes based on choices | ⬜ (Future) |
+
+**Success Criteria:**
+- [x] Choice, ChoiceOption, ChoiceConsequence dataclasses
+- [x] ChoiceManager class with full lifecycle management
+- [x] 3 goblin cave moral choices implemented
+- [x] 4 API endpoints for choices (/api/choices/*)
+- [x] 35 new tests passing
 
 **Choice System Features (3.4.1):**
 ```

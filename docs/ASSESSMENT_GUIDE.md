@@ -1,7 +1,8 @@
 # Project Assessment Guide
 
 **Purpose:** Framework for AI agents to assess project implementation, rate quality, and identify gaps  
-**Last Updated:** December 22, 2025  
+**Last Updated:** December 25, 2025  
+**Gap Analysis:** See [ASSESSMENT_GUIDE_GAP_ANALYSIS.md](ASSESSMENT_GUIDE_GAP_ANALYSIS.md)  
 
 ---
 
@@ -59,7 +60,8 @@ Get-ChildItem src/*.py | Select-String "from module import"
 | **NPC/Social** | 15% | Dialogue, quests, reputation |
 | **Security/Testing** | 15% | Test coverage, exploit prevention |
 | **Advanced Features** | 10% | Campaigns, modding, cloud features |
-| **Documentation** | 10% | Guides, changelogs, API docs |
+| **Frontend Quality** | 5% | React builds, responsive, accessible |
+| **Documentation** | 5% | Guides, changelogs, API docs |
 
 ### Rating Scale
 
@@ -84,7 +86,69 @@ Get-ChildItem src/*.py | Select-String "from module import"
 
 ---
 
-## 🔍 Gap Finding Process
+## � Code Coverage Metrics
+
+```powershell
+# Generate coverage report
+python -m pytest tests/ --cov=src --cov-report=term-missing
+```
+
+| Coverage Level | Target | Rating Impact |
+|----------------|--------|---------------|
+| >90% | Core modules | +0.5 to category |
+| 80-90% | API/utilities | No impact |
+| <80% | Any module | -0.5 to category |
+
+---
+
+## 🌐 Frontend Assessment (React)
+
+| Check | How to Verify | Pass Criteria |
+|-------|---------------|---------------|
+| Builds | `npm run build` | No errors |
+| Tests | `npm test` | All pass |
+| Console | Browser DevTools | No errors |
+| Responsive | Test 320px, 768px, 1024px | Usable at all |
+| Accessibility | Lighthouse audit | Score >70 |
+
+---
+
+## 🔌 API Health Check
+
+```powershell
+# Test core endpoints
+$endpoints = @("/api/health", "/api/scenarios", "/api/game/start")
+foreach ($ep in $endpoints) {
+    try {
+        $r = Invoke-RestMethod "http://localhost:5000$ep" -TimeoutSec 5
+        Write-Host "✅ $ep - OK"
+    } catch {
+        Write-Host "❌ $ep - FAILED: $($_.Exception.Message)"
+    }
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| All ✅ | API fully functional |
+| Some ❌ | Investigate failures |
+| All ❌ | Server not running or broken |
+
+---
+
+## ⚡ Performance Baseline
+
+| Metric | Target | How to Measure |
+|--------|--------|----------------|
+| API response | <200ms | `Measure-Command { Invoke-RestMethod ... }` |
+| Test suite | <5 min | pytest timing |
+| Startup time | <5s | Time to first response |
+
+**Track in each assessment for trend analysis.**
+
+---
+
+## �🔍 Gap Finding Process
 
 ### Step 1: Compare Plan vs Implementation
 
@@ -210,6 +274,71 @@ When performing regular assessments, track:
 | End of development session | Full gap check |
 | Before release/demo | Complete assessment |
 | User requests | Full assessment with recommendations |
+
+---
+
+## ✅ Complete Assessment Checklist
+
+### Pre-Assessment
+- [ ] Read previous assessment (if exists)
+- [ ] Pull latest code (`git pull`)
+- [ ] Ensure test environment is clean
+
+### Data Collection
+- [ ] Run full test suite (`pytest tests/ -v`)
+- [ ] Count API endpoints (`Select-String "@app.route"`)
+- [ ] Check frontend builds (`npm run build`)
+- [ ] Verify API health (endpoints responding)
+- [ ] Collect performance metrics (response times)
+- [ ] Check code coverage if available
+
+### Evaluation
+- [ ] Score each category (0-5)
+- [ ] Document evidence for each rating
+- [ ] Identify all gaps
+- [ ] Classify gap priorities (HIGH/MED/LOW)
+
+### Comparison (if previous assessment exists)
+- [ ] Compare test counts
+- [ ] Calculate pass rate trend
+- [ ] Note closed gaps
+- [ ] Identify new gaps
+- [ ] Calculate grade change
+
+### Documentation
+- [ ] Create `PROJECT_ASSESSMENT_YYYY-MM-DD.md`
+- [ ] Update `DEVELOPMENT_PLAN.md` if needed
+- [ ] Create issues for HIGH priority gaps
+- [ ] Update `CHANGELOG.md`
+
+### Post-Assessment Validation
+- [ ] Verify all claimed metrics
+- [ ] Ensure all links work
+- [ ] Proofread for accuracy
+
+---
+
+## 📈 Diff Comparison Template
+
+Include this in assessments when comparing to previous:
+
+```markdown
+## Changes Since Last Assessment
+
+| Metric | Previous | Current | Change |
+|--------|----------|---------|--------|
+| Tests | XXX | YYY | +/-N |
+| Pass Rate | XX% | YY% | +/-N% |
+| API Endpoints | XX | YY | +/-N |
+| Open Gaps | X | Y | +/-N |
+| Overall Grade | X% | Y% | +/-N% |
+
+### New Gaps
+- [ ] Gap description
+
+### Closed Gaps
+- [x] Gap description (resolved in commit/PR)
+```
 
 ---
 
