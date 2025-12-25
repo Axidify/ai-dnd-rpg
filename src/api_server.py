@@ -23,17 +23,24 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV_PATH = os.path.join(PROJECT_ROOT, '.env')
 load_dotenv(ENV_PATH)
 
-# Configure verbose logging
-VERBOSE_LOGGING = os.getenv('VERBOSE_LOGGING', 'true').lower() == 'true'
-LOG_TO_FILE = os.getenv('LOG_TO_FILE', 'true').lower() == 'true'
+# Configure verbose logging - defaults based on DEBUG mode
+# In production (DEBUG=false), logging defaults to off
+# In development (DEBUG=true), logging defaults to on
+DEBUG_MODE = os.getenv('DEBUG', 'false').lower() == 'true'
+VERBOSE_LOGGING = os.getenv('VERBOSE_LOGGING', str(DEBUG_MODE)).lower() == 'true'
+LOG_TO_FILE = os.getenv('LOG_TO_FILE', str(DEBUG_MODE)).lower() == 'true'
 LOG_FILE_PATH = os.path.join(PROJECT_ROOT, 'notes.log')
 
 # Initialize log file with session marker
 if LOG_TO_FILE:
-    with open(LOG_FILE_PATH, 'a', encoding='utf-8') as f:
-        f.write(f"\n{'='*60}\n")
-        f.write(f"🚀 Backend Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write(f"{'='*60}\n")
+    try:
+        with open(LOG_FILE_PATH, 'a', encoding='utf-8') as f:
+            f.write(f"\n{'='*60}\n")
+            f.write(f"🚀 Backend Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"   DEBUG={DEBUG_MODE}, VERBOSE_LOGGING={VERBOSE_LOGGING}\n")
+            f.write(f"{'='*60}\n")
+    except Exception as e:
+        print(f"Warning: Could not write to log file: {e}")
 
 def game_log(category: str, message: str, data: dict = None):
     """Log game events in a verbose, readable format. Outputs to console and notes.log."""
