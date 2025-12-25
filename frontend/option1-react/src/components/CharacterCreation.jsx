@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Sword, Sparkles, Crosshair, Cross, Target, Axe, Shield, Flame, Music, Hand, Leaf, Star, Map } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
-import DiceRoller from './DiceRoller'
 
 // All D&D 5e classes matching character.py
 const classes = [
@@ -28,7 +27,6 @@ export default function CharacterCreation() {
   const [selectedClass, setSelectedClass] = useState(null)
   const [selectedRace, setSelectedRace] = useState('Human')
   const [selectedScenario, setSelectedScenario] = useState(null)
-  const [showDice, setShowDice] = useState(false)
   
   const { createCharacter, fetchScenarios, scenarios, isLoading, error } = useGameStore()
   
@@ -176,17 +174,6 @@ export default function CharacterCreation() {
               </motion.button>
             ))}
           </div>
-        </div>
-        
-        {/* Dice Roller Demo */}
-        <div className="rpg-card p-6 mb-6">
-          <button
-            onClick={() => setShowDice(!showDice)}
-            className="text-rpg-gold font-medieval hover:text-rpg-accent transition"
-          >
-            🎲 Try the Dice Roller
-          </button>
-          {showDice && <DiceRoller />}
         </div>
         
         {/* Error */}
