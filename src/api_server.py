@@ -25,9 +25,18 @@ load_dotenv(ENV_PATH)
 
 # Configure verbose logging
 VERBOSE_LOGGING = os.getenv('VERBOSE_LOGGING', 'true').lower() == 'true'
+LOG_TO_FILE = os.getenv('LOG_TO_FILE', 'true').lower() == 'true'
+LOG_FILE_PATH = os.path.join(PROJECT_ROOT, 'notes.log')
+
+# Initialize log file with session marker
+if LOG_TO_FILE:
+    with open(LOG_FILE_PATH, 'a', encoding='utf-8') as f:
+        f.write(f"\n{'='*60}\n")
+        f.write(f"🚀 Backend Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"{'='*60}\n")
 
 def game_log(category: str, message: str, data: dict = None):
-    """Log game events in a verbose, readable format."""
+    """Log game events in a verbose, readable format. Outputs to console and notes.log."""
     timestamp = datetime.now().strftime("%H:%M:%S")
     icon_map = {
         'ACTION': '🎮',
@@ -55,7 +64,16 @@ def game_log(category: str, message: str, data: dict = None):
         data_str = json.dumps(data, indent=2, default=str)
         log_line += f"\n    ↳ {data_str}"
     
+    # Print to console
     print(log_line)
+    
+    # Also write to notes.log
+    if LOG_TO_FILE:
+        try:
+            with open(LOG_FILE_PATH, 'a', encoding='utf-8') as f:
+                f.write(log_line + '\n')
+        except Exception as e:
+            print(f"Warning: Could not write to log file: {e}")
 
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
