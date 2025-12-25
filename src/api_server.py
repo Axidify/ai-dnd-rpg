@@ -2467,18 +2467,22 @@ def party_view():
     session = game_sessions[session_id]
     
     if not session.party:
-        return jsonify({'success': True, 'members': []})
+        return jsonify({'success': True, 'party': [], 'members': []})
     
     members = []
     for m in session.party.get_alive_members():
         members.append({
             'id': m.id,
             'name': m.name,
-            'class': m.member_class.value,
+            'class': m.char_class.value,
             'hp': f"{m.current_hp}/{m.max_hp}"
         })
     
-    return jsonify({'success': True, 'members': members})
+    if VERBOSE_LOGGING:
+        game_log('PARTY', f"Party view requested", {'members': [m['name'] for m in members], 'count': len(members)})
+    
+    # Return both 'party' and 'members' for compatibility
+    return jsonify({'success': True, 'party': members, 'members': members})
 
 
 @app.route('/api/party/recruit', methods=['POST'])
