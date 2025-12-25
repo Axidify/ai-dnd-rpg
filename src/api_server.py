@@ -31,6 +31,8 @@ VERBOSE_LOGGING = os.getenv('VERBOSE_LOGGING', 'true' if DEBUG_MODE else 'false'
 LOG_TO_FILE = os.getenv('LOG_TO_FILE', 'true' if DEBUG_MODE else 'false').lower() == 'true'
 LOG_FILE_PATH = os.path.join(PROJECT_ROOT, 'notes.log')
 
+print(f"   📋 Logging config: DEBUG={DEBUG_MODE}, VERBOSE={VERBOSE_LOGGING}, LOG_TO_FILE={LOG_TO_FILE}")
+
 # Initialize log file with session marker
 if LOG_TO_FILE:
     try:
@@ -39,8 +41,9 @@ if LOG_TO_FILE:
             f.write(f"🚀 Backend Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"   DEBUG={DEBUG_MODE}, VERBOSE_LOGGING={VERBOSE_LOGGING}\n")
             f.write(f"{'='*60}\n")
+        print(f"   ✅ Log file initialized: {LOG_FILE_PATH}")
     except Exception as e:
-        print(f"Warning: Could not write to log file: {e}")
+        print(f"   ⚠️ Warning: Could not write to log file: {e}")
 
 def game_log(category: str, message: str, data: dict = None):
     """Log game events in a verbose, readable format. Outputs to console and notes.log."""
