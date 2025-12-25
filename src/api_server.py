@@ -2335,7 +2335,7 @@ def party_view():
         return jsonify({'success': True, 'members': []})
     
     members = []
-    for m in session.party.get_active_members():
+    for m in session.party.get_alive_members():
         members.append({
             'id': m.id,
             'name': m.name,
@@ -2399,6 +2399,7 @@ def party_recruit():
 # QUEST ENDPOINTS
 # =============================================================================
 
+@app.route('/api/quests', methods=['GET'])
 @app.route('/api/quests/list', methods=['GET'])
 def quests_list():
     """List quests."""
