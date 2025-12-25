@@ -2540,7 +2540,8 @@ def party_view():
             'id': m.id,
             'name': m.name,
             'class': m.char_class.value,
-            'hp': f"{m.current_hp}/{m.max_hp}"
+            'hp': m.current_hp,
+            'max_hp': m.max_hp
         })
     
     if VERBOSE_LOGGING:
