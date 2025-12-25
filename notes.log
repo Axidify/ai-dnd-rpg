@@ -4747,3 +4747,268 @@
   },
   "has_body": null
 }
+[17:16:11] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[17:16:11] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[17:16:19] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:16:31] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "2a47a257-d7b7-4655-a7ed-c1d48b8d231b",
+  "character": "Amir",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 25,
+  "quests_available": 5
+}
+[17:17:16] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:17:16] 🎮 [ACTION] Player: i will need some money upfront. im going to need to hire additional help because this is not a one m...
+[17:17:22] 🎲 [DM] Response length: 713 chars
+[17:17:22] 🎯 [ROLL] Persuasion check DC 14
+    ↳ {
+  "roll": 8,
+  "modifier": 2,
+  "total": 10,
+  "success": false
+}
+[17:17:32] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "Bram's hopeful expression falters, replaced by a flicker of panicked hesitation. He clutches the small, worn coin purse at his belt, the source of his promised reward. \"Upfront?\" he stammers, his gaze..."
+}
+[17:17:32] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "lily",
+    "marcus_mercenary"
+  ]
+}
+[17:17:53] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:17:53] 🎮 [ACTION] Player: then you better find someone else foolish enough to attempt this on his own.
+[17:18:00] 🎲 [DM] Response length: 726 chars
+[17:18:00] 🎯 [ROLL] Deception check DC 13
+    ↳ {
+  "roll": 8,
+  "modifier": 2,
+  "total": 10,
+  "success": false
+}
+[17:18:08] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You turn your shoulder slightly, your tone dismissive and final. Bram's face, which had hardened with resolve, now crumples in on itself. Pure panic flashes in his eyes at the thought of his only hope..."
+}
+[17:18:08] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "lily"
+  ]
+}
+[17:18:51] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:18:51] 🎮 [ACTION] Player: no. im not going to die for some coin. if you want me to save your daughter i will need help. i cant...
+[17:18:57] 🎲 [DM] Response length: 1023 chars
+[17:18:57] 🎯 [ROLL] Persuasion check DC 13
+    ↳ {
+  "roll": 18,
+  "modifier": 2,
+  "total": 20,
+  "success": true
+}
+[17:19:08] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You state your case plainly, the truth of it hanging in the air. This isn't about greed; it's about survival. Bram's anger deflates, replaced by the crushing weight of his predicament. He looks at you..."
+}
+[17:19:08] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "marcus",
+    "lily",
+    "marcus_mercenary"
+  ]
+}
+[17:19:08] 📜 [QUEST] Quest accepted: Rescue Lily
+    ↳ {
+  "quest_id": "rescue_lily"
+}
+[17:19:08] 📜 [QUEST] Quest accepted: Clear the Path
+    ↳ {
+  "quest_id": "clear_the_path"
+}
+[17:19:35] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[17:19:35] 🎮 [ACTION] Player: right. now we're talking. i accept
+[17:19:48] 🎲 [DM] Response length: 1233 chars
+[17:19:48] 🔍 [PARSE] Found item tags
+    ↳ {
+  "items": [
+    "torch"
+  ]
+}
+[17:19:48] 📦 [ITEM] Received: Torch
+    ↳ {
+  "item_id": "torch"
+}
+[17:19:48] 💰 [GOLD] Paid 20 gold: Hired Marcus
+    ↳ {
+  "remaining": 5
+}
+[17:19:48] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [
+    "marcus"
+  ],
+  "response_snippet": "A grim smile touches Marcus's lips. \"Good. We have a deal.\" He extends a calloused hand, not for a handshake, but for payment. You count out twenty gold coins, the clinking metal sealing the pact. He ..."
+}
+[17:19:48] 👥 [RECRUIT] Attempting to recruit: marcus
+[17:19:48] 👥 [RECRUIT] Recruitment result: 🎉 Marcus has joined your party!
+    ↳ {
+  "success": true,
+  "npc_id": "marcus",
+  "member_name": "Marcus",
+  "party_size": 1
+}
+[17:19:48] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "bram",
+    "marcus",
+    "lily",
+    "marcus_mercenary"
+  ]
+}
+[17:19:48] 📜 [QUEST] Objective completed: Find and rescue Lily
+    ↳ {
+  "quest": "Rescue Lily"
+}
+[17:19:48] 📜 [QUEST] Quest accepted: The Chief's Treasure
+    ↳ {
+  "quest_id": "chiefs_treasure"
+}
+[17:19:48] 📜 [QUEST] Quest accepted: Thin the Herd
+    ↳ {
+  "quest_id": "thin_the_herd"
+}
+[17:19:55] 📡 [API] GET /api/party/view
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "2a47a257-d7b7-4655-a7ed-c1d48b8d231b"
+  },
+  "has_body": null
+}
+[17:19:55] 🛡️ [PARTY] Party view requested
+    ↳ {
+  "members": [
+    "Marcus"
+  ],
+  "count": 1
+}
+[17:20:34] 📡 [API] GET /api/party/view
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "2a47a257-d7b7-4655-a7ed-c1d48b8d231b"
+  },
+  "has_body": null
+}
+[17:20:34] 🛡️ [PARTY] Party view requested
+    ↳ {
+  "members": [
+    "Marcus"
+  ],
+  "count": 1
+}
+
+============================================================
+🚀 Backend Started: 2025-12-25 17:21:37
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
+[17:22:15] 📡 [API] GET /api/party/view
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "2a47a257-d7b7-4655-a7ed-c1d48b8d231b"
+  },
+  "has_body": null
+}
+[17:22:24] 📡 [API] GET /api/locations
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "2a47a257-d7b7-4655-a7ed-c1d48b8d231b"
+  },
+  "has_body": null
+}
+[17:22:51] 📡 [API] GET /api/locations
+    ↳ {
+  "session": "2a47a257",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "2a47a257-d7b7-4655-a7ed-c1d48b8d231b"
+  },
+  "has_body": null
+}
+
+============================================================
+🚀 Backend Started: 2025-12-25 17:26:32
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
+
+============================================================
+🚀 Backend Started: 2025-12-25 17:26:48
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
+
+============================================================
+🚀 Backend Started: 2025-12-25 17:26:51
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================

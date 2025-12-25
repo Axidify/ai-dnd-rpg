@@ -794,6 +794,12 @@ def start_game():
             # Use scenario's location manager if available
             if hasattr(scenario, 'location_manager') and scenario.location_manager:
                 session.location_manager = scenario.location_manager
+                # Sync session location from location_manager
+                current_loc = session.location_manager.get_current_location()
+                if current_loc:
+                    session.current_location = current_loc.name
+                    session.current_location_id = current_loc.id
+                    game_log('LOCATION', f"Synced current location from scenario: {current_loc.name} ({current_loc.id})")
             
             # Use scenario's choice manager if available (Phase 3.4)
             if hasattr(scenario, 'choice_manager') and scenario.choice_manager:
@@ -818,7 +824,8 @@ def start_game():
                     session.location_manager.set_current_location(start_loc.id)
                     session.current_location = start_loc.name
                     session.current_location_id = start_loc.id
-            else:
+            elif not session.current_location_id:
+                # Fallback only if location wasn't already set from location_manager
                 session.current_location = first_scene.name if first_scene else scenario.name
             
             # Build NPC names for opening prompt
