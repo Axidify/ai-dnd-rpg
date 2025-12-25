@@ -5,7 +5,33 @@
 
 ---
 
-## 📚 Documentation Files Overview
+## � Quick Reference: Which Document Do I Need?
+
+| Task | Primary Document |
+|------|------------------|
+| **Understand project** | `README.md` |
+| **Find API endpoint** | `API_DOCUMENTATION.md` |
+| **Debug data flow issue** | `FUNCTION_REFERENCE.md` |
+| **Add/modify scenario** | `SCENARIO_REFERENCE.md` |
+| **Architecture overview** | `DEVELOPER_GUIDE.md` |
+| **Track project progress** | `DEVELOPMENT_PLAN.md` |
+| **Check test counts** | `DEVELOPER_GUIDE.md` → Testing section |
+| **Record changes** | `CHANGELOG.md` |
+| **Frontend UI specs** | `UI_DESIGN_SPEC.md` |
+| **Conduct assessment** | `ASSESSMENT_GUIDE.md` |
+
+### ⚠️ Before Modifying Backend Code
+
+**ALWAYS check `FUNCTION_REFERENCE.md`** before modifying:
+- `api_server.py` response formats
+- `scenario.py` LocationManager or Session initialization
+- Any API endpoint response structure
+
+This document contains the data flow diagrams and field type requirements that prevent breaking the frontend.
+
+---
+
+## �📚 Documentation Files Overview
 
 | File | Purpose | Update Frequency |
 |------|---------|------------------|
@@ -13,6 +39,9 @@
 | `DEVELOPMENT_PLAN.md` | Phase roadmap, milestones, progress tracking | After each phase/feature |
 | `CHANGELOG.md` | User-facing change log, version history | Every feature/fix/commit |
 | `DEVELOPER_GUIDE.md` | Technical docs, architecture, API reference | Major features/architecture |
+| `API_DOCUMENTATION.md` | REST API endpoint documentation | API changes |
+| `FUNCTION_REFERENCE.md` | Critical internal functions, data flows, breaking change prevention | Backend changes |
+| `SCENARIO_REFERENCE.md` | Scenario/Location/NPC structure reference | Scenario system changes |
 | `PROJECT_ASSESSMENT_*.md` | Point-in-time quality assessments | Periodic reviews |
 | `ASSESSMENT_GUIDE.md` | Framework for conducting assessments | Rarely |
 | `UI_DESIGN_SPEC.md` | Frontend design specifications | UI changes |
@@ -94,6 +123,26 @@
 - [ ] API changes
 - [ ] New conventions established
 - [ ] Architecture changes
+
+### When to Update FUNCTION_REFERENCE.md
+- [ ] Session initialization flow changes
+- [ ] Location manager behavior changes
+- [ ] API response format changes (especially field names/types)
+- [ ] Party view, World Map, or other UI data flow changes
+- [ ] Any change that previously caused a frontend bug
+- [ ] New critical functions that could break if modified incorrectly
+
+### When to Update API_DOCUMENTATION.md
+- [ ] New API endpoint added
+- [ ] Endpoint request/response format changes
+- [ ] Authentication changes
+- [ ] Endpoint removed or deprecated
+
+### When to Update SCENARIO_REFERENCE.md
+- [ ] New Location fields added
+- [ ] Scene structure changes
+- [ ] NPC system changes
+- [ ] Quest system changes
 
 ---
 
