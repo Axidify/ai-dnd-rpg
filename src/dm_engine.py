@@ -657,11 +657,17 @@ def build_full_dm_context(
     current_location: str,
     conversation_history: List[Dict[str, str]],
     player_action: str,
-    available_enemies: List[str]
+    available_enemies: List[str],
+    in_combat: bool = False,
+    combat_state: dict = None
 ) -> str:
     """
     Build the complete DM context/prompt for AI generation.
     This is the single source of truth for DM prompts.
+    
+    Args:
+        in_combat: Whether the player is currently in combat
+        combat_state: Dict with 'enemies', 'round', etc. if in combat
     """
     # Build all context sections
     char_ctx = build_character_context(character)
@@ -688,12 +694,33 @@ def build_full_dm_context(
             history_lines.append(f"{role}: {msg.get('content', '')}")
         history = "\n".join(history_lines)
     
+    # Build combat context if in combat
+    combat_ctx = ""
+    if in_combat and combat_state:
+        enemies = combat_state.get('enemies', [])
+        round_num = combat_state.get('round', 1)
+        combat_ctx = f"""
+
+⚔️ COMBAT IN PROGRESS (Round {round_num})
+Enemies: {', '.join(enemies)}
+
+CRITICAL COMBAT RULES:
+- The game UI handles ALL combat mechanics (attack rolls, damage, HP tracking)
+- You are ONLY providing narrative flavor for what the player sees
+- Do NOT resolve the combat - do NOT say enemies are killed or defeated
+- Do NOT narrate damage numbers or hit points
+- Just describe the action, tension, and atmosphere of battle
+- Example good response: "You swing your blade at the snarling wolf, steel flashing in the dim light..."
+- Example bad response: "You hit the wolf for 8 damage, killing it instantly."
+- The player will use the Attack button in the UI to actually attack
+"""
+    
     # Build final prompt
     prompt = f"""{DM_SYSTEM_PROMPT}
 
 {char_ctx}
 Current Location: {current_location or 'Unknown'}
-{scenario_ctx}{location_ctx}{npc_ctx}{quest_ctx}
+{scenario_ctx}{location_ctx}{npc_ctx}{quest_ctx}{combat_ctx}
 
 RECENT CONVERSATION:
 {history}

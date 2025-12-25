@@ -270,6 +270,74 @@ Frontend PartyMenu.jsx
 
 ---
 
+## DM Context Builder Functions
+
+### `build_full_dm_context()` - AI Prompt Builder
+
+**File:** `src/dm_engine.py`, lines ~651-730
+
+This is the **single source of truth** for AI DM prompts. All context sent to the AI goes through this function.
+
+```python
+def build_full_dm_context(
+    character,              # Player's Character object
+    scenario_manager,       # ScenarioManager with active scenario
+    location_manager,       # LocationManager with locations
+    npc_manager,            # NPCManager with NPCs
+    quest_manager,          # QuestManager with quests
+    current_location: str,  # Display name of current location
+    conversation_history,   # List of message dicts
+    player_action: str,     # The player's input
+    available_enemies,      # List of enemy type strings
+    in_combat: bool = False,          # ← NEW: Is player in combat?
+    combat_state: dict = None         # ← NEW: Combat details if in_combat=True
+) -> str:
+```
+
+**Combat State Structure:**
+```python
+combat_state = {
+    'enemies': ['wolf', 'wolf'],   # List of enemy types
+    'surprise': False,              # Did player get surprise round?
+    'round': 1                      # Current combat round number
+}
+```
+
+**When `in_combat=True`:**
+The function adds a "CRITICAL COMBAT RULES" block to the prompt:
+- Tells DM the UI handles all combat mechanics
+- DM should only provide narrative flavor
+- Do NOT resolve combat or say enemies are killed
+- Do NOT narrate damage numbers
+
+**⚠️ Common Bug Pattern (FIXED 2025-12-25):**
+Before this fix, the DM would instantly narrate combat resolution (e.g., "You kill both wolves") without waiting for the player to use the Attack button. The AI didn't know combat was in progress.
+
+### `build_dm_context()` - API Server Wrapper
+
+**File:** `src/api_server.py`, lines ~686-700
+
+Wrapper that calls `build_full_dm_context()` with session data:
+
+```python
+def build_dm_context(session: GameSession, player_action: str) -> str:
+    return build_full_dm_context(
+        character=session.character,
+        scenario_manager=session.scenario,
+        location_manager=session.location_manager,
+        npc_manager=session.npc_manager,
+        quest_manager=session.quest_manager,
+        current_location=session.current_location,
+        conversation_history=session.messages,
+        player_action=player_action,
+        available_enemies=list(ENEMIES.keys()),
+        in_combat=session.in_combat,       # ← Passes combat state
+        combat_state=session.combat_state
+    )
+```
+
+---
+
 ## Breaking Change Checklist
 
 Before modifying any of these functions, check:

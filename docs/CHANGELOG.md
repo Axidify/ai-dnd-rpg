@@ -17,6 +17,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Console feedback shows logging configuration on startup
 
 ### Fixed
+- **Combat Context for DM** - DM now receives combat state during battles!
+  - Added `in_combat` and `combat_state` parameters to `build_full_dm_context()` in dm_engine.py
+  - When in combat, DM sees "CRITICAL COMBAT RULES" telling it NOT to resolve fights
+  - DM provides narrative flavor only; the UI handles attack rolls and damage
+  - Prevents DM from instantly narrating combat victory without using combat system
 - **Party View Endpoint** - Fixed `GET /api/party/view` to return `party` field (frontend expected it, was returning `members`)
 - **NPC Detection** - Improved `detect_npc_talk()` to check DM response text and use party NPC keywords
 - **VS Code Task DEBUG Mode** - Changed `DEBUG=false` to `DEBUG=true` in `.vscode/tasks.json`

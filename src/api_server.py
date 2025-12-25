@@ -694,7 +694,9 @@ def build_dm_context(session: GameSession, player_action: str) -> str:
         current_location=session.current_location,
         conversation_history=session.messages,
         player_action=player_action,
-        available_enemies=list(ENEMIES.keys())
+        available_enemies=list(ENEMIES.keys()),
+        in_combat=session.in_combat,
+        combat_state=session.combat_state
     )
 
 
