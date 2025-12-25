@@ -708,12 +708,41 @@ RECRUITABLE_NPCS = {
     "shade_rogue": create_shade_rogue,
 }
 
+# Aliases for partial name matching
+NPC_ALIASES = {
+    "marcus": "marcus_mercenary",
+    "elira": "elira_ranger",
+    "shade": "shade_rogue",
+    "ranger": "elira_ranger",
+    "mercenary": "marcus_mercenary",
+    "rogue": "shade_rogue",
+}
+
 
 def get_recruitable_npc(npc_id: str) -> Optional[PartyMember]:
-    """Get a fresh instance of a recruitable NPC."""
-    factory = RECRUITABLE_NPCS.get(npc_id.lower())
+    """Get a fresh instance of a recruitable NPC.
+    
+    Supports exact IDs (e.g., 'marcus_mercenary') and aliases (e.g., 'marcus').
+    """
+    npc_id_lower = npc_id.lower().strip()
+    
+    # Try exact match first
+    factory = RECRUITABLE_NPCS.get(npc_id_lower)
     if factory:
         return factory()
+    
+    # Try alias match
+    resolved_id = NPC_ALIASES.get(npc_id_lower)
+    if resolved_id:
+        factory = RECRUITABLE_NPCS.get(resolved_id)
+        if factory:
+            return factory()
+    
+    # Try partial match (if ID contains the search term)
+    for full_id, factory in RECRUITABLE_NPCS.items():
+        if npc_id_lower in full_id or full_id.startswith(npc_id_lower):
+            return factory()
+    
     return None
 
 
