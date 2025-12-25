@@ -1,8 +1,11 @@
 ﻿import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Swords, Map, User, Backpack, LogOut, Skull, Heart, Shield, Zap, Save, FolderOpen, Compass, X, Package, Scroll, CheckCircle, Circle, Moon, Sun, Star, ShoppingBag, Users, Target, Sparkles } from 'lucide-react'
+import { Send, Swords, Map, User, Backpack, LogOut, Skull, Heart, Shield, Zap, Save, FolderOpen, Compass, X, Package, Scroll, CheckCircle, Circle, Moon, Sun, Star, ShoppingBag, Users, Target, Sparkles, Scale } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
 import WorldMap from './WorldMap'
+import ReputationPanel from './ReputationPanel'
+import ChoicesPanel from './ChoicesPanel'
+import QuestJournal from './QuestJournal'
 
 export default function GameScreen() {
   const [input, setInput] = useState('')
@@ -14,6 +17,8 @@ export default function GameScreen() {
   const [showShop, setShowShop] = useState(false)
   const [showParty, setShowParty] = useState(false)
   const [showRest, setShowRest] = useState(false)
+  const [showReputation, setShowReputation] = useState(false)
+  const [showChoices, setShowChoices] = useState(false)
   const [saves, setSaves] = useState([])
   const [activeTab, setActiveTab] = useState('chat')
   const messagesEndRef = useRef(null)
@@ -106,6 +111,8 @@ export default function GameScreen() {
     { label: '📜 Quests', action: 'quests', special: 'quests' },
     { label: '🛒 Shop', action: 'shop', special: 'shop' },
     { label: '👥 Party', action: 'party', special: 'party' },
+    { label: '⭐ Reputation', action: 'reputation', special: 'reputation' },
+    { label: '⚖️ Choices', action: 'choices', special: 'choices' },
   ]
   
   return (
@@ -908,6 +915,8 @@ export default function GameScreen() {
                 else if (qa.special === 'quests') setShowQuests(true)
                 else if (qa.special === 'shop') { browseShop(); setShowShop(true) }
                 else if (qa.special === 'party') { getParty(); setShowParty(true) }
+                else if (qa.special === 'reputation') setShowReputation(true)
+                else if (qa.special === 'choices') setShowChoices(true)
                 else sendActionStreaming(qa.action)
               }}
               disabled={isLoading}
@@ -1042,6 +1051,31 @@ export default function GameScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Reputation Panel */}
+      <ReputationPanel
+        show={showReputation}
+        onClose={() => setShowReputation(false)}
+        sessionId={sessionId}
+      />
+
+      {/* Choices Panel */}
+      <ChoicesPanel
+        show={showChoices}
+        onClose={() => setShowChoices(false)}
+        sessionId={sessionId}
+        onMakeChoice={(result) => {
+          // Optionally refresh game state after choice
+          console.log('Choice made:', result)
+        }}
+      />
+
+      {/* Quest Journal */}
+      <QuestJournal
+        show={showQuests}
+        onClose={() => setShowQuests(false)}
+        sessionId={sessionId}
+      />
     </div>
   )
 }

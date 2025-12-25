@@ -64,7 +64,6 @@ def test_determine_turn_order_with_party():
     assert len(enemy_combatants) == 2, f"Expected 2 enemies, got {len(enemy_combatants)}"
     
     print("✅ PASS: Turn order includes party members correctly")
-    return True
 
 
 def test_party_member_attack():
@@ -90,7 +89,6 @@ def test_party_member_attack():
     assert 'Marcus' in formatted
     
     print("✅ PASS: party_member_attack works correctly")
-    return True
 
 
 def test_party_member_attack_with_flanking():
@@ -116,7 +114,6 @@ def test_party_member_attack_with_flanking():
     assert 'FLANKING' in formatted or attack['d20_roll_1'] is not None
     
     print("✅ PASS: Flanking gives advantage correctly")
-    return True
 
 
 def test_get_party_member_action():
@@ -152,7 +149,6 @@ def test_get_party_member_action():
     assert action_low['ability_name'] == 'Shield Wall'
     
     print("✅ PASS: AI action decisions work correctly")
-    return True
 
 
 def test_check_flanking():
@@ -171,7 +167,6 @@ def test_check_flanking():
     assert check_flanking(3) == True, "3 attackers should flank"
     
     print("✅ PASS: Flanking check works correctly")
-    return True
 
 
 def test_dead_party_member_excluded():
@@ -206,7 +201,6 @@ def test_dead_party_member_excluded():
     assert 'Elira' in str(ally_names), "Alive Elira should be in combat"
     
     print("✅ PASS: Dead party members correctly excluded")
-    return True
 
 
 def test_non_recruited_excluded():
@@ -236,7 +230,6 @@ def test_non_recruited_excluded():
     assert 'Marcus' not in str(ally_names), "Non-recruited Marcus should not fight"
     
     print("✅ PASS: Non-recruited members correctly excluded")
-    return True
 
 
 if __name__ == "__main__":

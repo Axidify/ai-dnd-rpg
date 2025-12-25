@@ -50,8 +50,6 @@ Combat Integration Summary:
 - Disadvantage applied when in_darkness=True
 - Surprise advantage cancels out darkness disadvantage
 """)
-    
-    return True
 
 
 def test_darkness_function_exists():
@@ -113,7 +111,6 @@ def test_darkness_function_exists():
         print("⚠️ Test 5: Skipped (torch item not found)")
     
     print("\n✅ All darkness function tests passed!")
-    return True
 
 
 if __name__ == "__main__":

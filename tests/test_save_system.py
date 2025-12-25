@@ -358,7 +358,6 @@ def test_quest_save_load():
     assert reach_cave_obj.completed, "Objective progress should be preserved"
     
     print("\n✅ Quest save/load test PASSED")
-    return True
 
 
 def test_party_save_load():
@@ -413,7 +412,6 @@ def test_party_save_load():
     print(f"Restored Marcus HP: {restored_marcus.current_hp}/{restored_marcus.max_hp}")
     
     print("\n✅ Party save/load test PASSED")
-    return True
 
 
 def run_all_tests():
