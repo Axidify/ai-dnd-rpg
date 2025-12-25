@@ -9,6 +9,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Verbose Backend Logging System** - Comprehensive logging for debugging!
+  - `game_log()` function with 17 categories (ACTION, DM, ROLL, COMBAT, INVENTORY, etc.)
+  - Each category has unique emoji identifier for easy scanning
+  - Logs written to both console and `notes.log` file
+  - Toggleable via `DEBUG`, `VERBOSE_LOGGING`, and `LOG_TO_FILE` environment variables
+  - Console feedback shows logging configuration on startup
+
+### Fixed
+- **Party View Endpoint** - Fixed `GET /api/party/view` to return `party` field (frontend expected it, was returning `members`)
+- **NPC Detection** - Improved `detect_npc_talk()` to check DM response text and use party NPC keywords
+- **VS Code Task DEBUG Mode** - Changed `DEBUG=false` to `DEBUG=true` in `.vscode/tasks.json`
+- **Removed Dice Roller from Character Creation** - Cleaned up character creation screen
+
+### Removed
+- Removed Playwright E2E testing (incompatible with current setup)
+
+### Changed
+- **Documentation Updated** - Synced test counts across all docs
+  - Unit tests: 985 (was 821+)
+  - Security tests: 75 (was 125, clarified cumulative vs executable)
+
+---
+
+## Previous Entries
+
+### Added
 - **AI Skill Check Improvements** - Enhanced DM prompt for 100% correct skill assignments!
   - Added Perception vs Investigation distinction with 10+ examples
   - Added Stealth movement rules ("any quiet movement = Stealth")
