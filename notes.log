@@ -1,15 +1,854 @@
-📍 **The Rusty Dragon Tavern**
+﻿
 
-You push open the heavy oak door of the Rusty Dragon, and a wave of warmth washes over you, a welcome respite from the evening chill. The air inside is thick with the scent of wood smoke, roasting meat, and stale ale. A fire crackles merrily in a large stone hearth, casting long, dancing shadows across the worn wooden tables. The low murmur of conversation from the handful of locals scattered around the room drops for a moment as they eye you, the newcomer, before returning to their drinks. In a far corner, a grim-faced warrior with a prominent scar across his cheek nurses a tankard, his gaze sweeping the room with a practiced, weary eye.
+============================================================
+🚀 Backend Started: 2025-12-25 13:47:43
+============================================================
+[13:48:47] 📡 [API] POST /api/game/start
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[13:49:03] 🔑 [SESSION] New game started
+    ↳ {
+  "session_id": "30e79d7d-8ed2-4de0-adb2-f23c63495e8a",
+  "character": "Amir",
+  "race": "Human",
+  "class": "Fighter",
+  "scenario": "goblin_cave",
+  "location": "The Rusty Dragon Tavern",
+  "gold": 25,
+  "quests_available": 5
+}
+[13:49:24] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[13:49:24] 🎮 [ACTION] Player: i need some money upfront. this is not a one man job. i will need to hire some one to help me
+[13:49:31] 🎲 [DM] Response length: 766 chars
+[13:49:32] 🎯 [ROLL] Persuasion check DC 14
+    ↳ {
+  "roll": 5,
+  "modifier": 1,
+  "total": 6,
+  "success": false
+}
+[13:49:40] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "Bram's hopeful expression falters, and his hand instinctively goes to the small, worn coin purse at his belt. He clutches it tightly. \"Upfront?\" he repeats, his voice barely a whisper. \"But... that fi..."
+}
+[13:49:55] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[13:49:55] 🎮 [ACTION] Player: then you'll have to find someone else
+[13:50:08] 🎲 [DM] Response length: 1054 chars
+[13:50:08] 💰 [GOLD] Received 20 gold
+    ↳ {
+  "total": 45
+}
+[13:50:08] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You turn your back on the farmer, your voice firm. The words hit Bram like a physical blow. A fresh wave of despair washes over his face, erasing the stubborn fear that was there a moment before. As y..."
+}
+[13:50:19] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[13:50:19] 🎮 [ACTION] Player: alright i accept.
+[13:50:30] 🎲 [DM] Response length: 1157 chars
+[13:50:30] 🔍 [PARSE] Found item tags
+    ↳ {
+  "items": [
+    "torch"
+  ]
+}
+[13:50:30] 📦 [ITEM] Received: Torch
+    ↳ {
+  "item_id": "torch"
+}
+[13:50:30] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "A wave of pure, unadulterated relief washes over Bram's face, so profound it seems to physically weaken him. He slumps against a nearby post, the tension draining from his shoulders. \"Thank you,\" he b..."
+}
+[13:50:30] 📜 [QUEST] Quest accepted: Rescue Lily
+    ↳ {
+  "quest_id": "rescue_lily"
+}
+[13:50:30] 📜 [QUEST] Quest accepted: Clear the Path
+    ↳ {
+  "quest_id": "clear_the_path"
+}
+[13:50:30] 📜 [QUEST] Quest accepted: The Chief's Treasure
+    ↳ {
+  "quest_id": "chiefs_treasure"
+}
+[13:50:30] 📜 [QUEST] Quest accepted: Thin the Herd
+    ↳ {
+  "quest_id": "thin_the_herd"
+}
+[13:50:33] 📡 [API] OPTIONS /api/quests
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:50:34] 📡 [API] GET /api/quests
+    ↳ {
+  "session": "30e79d7d",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:50:45] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[13:50:45] 🎮 [ACTION] Player: approach the sellsword
+[13:50:58] 🎲 [DM] Response length: 1274 chars
+[13:50:58] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "You cross the room, the floorboards groaning softly under your boots. The sellsword, Marcus, doesn't seem surprised by your approach. He simply lifts his gaze from his tankard as you near, his eyes a ..."
+}
+[13:50:58] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "barkeep",
+    "gavin"
+  ]
+}
+[13:51:10] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[13:51:10] 🎮 [ACTION] Player: how about 15?
+[13:51:15] 🎲 [DM] Response length: 612 chars
+[13:51:15] 🎯 [ROLL] Persuasion check DC 13
+    ↳ {
+  "roll": 4,
+  "modifier": 1,
+  "total": 5,
+  "success": false
+}
+[13:51:26] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "Marcus lets out a short, humorless laugh. He picks up his tankard and swirls the dregs of his ale, not even bothering to look at you. \"Fifteen?\" he scoffs. \"For fifteen gold, you can hire a farmhand w..."
+}
+[13:51:30] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[13:51:30] 🎮 [ACTION] Player: fine 20 gold
+[13:51:37] 🎲 [DM] Response length: 1065 chars
+[13:51:37] 💰 [GOLD] Paid 20 gold: Hired Marcus
+    ↳ {
+  "remaining": 25
+}
+[13:51:37] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [
+    "marcus"
+  ],
+  "response_snippet": "A ghost of a smile touches Marcus's lips. It's not a friendly smile, but one of professional satisfaction. He gives a short, sharp nod as you count out the coins and slide them across the sticky table..."
+}
+[13:51:37] 👥 [RECRUIT] Attempting to recruit: marcus
+[13:51:37] 👥 [RECRUIT] Recruitment result: 🎉 Marcus has joined your party!
+    ↳ {
+  "success": true,
+  "npc_id": "marcus",
+  "member_name": "Marcus",
+  "party_size": 1
+}
+[13:51:40] 📡 [API] GET /api/party/view
+    ↳ {
+  "session": "30e79d7d",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "30e79d7d-8ed2-4de0-adb2-f23c63495e8a"
+  },
+  "has_body": null
+}
+[13:51:50] 📡 [API] OPTIONS /api/quests
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:51:50] 📡 [API] GET /api/quests
+    ↳ {
+  "session": "30e79d7d",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:51:53] 📡 [API] OPTIONS /api/choices/available
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:51:54] 📡 [API] GET /api/choices/available
+    ↳ {
+  "session": "30e79d7d",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:51:56] 📡 [API] OPTIONS /api/reputation
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:51:56] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "30e79d7d",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:51:58] 📡 [API] GET /api/reputation
+    ↳ {
+  "session": "30e79d7d",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[13:52:10] 📡 [API] POST /api/game/action/stream
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": true
+}
+[13:52:10] 🎮 [ACTION] Player: talk to the barkeep for some information first
+[13:52:22] 🎲 [DM] Response length: 1352 chars
+[13:52:22] 🔍 [PARSE] Checking for recruit tags
+    ↳ {
+  "found": [],
+  "response_snippet": "Marcus gives a curt nod and falls into step behind you as you approach the long wooden bar. A stout, graying man is polishing a tankard with a surprisingly clean rag, his movements efficient and pract..."
+}
+[13:52:22] 🗣️ [NPC] Detected NPC talk
+    ↳ {
+  "npcs": [
+    "barkeep",
+    "gavin"
+  ]
+}
+[13:53:20] 📡 [API] GET /api/party/view
+    ↳ {
+  "session": "30e79d7d",
+  "from": "127.0.0.1",
+  "query_params": {
+    "session_id": "30e79d7d-8ed2-4de0-adb2-f23c63495e8a"
+  },
+  "has_body": null
+}
 
-Before you can even decide whether to head for the bar or an empty table, a man lurches away from his seat and stumbles towards you. He's of middling years, dressed in the simple clothes of a farmer, but his face is pale and etched with panic. His eyes are bloodshot, wide with a sleepless terror. "Please," he says, his voice cracking with desperation. "You look strong. A warrior. You have to help me."
+============================================================
+🚀 Backend Started: 2025-12-25 13:54:46
+============================================================
 
-He grips your arm, his hand trembling. "Goblins... they came last night. From Darkhollow Cave. They... they took my daughter. My Lily." He swallows hard, his gaze pleading. "The village guard won't go. They say it's too dangerous. I don't have much, but I'll give you everything I have—fifty gold coins, our family's savings! Please, just bring her back to me." The farmer, whose name you learn is Bram, looks at you with raw, desperate hope, the quiet tavern now hanging on your reply.
+============================================================
+🚀 Backend Started: 2025-12-25 13:56:26
+============================================================
 
-i would like half as downpayment
+============================================================
+🚀 Backend Started: 2025-12-25 13:58:52
+============================================================
 
-Bram flinches slightly at the mention of payment, not from offense, but as if pulled from a waking nightmare back into the harsh reality of coin and contract. "Half?" he stammers, running a trembling hand through his matted hair. "Yes, of course. Whatever you need. Anything to get started."
+=== TEST WRITE 2025-12-25 14:23:21.527814 ===
 
-He fumbles with a small, worn leather pouch tied to his belt, his clumsy fingers struggling with the knot. He finally gets it open and empties the contents into his calloused palm. His face falls as he looks at the meager pile. "I... I don't have that much on me," he says, his voice thick with shame. "I ran straight here from the farm. This is all I have with me."
+============================================================
+🚀 Backend Started: 2025-12-25 14:33:04
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
 
-He extends his shaking hand, offering you ten gold coins. "The rest, the other forty, it's buried at my farm. Safe. I swear on my life, it's yours the moment you bring Lily back. Please, will this be enough to show my good faith? It's all I have right now." The coins glint in the firelight, a small sum for such a desperate plea. From the corner of the room, you notice the scarred warrior, Marcus, watching the exchange with a flicker of interest.
+============================================================
+🚀 Backend Started: 2025-12-25 14:33:07
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
+
+============================================================
+🚀 Backend Started: 2025-12-25 14:34:28
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
+
+============================================================
+🚀 Backend Started: 2025-12-25 14:34:31
+   DEBUG=True, VERBOSE_LOGGING=True
+============================================================
+[14:40:19] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:19] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:22] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:22] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:25] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:25] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:31] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:31] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:35] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:40:35] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:43:53] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:43:53] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:43:56] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:43:56] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:43:59] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:43:59] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:44:05] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:44:05] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:44:09] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:44:09] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:46:19] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:46:19] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:46:35] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:46:35] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:46:43] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:46:43] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:46:50] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:46:51] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:01] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:01] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:12] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:12] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:18] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:18] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:26] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:27] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:33] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:33] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:39] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:39] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:45] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:45] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:57] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:47:57] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:48:07] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:48:07] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:48:14] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:48:14] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:57:32] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:57:32] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:57:54] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:57:54] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:57:59] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:57:59] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:06] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:06] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:13] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:13] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:22] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:22] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:33] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:33] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:38] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:38] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:46] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:46] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:51] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:51] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:56] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:58:56] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:59:01] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:59:01] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:59:12] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:59:12] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:59:21] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:59:21] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:59:28] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
+[14:59:28] 📡 [API] GET /api/scenarios
+    ↳ {
+  "session": "none",
+  "from": "127.0.0.1",
+  "query_params": null,
+  "has_body": null
+}
