@@ -27,8 +27,8 @@ load_dotenv(ENV_PATH)
 # In production (DEBUG=false), logging defaults to off
 # In development (DEBUG=true), logging defaults to on
 DEBUG_MODE = os.getenv('DEBUG', 'false').lower() == 'true'
-VERBOSE_LOGGING = os.getenv('VERBOSE_LOGGING', str(DEBUG_MODE)).lower() == 'true'
-LOG_TO_FILE = os.getenv('LOG_TO_FILE', str(DEBUG_MODE)).lower() == 'true'
+VERBOSE_LOGGING = os.getenv('VERBOSE_LOGGING', 'true' if DEBUG_MODE else 'false').lower() == 'true'
+LOG_TO_FILE = os.getenv('LOG_TO_FILE', 'true' if DEBUG_MODE else 'false').lower() == 'true'
 LOG_FILE_PATH = os.path.join(PROJECT_ROOT, 'notes.log')
 
 # Initialize log file with session marker
