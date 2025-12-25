@@ -11,11 +11,51 @@ import uuid
 import random
 import threading
 import time
+import logging
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
+
+# Load .env from project root (parent of src/) - do this early for DEBUG setting
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ENV_PATH = os.path.join(PROJECT_ROOT, '.env')
+load_dotenv(ENV_PATH)
+
+# Configure verbose logging
+VERBOSE_LOGGING = os.getenv('VERBOSE_LOGGING', 'true').lower() == 'true'
+
+def game_log(category: str, message: str, data: dict = None):
+    """Log game events in a verbose, readable format."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    icon_map = {
+        'ACTION': '🎮',
+        'DM': '🎲',
+        'PARSE': '🔍',
+        'ROLL': '🎯',
+        'COMBAT': '⚔️',
+        'ITEM': '📦',
+        'GOLD': '💰',
+        'XP': '⭐',
+        'QUEST': '📜',
+        'RECRUIT': '👥',
+        'PARTY': '🛡️',
+        'LOCATION': '🗺️',
+        'NPC': '🗣️',
+        'SAVE': '💾',
+        'ERROR': '❌',
+        'API': '📡',
+        'SESSION': '🔑',
+    }
+    icon = icon_map.get(category.upper(), '📌')
+    
+    log_line = f"[{timestamp}] {icon} [{category}] {message}"
+    if data:
+        data_str = json.dumps(data, indent=2, default=str)
+        log_line += f"\n    ↳ {data_str}"
+    
+    print(log_line)
 
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -45,11 +85,6 @@ from dm_engine import (
     SKILL_ABILITIES
 )
 import re
-
-# Load .env from project root (parent of src/)
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ENV_PATH = os.path.join(PROJECT_ROOT, '.env')
-load_dotenv(ENV_PATH)
 
 
 def detect_npc_talk(action: str, npc_manager) -> list:
@@ -198,8 +233,18 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)  #
 # Add request logging
 @app.before_request
 def log_request():
-    if request.path.startswith('/api'):
-        print(f"📥 {request.method} {request.path} from {request.remote_addr}")
+    if request.path.startswith('/api') and VERBOSE_LOGGING:
+        # Get session ID from header or query param
+        session_id = request.headers.get('X-Session-ID') or request.args.get('session_id', 'none')
+        short_sid = session_id[:8] if session_id and session_id != 'none' else 'none'
+        
+        # Log with method, path, and session
+        game_log('API', f"{request.method} {request.path}", {
+            'session': short_sid,
+            'from': request.remote_addr,
+            'query_params': dict(request.args) if request.args else None,
+            'has_body': request.content_length and request.content_length > 0
+        })
 
 # In-memory game sessions (in production, use Redis or database)
 game_sessions = {}
@@ -775,6 +820,18 @@ Keep it to 2-3 paragraphs. Be immersive and atmospheric."""
         'timestamp': datetime.now().isoformat()
     })
     
+    # Log session start
+    game_log('SESSION', f"New game started", {
+        'session_id': session.session_id,
+        'character': name,
+        'race': race,
+        'class': char_class,
+        'scenario': scenario_id or 'free_adventure',
+        'location': session.current_location,
+        'gold': session.character.gold,
+        'quests_available': len(session.quest_manager.available_quests) if session.quest_manager else 0
+    })
+    
     return jsonify({
         'success': True,
         'session_id': session.session_id,
@@ -979,6 +1036,10 @@ def game_action_stream():
     def generate():
         full_response = []
         
+        # Log the player action
+        if VERBOSE_LOGGING:
+            game_log('ACTION', f"Player: {action[:100]}..." if len(action) > 100 else f"Player: {action}")
+        
         # Helper for JSON with unicode support
         def json_sse(data):
             return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -991,6 +1052,9 @@ def game_action_stream():
         
         # Combine full response for post-processing
         dm_response = ''.join(full_response)
+        
+        if VERBOSE_LOGGING:
+            game_log('DM', f"Response length: {len(dm_response)} chars")
         
         # Check for skill check request
         skill, dc = parse_roll_request(dm_response)
@@ -1007,6 +1071,7 @@ def game_action_stream():
                 'success': result['success'],
                 'formatted': format_roll_result(result)
             }
+            game_log('ROLL', f"{skill} check DC {dc}", {'roll': result['roll'], 'modifier': result['modifier'], 'total': result['total'], 'success': result['success']})
             # Send roll result as both a roll event AND a visible chunk
             yield json_sse({'type': 'roll', 'result': roll_result})
             roll_text = f"\n\n{format_roll_result(result)}"
@@ -1045,9 +1110,12 @@ def game_action_stream():
             yield json_sse({'type': 'combat', 'enemies': enemies})
             combat_text = f"\n\n⚔️ COMBAT STARTED! Enemies: {', '.join(enemies)}"
             yield json_sse({'type': 'chunk', 'content': combat_text})
+            game_log('COMBAT', f"Combat started", {'enemies': enemies, 'surprise': surprise})
         
         # Parse and apply item rewards [ITEM: item_name]
         items_gained = parse_item_rewards(dm_response)
+        if items_gained and VERBOSE_LOGGING:
+            game_log('PARSE', f"Found item tags", {'items': items_gained})
         for item_name in items_gained:
             item = get_item(item_name)
             if item and session.character:
@@ -1055,6 +1123,7 @@ def game_action_stream():
                 item_text = f"\n\n📦 Received: {item.name}"
                 yield json_sse({'type': 'item', 'item': item_name, 'message': f'Received: {item.name}'})
                 yield json_sse({'type': 'chunk', 'content': item_text})
+                game_log('ITEM', f"Received: {item.name}", {'item_id': item_name})
                 
                 # Update quest objectives for item acquisition
                 if session.quest_manager:
@@ -1063,6 +1132,7 @@ def game_action_stream():
                         quest = session.quest_manager.get_quest(quest_id)
                         if quest:
                             yield json_sse({'type': 'quest_update', 'quest_id': quest_id, 'objective_id': objective.id, 'quest': quest.to_dict()})
+                            game_log('QUEST', f"Item objective completed", {'quest': quest.name, 'item': item_name})
         
         # Parse and apply gold rewards [GOLD: amount]
         gold_gained = parse_gold_rewards(dm_response)
@@ -1071,6 +1141,7 @@ def game_action_stream():
             gold_text = f"\n\n💰 Received {gold_gained} gold (Total: {session.character.gold})"
             yield json_sse({'type': 'gold', 'amount': gold_gained, 'total': session.character.gold})
             yield json_sse({'type': 'chunk', 'content': gold_text})
+            game_log('GOLD', f"Received {gold_gained} gold", {'total': session.character.gold})
         
         # Parse and apply XP rewards [XP: amount | reason]
         xp_rewards = parse_xp_rewards(dm_response)
@@ -1081,6 +1152,7 @@ def game_action_stream():
                 xp_text = f"\n\n⭐ Gained {xp_amount} XP: {reason}" + (" 🎉 LEVEL UP!" if leveled_up else "")
                 yield json_sse({'type': 'xp', 'amount': xp_amount, 'reason': reason, 'leveled_up': leveled_up})
                 yield json_sse({'type': 'chunk', 'content': xp_text})
+                game_log('XP', f"Gained {xp_amount} XP: {reason}", {'leveled_up': leveled_up})
         
         # Parse and apply buy transactions [BUY: item_name, price]
         buy_transactions = parse_buy_transactions(dm_response)
@@ -1093,6 +1165,7 @@ def game_action_stream():
                     buy_text = f"\n\n🛒 Purchased {item_name} for {price} gold (Gold: {session.character.gold})"
                     yield json_sse({'type': 'buy', 'item': item_name, 'price': price, 'gold_remaining': session.character.gold})
                     yield json_sse({'type': 'chunk', 'content': buy_text})
+                    game_log('ITEM', f"Purchased: {item_name} for {price} gold", {'remaining': session.character.gold})
         
         # Parse and apply gold costs [PAY: amount, reason] - for hiring, bribes, etc.
         gold_costs = parse_gold_costs(dm_response)
@@ -1102,26 +1175,40 @@ def game_action_stream():
                 pay_text = f"\n\n💸 Paid {cost} gold: {reason} (Gold: {session.character.gold})"
                 yield json_sse({'type': 'pay', 'amount': cost, 'reason': reason, 'gold_remaining': session.character.gold})
                 yield json_sse({'type': 'chunk', 'content': pay_text})
-                print(f"   💸 Paid {cost} gold: {reason}")
+                game_log('GOLD', f"Paid {cost} gold: {reason}", {'remaining': session.character.gold})
         
         # Parse and apply recruitment [RECRUIT: npc_id]
         recruited_npcs = parse_recruit_tags(dm_response)
+        if VERBOSE_LOGGING:
+            game_log('PARSE', f"Checking for recruit tags", {'found': recruited_npcs, 'response_snippet': dm_response[:200] + '...'})
+        
         for npc_id in recruited_npcs:
             from party import get_recruitable_npc, Party
+            game_log('RECRUIT', f"Attempting to recruit: {npc_id}")
+            
             if not session.party:
                 session.party = Party()
+                game_log('PARTY', "Created new party for session")
+            
             if not session.party.is_full:
                 member = get_recruitable_npc(npc_id)
                 if member:
-                    session.party.add_member(member)
-                    recruit_text = f"\n\n🎉 {member.name} joins your party!"
-                    yield json_sse({'type': 'recruit', 'npc_id': npc_id, 'name': member.name})
-                    yield json_sse({'type': 'chunk', 'content': recruit_text})
-                    print(f"   🎉 {member.name} joined the party!")
+                    success, msg = session.party.add_member(member)
+                    game_log('RECRUIT', f"Recruitment result: {msg}", {'success': success, 'npc_id': npc_id, 'member_name': member.name, 'party_size': session.party.size})
+                    if success:
+                        recruit_text = f"\n\n🎉 {member.name} joins your party!"
+                        yield json_sse({'type': 'recruit', 'npc_id': npc_id, 'name': member.name})
+                        yield json_sse({'type': 'chunk', 'content': recruit_text})
+                else:
+                    game_log('ERROR', f"Could not find recruitable NPC", {'npc_id': npc_id, 'search_term': npc_id})
+            else:
+                game_log('RECRUIT', f"Party is full, cannot recruit {npc_id}", {'party_size': session.party.size, 'max': session.party.MAX_COMPANIONS})
         
         # Check for NPC talk in player action for quest objectives
         if session.quest_manager and session.npc_manager:
             talked_npcs = detect_npc_talk(action, session.npc_manager)
+            if talked_npcs and VERBOSE_LOGGING:
+                game_log('NPC', f"Detected NPC talk", {'npcs': talked_npcs})
             for npc_id in talked_npcs:
                 completed = session.quest_manager.on_npc_talked(npc_id)
                 for quest_id, objective in completed:
@@ -1130,6 +1217,7 @@ def game_action_stream():
                         quest_text = f"\n\n📜 Quest Objective Complete: {objective.description}"
                         yield json_sse({'type': 'quest_update', 'quest_id': quest_id, 'objective_id': objective.id, 'quest': quest.to_dict()})
                         yield json_sse({'type': 'chunk', 'content': quest_text})
+                        game_log('QUEST', f"Objective completed: {objective.description}", {'quest': quest.name})
         
         # Detect quest acceptance based on player action and DM response
         accepted_quests = detect_quest_acceptance(action, dm_response, session.quest_manager)
@@ -1139,7 +1227,7 @@ def game_action_stream():
                 quest_text = f"\n\n📜 Quest Accepted: {quest.name}"
                 yield json_sse({'type': 'quest_accepted', 'quest_id': quest_id, 'quest': quest.to_dict()})
                 yield json_sse({'type': 'chunk', 'content': quest_text})
-                print(f"   📜 Quest accepted: {quest.name}")
+                game_log('QUEST', f"Quest accepted: {quest.name}", {'quest_id': quest_id})
         
         # Record full DM response
         session.messages.append({
@@ -1300,6 +1388,14 @@ def save_game():
     with open(save_path, 'w') as f:
         json.dump(save_data, f, indent=2)
     
+    if VERBOSE_LOGGING:
+        game_log('SAVE', f"Game saved: {save_name}", {
+            'character': session.character.name if session.character else 'None',
+            'level': session.character.level if session.character else 0,
+            'location': session.current_location,
+            'in_combat': session.in_combat
+        })
+    
     return jsonify({
         'success': True,
         'message': f'Game saved as {save_name}',
@@ -1317,6 +1413,8 @@ def load_game():
     save_path = os.path.join(saves_dir, f"{save_name}.json")
     
     if not os.path.exists(save_path):
+        if VERBOSE_LOGGING:
+            game_log('ERROR', f"Save not found: {save_name}")
         return jsonify({'error': 'Save not found'}), 404
     
     with open(save_path, 'r') as f:
@@ -1333,6 +1431,15 @@ def load_game():
     session.messages = save_data.get('messages', [])
     session.current_location = save_data.get('current_location', 'Village Square')
     session.in_combat = save_data.get('in_combat', False)
+    
+    if VERBOSE_LOGGING:
+        game_log('SAVE', f"Game loaded: {save_name}", {
+            'character': session.character.name if session.character else 'None',
+            'level': session.character.level if session.character else 0,
+            'location': session.current_location,
+            'in_combat': session.in_combat,
+            'messages_count': len(session.messages)
+        })
     
     return jsonify({
         'success': True,
@@ -1558,6 +1665,15 @@ def travel():
         if events:
             for event in events:
                 travel_msg += f"\n\nâš¡ {event.narration}"
+        
+        if VERBOSE_LOGGING:
+            game_log('LOCATION', f"Traveled to {new_location.name}", {
+                'from': session.current_location if hasattr(session, 'current_location') else 'unknown',
+                'to': new_location.name,
+                'location_id': new_location.id,
+                'exits': list(session.location_manager.get_exits().keys()),
+                'events_triggered': len(events) if events else 0
+            })
         
         session.messages.append({
             'type': 'dm',
