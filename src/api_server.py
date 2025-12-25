@@ -105,9 +105,14 @@ from dm_engine import (
 import re
 
 
-def detect_npc_talk(action: str, npc_manager) -> list:
+def detect_npc_talk(action: str, npc_manager, dm_response: str = None) -> list:
     """
     Detect if a player action involves talking to an NPC.
+    
+    Args:
+        action: Player's action text
+        npc_manager: NPC manager instance
+        dm_response: Optional DM response to also check for NPC names
     
     Returns:
         List of NPC IDs that were talked to
@@ -118,24 +123,60 @@ def detect_npc_talk(action: str, npc_manager) -> list:
     talked_to = []
     action_lower = action.lower()
     
+    # Also check DM response for NPC name mentions
+    combined_text = action_lower
+    if dm_response:
+        combined_text += " " + dm_response.lower()
+    
     # Common talk patterns
     talk_patterns = [
-        r"talk\s+(?:to|with)\s+(\w+)",
-        r"speak\s+(?:to|with)\s+(\w+)",
-        r"greet\s+(\w+)",
-        r"ask\s+(\w+)",
-        r"approach\s+(\w+)",
-        r"hello\s+(\w+)",
+        r"talk\s+(?:to|with)\s+(?:the\s+)?(\w+)",
+        r"speak\s+(?:to|with)\s+(?:the\s+)?(\w+)",
+        r"greet\s+(?:the\s+)?(\w+)",
+        r"ask\s+(?:the\s+)?(\w+)",
+        r"approach\s+(?:the\s+)?(\w+)",
+        r"hello\s+(?:the\s+)?(\w+)",
     ]
     
+    # Extract potential NPC identifiers from player action
+    potential_names = []
     for pattern in talk_patterns:
         matches = re.findall(pattern, action_lower)
-        for name in matches:
-            # Check if this name matches any NPC
-            for npc in npc_manager.get_all_npcs():
-                if name.lower() in npc.name.lower() or name.lower() == npc.id.lower():
-                    if npc.id not in talked_to:
-                        talked_to.append(npc.id)
+        potential_names.extend(matches)
+    
+    # Check all NPCs
+    all_npcs = list(npc_manager.get_all_npcs())
+    
+    for npc in all_npcs:
+        npc_name_lower = npc.name.lower()
+        npc_id_lower = npc.id.lower().replace('_', ' ')
+        
+        # Direct name/id match in action
+        for name in potential_names:
+            if name in npc_name_lower or npc_name_lower.startswith(name):
+                if npc.id not in talked_to:
+                    talked_to.append(npc.id)
+                break
+        
+        # If NPC name is directly mentioned in the combined text
+        if npc_name_lower in combined_text or npc_id_lower in combined_text:
+            if npc.id not in talked_to:
+                talked_to.append(npc.id)
+    
+    # Also check for party member NPCs (Marcus, Elira, etc.)
+    party_npc_names = {
+        'marcus': 'marcus_mercenary',
+        'sellsword': 'marcus_mercenary',
+        'mercenary': 'marcus_mercenary',
+        'elira': 'elira_ranger',
+        'ranger': 'elira_ranger',
+        'shade': 'shade_rogue',
+        'rogue': 'shade_rogue',
+    }
+    
+    for keyword, npc_id in party_npc_names.items():
+        if keyword in combined_text and npc_id not in talked_to:
+            talked_to.append(npc_id)
     
     return talked_to
 
@@ -251,10 +292,24 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)  #
 # Add request logging
 @app.before_request
 def log_request():
+    # Skip logging OPTIONS preflight requests (CORS noise)
+    if request.method == 'OPTIONS':
+        return
+    
     if request.path.startswith('/api') and VERBOSE_LOGGING:
-        # Get session ID from header or query param
-        session_id = request.headers.get('X-Session-ID') or request.args.get('session_id', 'none')
-        short_sid = session_id[:8] if session_id and session_id != 'none' else 'none'
+        # Get session ID from header, query param, or try to get from JSON body
+        session_id = request.headers.get('X-Session-ID') or request.args.get('session_id')
+        
+        # For POST requests, try to get session_id from the body if not found
+        if not session_id and request.method == 'POST' and request.content_type and 'json' in request.content_type:
+            try:
+                data = request.get_json(silent=True)
+                if data and isinstance(data, dict):
+                    session_id = data.get('session_id')
+            except:
+                pass
+        
+        short_sid = session_id[:8] if session_id else 'none'
         
         # Log with method, path, and session
         game_log('API', f"{request.method} {request.path}", {
@@ -1224,7 +1279,7 @@ def game_action_stream():
         
         # Check for NPC talk in player action for quest objectives
         if session.quest_manager and session.npc_manager:
-            talked_npcs = detect_npc_talk(action, session.npc_manager)
+            talked_npcs = detect_npc_talk(action, session.npc_manager, dm_response)
             if talked_npcs and VERBOSE_LOGGING:
                 game_log('NPC', f"Detected NPC talk", {'npcs': talked_npcs})
             for npc_id in talked_npcs:
