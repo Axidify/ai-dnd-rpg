@@ -10,4 +10,8 @@ saves/
 test_output.json
 test_session.txt
 test_sid.txt
-notes.log
+test_results.txt
+
+# Log files
+logs/
+*.log
