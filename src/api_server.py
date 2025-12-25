@@ -2324,7 +2324,8 @@ def shop_sell():
 @app.route('/api/party/view', methods=['GET'])
 def party_view():
     """View party members."""
-    session_id = request.args.get('session_id')
+    # Support both query param and header for session_id
+    session_id = request.args.get('session_id') or request.headers.get('X-Session-ID')
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -2404,7 +2405,8 @@ def party_recruit():
 def quests_list():
     """List quests."""
     try:
-        session_id = request.args.get('session_id')
+        # Support both query param and header for session_id
+        session_id = request.args.get('session_id') or request.headers.get('X-Session-ID')
         
         if not session_id or session_id not in game_sessions:
             return jsonify({'error': 'Invalid session'}), 400
@@ -2412,12 +2414,16 @@ def quests_list():
         session = game_sessions[session_id]
         
         if not session.quest_manager:
-            return jsonify({'success': True, 'active': [], 'completed': []})
+            return jsonify({'success': True, 'quests': [], 'active': [], 'completed': []})
+        
+        all_quests = [q.to_dict() for q in session.quest_manager.get_active_quests()]
+        all_quests.extend(session.quest_manager.get_completed_quests())
         
         return jsonify({
             'success': True,
+            'quests': all_quests,
             'active': [q.to_dict() for q in session.quest_manager.get_active_quests()],
-            'completed': session.quest_manager.get_completed_quests()  # Already returns dicts
+            'completed': session.quest_manager.get_completed_quests()
         })
     except Exception as e:
         app.logger.error(f"Quest list error: {e}")
@@ -2513,7 +2519,8 @@ def get_reputation():
     Returns a list of NPCs the player has interacted with,
     their disposition values, and the resulting relationship level.
     """
-    session_id = request.args.get('session_id')
+    # Support both query param and header for session_id
+    session_id = request.args.get('session_id') or request.headers.get('X-Session-ID')
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -2587,7 +2594,8 @@ def get_reputation_detail(npc_id: str):
     Get detailed reputation with a specific NPC.
     Returns disposition, level, price modifier, and available interactions.
     """
-    session_id = request.args.get('session_id')
+    # Support both query param and header for session_id
+    session_id = request.args.get('session_id') or request.headers.get('X-Session-ID')
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -2663,7 +2671,8 @@ def get_available_choices():
     - Player flags matching choice trigger
     - Quest objectives completed
     """
-    session_id = request.args.get('session_id')
+    # Support both query param and header for session_id
+    session_id = request.args.get('session_id') or request.headers.get('X-Session-ID')
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -2748,7 +2757,8 @@ def get_available_choices():
 
 
 @app.route('/api/choices/select', methods=['POST'])
-def select_choice():
+@app.route('/api/choices/<choice_id>/select', methods=['POST'])
+def select_choice(choice_id=None):
     """
     Select an option for a moral choice.
     
@@ -2761,9 +2771,12 @@ def select_choice():
     - Ending points
     """
     data = request.get_json() or {}
-    session_id = data.get('session_id')
-    choice_id = data.get('choice_id')
-    option_index = data.get('option_index')
+    # Support both query param, header, and body for session_id
+    session_id = data.get('session_id') or request.headers.get('X-Session-ID')
+    # Get choice_id from path or body
+    choice_id = choice_id or data.get('choice_id')
+    # Frontend sends option_id, backend expects option_index
+    option_index = data.get('option_index') or data.get('option_id')
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -2852,7 +2865,8 @@ def get_choice_history():
     Get the history of choices made in this session.
     Useful for showing player their moral path.
     """
-    session_id = request.args.get('session_id')
+    # Support both query param and header for session_id
+    session_id = request.args.get('session_id') or request.headers.get('X-Session-ID')
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -2889,7 +2903,8 @@ def get_ending_status():
     Get the current ending trajectory based on choices made.
     Returns the likely ending based on accumulated ending points.
     """
-    session_id = request.args.get('session_id')
+    # Support both query param and header for session_id
+    session_id = request.args.get('session_id') or request.headers.get('X-Session-ID')
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
