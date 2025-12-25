@@ -2,7 +2,7 @@
 
 ## AI D&D Text RPG - Technical Guide
 
-**Last Updated:** December 22, 2025
+**Last Updated:** December 25, 2025
 
 This document provides comprehensive technical documentation for developers who want to understand, maintain, or contribute to the AI D&D Text RPG project.
 
@@ -5613,6 +5613,64 @@ logging.basicConfig(level=logging.DEBUG)
 # In get_dm_response:
 logging.debug(f"Sending: {player_input}")
 logging.debug(f"Received: {response.text[:100]}...")
+```
+
+### Verbose Game Logging System
+
+The API server includes a comprehensive logging system that writes to both console and `notes.log`:
+
+**Configuration (environment variables):**
+- `VERBOSE_LOGGING=true` - Enable/disable verbose logging (default: true)
+- `LOG_TO_FILE=true` - Enable/disable file logging to notes.log (default: true)
+
+**Log Categories:**
+
+| Category | Icon | Description |
+|----------|------|-------------|
+| ACTION | 🎮 | Player actions submitted |
+| DM | 🎲 | DM responses generated |
+| PARSE | 🔍 | Tag parsing operations |
+| ROLL | 🎯 | Skill checks and dice rolls |
+| COMBAT | ⚔️ | Combat events and damage |
+| ITEM | 📦 | Item transactions |
+| GOLD | 💰 | Gold gained/spent |
+| XP | ⭐ | Experience gains |
+| QUEST | 📜 | Quest acceptance/completion |
+| RECRUIT | 👥 | Party recruitment attempts |
+| PARTY | 🛡️ | Party changes |
+| LOCATION | 🗺️ | Travel and location changes |
+| NPC | 🗣️ | NPC interactions |
+| SAVE | 💾 | Save/load operations |
+| ERROR | ❌ | Errors and failures |
+| API | 📡 | API requests |
+| SESSION | 🔑 | Session lifecycle events |
+
+**Example Log Output:**
+```
+[14:30:15] 📡 [API] POST /api/action/streaming
+    ↳ {"session": "41b2a41f", "from": "127.0.0.1"}
+[14:30:15] 🎮 [ACTION] Player: I talk to Marcus about joining my party
+[14:30:17] 🎲 [DM] Response length: 847 chars
+[14:30:17] 👥 [RECRUIT] Attempting to recruit: marcus
+[14:30:17] 👥 [RECRUIT] Recruitment result: Marcus has joined!
+    ↳ {"success": true, "npc_id": "marcus_mercenary", "party_size": 2}
+```
+
+**Using game_log() in Code:**
+```python
+from api_server import game_log, VERBOSE_LOGGING
+
+if VERBOSE_LOGGING:
+    game_log('QUEST', 'Quest accepted: Rescue Lily', {'quest_id': 'rescue_lily'})
+```
+
+**Monitoring Logs:**
+```bash
+# Watch logs in real-time (PowerShell)
+Get-Content notes.log -Wait -Tail 50
+
+# Watch logs in real-time (Linux/Mac)
+tail -f notes.log
 ```
 
 ### Getting Help
