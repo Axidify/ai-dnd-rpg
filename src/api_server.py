@@ -745,6 +745,81 @@ def health_check():
     })
 
 
+# =============================================================================
+# DEBUG/TEST ENDPOINTS (for automated testing only)
+# =============================================================================
+
+@app.route('/api/debug/advance_scene', methods=['POST'])
+def debug_advance_scene():
+    """[DEBUG] Advance to the next scene. For automated testing only."""
+    data = request.get_json() or {}
+    session_id = data.get('session_id')
+    target_scene = data.get('target_scene')  # Optional: advance to specific scene
+    
+    if not session_id or session_id not in game_sessions:
+        return jsonify({'error': 'Invalid session'}), 400
+    
+    session = game_sessions[session_id]
+    
+    if not session.scenario:
+        return jsonify({'error': 'No active scenario'}), 400
+    
+    try:
+        if target_scene:
+            # Advance to a specific scene by ID
+            while session.scenario.current_scene_id != target_scene:
+                next_scene = session.scenario.transition_to_next()
+                if not next_scene:
+                    return jsonify({'error': f'Could not reach scene {target_scene}'}), 400
+            scene = session.scenario.get_current_scene()
+        else:
+            # Just advance one scene
+            scene = session.scenario.transition_to_next()
+        
+        if scene:
+            # Sync location state
+            if session.location_manager:
+                current_loc = session.location_manager.get_current_location()
+                if current_loc:
+                    session.current_location = current_loc.name
+                    session.current_location_id = current_loc.id
+            
+            return jsonify({
+                'success': True,
+                'scene_id': scene.id,
+                'scene_name': scene.name,
+                'available_locations': session.location_manager.available_location_ids if session.location_manager else []
+            })
+        else:
+            return jsonify({'success': False, 'message': 'No more scenes'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/debug/unlock_all_locations', methods=['POST'])
+def debug_unlock_all_locations():
+    """[DEBUG] Unlock all locations for testing navigation."""
+    data = request.get_json() or {}
+    session_id = data.get('session_id')
+    
+    if not session_id or session_id not in game_sessions:
+        return jsonify({'error': 'Invalid session'}), 400
+    
+    session = game_sessions[session_id]
+    
+    if session.location_manager:
+        # Get all location IDs
+        all_locations = list(session.location_manager.locations.keys())
+        session.location_manager.available_location_ids = all_locations
+        return jsonify({
+            'success': True,
+            'unlocked_count': len(all_locations),
+            'locations': all_locations
+        })
+    else:
+        return jsonify({'error': 'No location manager'}), 400
+
+
 @app.route('/api/game/start', methods=['POST'])
 def start_game():
     """Start a new game session."""

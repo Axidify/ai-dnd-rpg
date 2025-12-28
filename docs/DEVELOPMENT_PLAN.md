@@ -5,7 +5,7 @@
 **Architecture:** API-First (dm_engine.py → api_server.py → React/Flutter/Godot)  
 **Methodology:** Core-First Development (Build → Test → Expose → Display)  
 **Created:** December 15, 2025  
-**Last Updated:** December 25, 2025  
+**Last Updated:** December 26, 2025  
 
 ---
 
@@ -109,6 +109,22 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 - Perception vs Investigation distinction (10+ examples in DM prompt)
 - Stealth movement rules: "any quiet movement = Stealth"
 - 25 AI skill check tests at 100% pass rate (tests/test_skill_check_ai.py)
+```
+
+**AI DM Mechanics Testing (December 2025):** ✅ COMPLETE
+```
+Test Coverage:
+- 45 comprehensive mechanics tests (test_dm_mechanics_round10.py)
+- 22 focused scenario tests (test_dm_focused_round11.py) - 81.8% pass rate
+- All 12 skill types generate correct [ROLL:] tags
+- [COMBAT:], [BUY:], [PAY:], [RECRUIT:] tag generation validated
+- Prompt injection resistance verified (AI stays in character)
+- No auto-travel, no invented NPCs, no reroll spam confirmed
+- Speed optimized: 50% faster test execution (1.5s→0.7s delays)
+
+Reports:
+- docs/DM_TESTING_COMPLETE_SUMMARY.md - Full test findings
+- docs/DM_TESTING_ROUND11.md - Round 11 detailed results
 ```
 
 **Leveling System Design (Planned):**
@@ -496,7 +512,7 @@ Priority 4 - Quest System (MEDIUM): ✅ COMPLETE
       - Integration hooks
   [x] tests/test_scenario.py - 5 new tests for quest integration
   [x] tests/test_save_system.py - 1 new test for quest save/load
-  Total: 950+ tests passing
+  Total: 1006 tests passing
 
 Priority 5 - Traveling Merchants (LOW): ✅ COMPLETE
   [x] Add spawn_chance: float to merchant NPCs
@@ -526,7 +542,7 @@ Priority 6 - NPC Relationships (LOW): ✅ COMPLETE
     [x] Added tests/test_reputation.py with 47 tests (all passing)
     [x] Added tests/test_reputation_hostile.py with 36 adversarial tests (all passing)
     [x] Updated test_dialogue.py: "allied" → "trusted" (2 tests fixed)
-    Total: 950+ tests passing
+    Total: 1006 tests passing
   
   Step 2 - Action-Based Disposition Changes: ✅ COMPLETE
     [x] Trade actions:

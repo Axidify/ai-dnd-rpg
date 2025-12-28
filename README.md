@@ -58,15 +58,22 @@ AI RPG V2/
 ├── tasksync.md             # TaskSync protocol
 ├── saves/                  # Game save files (auto-created)
 ├── docs/
+│   ├── API_DOCUMENTATION.md    # REST API endpoint reference
+│   ├── ASSESSMENT_GUIDE.md     # Project assessment framework
 │   ├── CHANGELOG.md            # Version history
 │   ├── DEVELOPER_GUIDE.md      # Technical documentation (5000+ lines)
 │   ├── DEVELOPMENT_PLAN.md     # Phased development roadmap
-│   ├── HOSTILE_PLAYER_TESTING.md # Security testing results (75 tests)
+│   ├── DM_TESTING_COMPLETE_SUMMARY.md # AI DM test results (95.5% pass)
+│   ├── DOCUMENTATION_GUIDE.md  # Meta-guide for all documentation
 │   ├── FLUTTER_SETUP.md        # Flutter installation guide
+│   ├── FUNCTION_REFERENCE.md   # Critical internal function docs
+│   ├── SCENARIO_REFERENCE.md   # Goblin Cave scenario reference
 │   ├── THEME_SYSTEM_SPEC.md    # DLC-ready theme architecture
-│   └── UI_DESIGN_SPEC.md       # UI/UX specifications
+│   ├── UI_DESIGN_SPEC.md       # UI/UX specifications
+│   ├── *_REPORT.md             # Various test reports
+│   └── archive/                # Superseded/historical docs
 ├── src/                    # Backend (Flask API)
-│   ├── api_server.py       # Flask REST API (main entry point, 35 endpoints)
+│   ├── api_server.py       # Flask REST API (main entry point, 40 endpoints)
 │   ├── dm_engine.py        # Shared DM logic (prompts, parsing)
 │   ├── character.py        # Character system (stats, XP, leveling)
 │   ├── combat.py           # Combat system (multi-enemy, surprise)
@@ -76,7 +83,9 @@ AI RPG V2/
 │   ├── quest.py            # Quest tracking system
 │   ├── save_system.py      # Save/Load persistence
 │   ├── scenario.py         # Adventure scenarios
-│   └── shop.py             # Shop/merchant system
+│   ├── shop.py             # Shop/merchant system
+│   └── templates/          # Scenario templates for modders
+│       └── SCENARIO_TEMPLATE.py
 ├── frontend/
 │   └── option1-react/      # React + Vite + Tailwind frontend
 │       ├── src/
@@ -92,7 +101,7 @@ AI RPG V2/
 ├── backup/
 │   └── legacy/
 │       └── game.py         # Archived terminal version
-└── tests/                  # 985 unit tests + 75 security tests
+└── tests/                  # 1006 unit tests + security tests
     ├── test_api_integration.py  # API integration tests
     ├── test_character.py        # Character system (26 tests)
     ├── test_combat.py           # Combat mechanics (31 tests)
@@ -246,8 +255,8 @@ pytest tests/ -v
 ```
 
 ### Test Coverage
-- **821+ unit tests** across all game systems
-- **125 security tests** (hostile player testing)
+- **1006 unit tests** across all game systems
+- **75 security tests** (hostile player testing)
 - All 16 identified vulnerabilities fixed
 
 ---

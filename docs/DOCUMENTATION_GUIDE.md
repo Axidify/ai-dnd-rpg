@@ -1,7 +1,7 @@
 # Documentation Guide
 
 **Purpose:** Reference guide for AI agents handling documentation tasks  
-**Last Updated:** December 25, 2025  
+**Last Updated:** December 26, 2025  
 
 ---
 
@@ -19,6 +19,8 @@
 | **Record changes** | `CHANGELOG.md` |
 | **Frontend UI specs** | `UI_DESIGN_SPEC.md` |
 | **Conduct assessment** | `ASSESSMENT_GUIDE.md` |
+| **Current project status** | `PROJECT_ASSESSMENT_2025-12-25_v2.md` |
+| **AI DM test results** | `DM_TESTING_COMPLETE_SUMMARY.md` |
 
 ### ⚠️ Before Modifying Backend Code
 
@@ -42,12 +44,14 @@ This document contains the data flow diagrams and field type requirements that p
 | `API_DOCUMENTATION.md` | REST API endpoint documentation | API changes |
 | `FUNCTION_REFERENCE.md` | Critical internal functions, data flows, breaking change prevention | Backend changes |
 | `SCENARIO_REFERENCE.md` | Scenario/Location/NPC structure reference | Scenario system changes |
-| `PROJECT_ASSESSMENT_*.md` | Point-in-time quality assessments | Periodic reviews |
+| `PROJECT_ASSESSMENT_2025-12-25_v2.md` | Current project assessment (96/100) | Periodic reviews |
 | `ASSESSMENT_GUIDE.md` | Framework for conducting assessments | Rarely |
+| `DM_TESTING_COMPLETE_SUMMARY.md` | AI DM test results summary (95.5% pass) | After DM testing |
 | `UI_DESIGN_SPEC.md` | Frontend design specifications | UI changes |
 | `THEME_SYSTEM_SPEC.md` | Theme/styling specifications | Theme updates |
 | `*_REPORT.md` | Test reports and findings | After testing sessions |
 | `DOCUMENTATION_GUIDE.md` | This file - meta instructions | When processes change |
+| `archive/` | **Archived docs** - superseded assessments and old test reports | N/A |
 
 ---
 

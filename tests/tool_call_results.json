@@ -1,0 +1,321 @@
+{
+  "timestamp": "2025-12-25T21:23:20.467916",
+  "api_url": "http://localhost:5000",
+  "tests": {
+    "roll_format": [
+      {
+        "test_id": 1,
+        "description": "Stealth movement",
+        "status": "PASS",
+        "has_roll": true,
+        "skill_found": "Stealth",
+        "dc_found": 12,
+        "correct_skill": true,
+        "reasonable_dc": true,
+        "response_preview": "You crouch down, attempting to move with silence and grace, but the thick, thorny brambles are anything but cooperative. There are no goblins here at the edge of the village\u2014only the confused and conc"
+      },
+      {
+        "test_id": 2,
+        "description": "Perception check",
+        "status": "PASS",
+        "has_roll": true,
+        "skill_found": "Perception",
+        "dc_found": 12,
+        "correct_skill": true,
+        "reasonable_dc": true,
+        "response_preview": "You stand in the center of the village square and slow your breathing, your senses on high alert. Your gaze sweeps across the cobblestones, the base of the central well, the doorways of the nearby cot"
+      },
+      {
+        "test_id": 3,
+        "description": "Persuasion attempt",
+        "status": "FAIL",
+        "has_roll": false,
+        "has_malformed": false,
+        "response_preview": "You find yourself standing in the dusty village square. The man you're looking for, the barkeep, is almost certainly inside The Gilded Pig tavern. You can see its swinging sign and hear the low hum of"
+      },
+      {
+        "test_id": 4,
+        "description": "Investigation search",
+        "status": "PASS",
+        "has_roll": true,
+        "skill_found": "Investigation",
+        "dc_found": 12,
+        "correct_skill": true,
+        "reasonable_dc": true,
+        "response_preview": "You kneel down to get a closer look at the strange markings gouged into the damp cave wall. They are not random scratches; they appear deliberate, almost like a crude form of writing or a warning symb"
+      },
+      {
+        "test_id": 5,
+        "description": "Athletics climb",
+        "status": "PASS",
+        "has_roll": true,
+        "skill_found": "Athletics",
+        "dc_found": 13,
+        "correct_skill": true,
+        "reasonable_dc": true,
+        "response_preview": "You search the oppressive gloom of the swampy thicket, looking for a rocky cave wall to climb, but find only mud, wood, and tangled vegetation. There are no caves or cliffs in this part of the forest."
+      },
+      {
+        "test_id": 6,
+        "description": "Arcana identify",
+        "status": "PASS",
+        "has_roll": true,
+        "skill_found": "Arcana",
+        "dc_found": 14,
+        "correct_skill": true,
+        "reasonable_dc": true,
+        "response_preview": "You are standing in the village square, not a cave. The sounds of the blacksmith's hammer and the distant tavern chatter fill the air.\n\nYou close your eyes, shutting out the mundane sights and sounds "
+      }
+    ],
+    "context_memory": [
+      {
+        "test_id": 1,
+        "description": "Remember NPC name",
+        "status": "PASS",
+        "setup_response": "You stand in the cobblestone square, the sounds of village life around you. To speak with the barkeep, you'll first need to head into the tavern.\n\nThe tavern, with its sign of a leaking tankard, lies ",
+        "test_response": "You're still standing in the village square. You haven't had the chance to meet the barkeep yet, so you wouldn't know his name.\n\nTo find out, you'll need to head into the tavern, which is just to the west.",
+        "pattern_found": true
+      },
+      {
+        "test_id": 2,
+        "description": "Remember location visited",
+        "status": "PASS",
+        "setup_response": "You turn away from the tavern and the village well, heading east across the square. The rhythmic sound of the hammer grows louder with every step, a steady, powerful beat that seems to be the heart of",
+        "test_response": "You are at the blacksmith's forge, located on the eastern side of Willowbrook. You just walked here from the main village square, which lies immediately to your west. The square, with its central well, serves as the hub of the village. From there, you could see the Sleeping Dragon tavern to the west",
+        "pattern_found": true
+      },
+      {
+        "test_id": 3,
+        "description": "Remember player's stated goal",
+        "status": "PASS",
+        "setup_response": "You stand in the square and speak the words with determination, but there is no one named Bram here to hear them. A nearby merchant, a portly man polishing an apple on his sleeve, overhears you and ra",
+        "test_response": "You search your mind, trying to place the name, to recall the face of this 'Bram' and the weight of the promise you made to him. But the name conjures no specific recollection from your time in Willowbrook. No desperate father, no plea for a lost daughter, no pact sealed with a handshake comes to mi",
+        "pattern_found": true
+      }
+    ],
+    "edge_cases": [
+      {
+        "test_id": 1,
+        "description": "Very short input",
+        "status": "PASS",
+        "response_length": 601,
+        "issues": [],
+        "response_preview": "A few of the villagers setting up their market stalls glance up as you stand there, taking in the scene. They offer polite, if slightly wary, nods before returning to their work, their expressions a m"
+      },
+      {
+        "test_id": 2,
+        "description": "Single word action",
+        "status": "PASS",
+        "response_length": 506,
+        "issues": [],
+        "response_preview": "You stand in the middle of the square, your hand instinctively going to the hilt of your weapon. The villagers at the well eye you with a mixture of confusion and alarm, taking a hesitant step back. T"
+      },
+      {
+        "test_id": 3,
+        "description": "Empty-ish input",
+        "status": "FAIL",
+        "error": "No response received"
+      },
+      {
+        "test_id": 4,
+        "description": "Unicode/emoji input",
+        "status": "PASS",
+        "response_length": 1004,
+        "issues": [],
+        "response_preview": "You throw your arm forward with a shout, your voice echoing across the square. A few nearby villagers jump in surprise, their eyes wide. A farmer clutching a basket of apples stops dead in his tracks "
+      },
+      {
+        "test_id": 5,
+        "description": "Repeated words",
+        "status": "PASS",
+        "response_length": 626,
+        "issues": [],
+        "response_preview": "Your hands instinctively move towards the hilt of your weapon, your muscles tensing for a fight. The villagers going about their day\u2014a woman carrying a basket of laundry, an old man leaning on a cane,"
+      },
+      {
+        "test_id": 6,
+        "description": "Numbers only",
+        "status": "PASS",
+        "response_length": 612,
+        "issues": [],
+        "response_preview": "A nearby villager, a woman carrying a basket of laundry, gives you a perplexed look as you mutter the strange sequence of numbers. She quickens her pace slightly, pulling her shawl tighter around her "
+      },
+      {
+        "test_id": 7,
+        "description": "Mixed case",
+        "status": "PASS",
+        "response_length": 701,
+        "issues": [],
+        "response_preview": "You draw your weapon, a sudden flash of steel in the afternoon sun. The villagers in the square freeze, their conversations cut short. The farmer, mid-haggle, turns to stare at you with wide, fearful "
+      },
+      {
+        "test_id": 8,
+        "description": "Question only",
+        "status": "PASS",
+        "response_length": 869,
+        "issues": [],
+        "response_preview": "From where you stand in the center of the square, several paths are open to you.\n\nTo the west, the cheerful sounds of clinking tankards and laughter spill from The Weary Wanderer tavern. A place like "
+      }
+    ],
+    "reward_tags": [
+      {
+        "description": "Search for items",
+        "status": "INFO",
+        "rewards_found": {
+          "gold": null,
+          "item": null,
+          "xp": null
+        },
+        "response_preview": "You decide to give the area around The Winking Dryad tavern a closer look before venturing inside. The building's exterior is weathered timber, with a few grimy windows that don't let much light in or"
+      },
+      {
+        "description": "Ask for reward",
+        "status": "INFO",
+        "rewards_found": {
+          "gold": null,
+          "item": null,
+          "xp": null
+        },
+        "response_preview": "You look around the bustling square, searching for a man named Bram, but no one seems to be waiting for you or calling out your name. The villagers you see are focused on their own errands\u2014a woman han"
+      },
+      {
+        "description": "Check for gold",
+        "status": "INFO",
+        "rewards_found": {
+          "gold": null,
+          "item": null,
+          "xp": null
+        },
+        "response_preview": "You decide to try your luck, scanning the dusty ground of the village square for any dropped coins or forgotten valuables. Your eyes dart across the well-trodden paths, checking the area around the ce"
+      }
+    ],
+    "transaction_tags": [
+      {
+        "test_id": 1,
+        "description": "Buy item from blacksmith",
+        "status": "FAIL",
+        "tag_name": "BUY",
+        "tag_found": null,
+        "response_preview": "You stand in the middle of the village square. There are no weapon merchants or stalls set up here among the cobblestones and the central well.\n\nThe sound of a hammer striking steel rings out from the building to the east, under the sign of a crossed hammer and tongs. That's the blacksmith's forge. "
+      },
+      {
+        "test_id": 2,
+        "description": "Pay for service at tavern",
+        "status": "FAIL",
+        "tag_name": "PAY",
+        "tag_found": null,
+        "response_preview": "Your voice rings out in the open square, the offer of coin hanging in the air. A passing farmer carrying a basket of turnips gives you a strange look, then quickens his pace. There is no one named Marcus here to hear your offer.\n\nThe sounds of merriment from the Tipsy Dryad tavern to the west seem t"
+      },
+      {
+        "test_id": 3,
+        "description": "Recruit companion at tavern",
+        "status": "FAIL",
+        "tag_name": "RECRUIT",
+        "tag_found": null,
+        "response_preview": "The burly man stacking firewood raises a thick eyebrow, a look of pure confusion on his face. He glances around the square, as if trying to find who you're speaking to. \"Terms?\" he grunts, setting another log onto the pile. \"I'm not offering any terms, friend. Just giving a bit of friendly advice.\"\n"
+      }
+    ],
+    "anti_patterns": [
+      {
+        "test_id": 1,
+        "description": "No reroll after failure",
+        "status": "SKIP",
+        "reason": "First attempt did not fail, cannot test reroll denial"
+      },
+      {
+        "test_id": 2,
+        "description": "No auto-travel to locations",
+        "status": "PASS",
+        "forbidden_found": null,
+        "expected_behavior": "AI should tell player to use 'go <direction>'",
+        "response_preview": "The path leading north out of the village square seems to be the one you seek. It winds past the last few cottages before disappearing into the dense woods that climb the nearby hills. The whispers you overheard in the square confirm that this is the route toward the goblin-infested caves."
+      },
+      {
+        "test_id": 3,
+        "description": "No XP for combat",
+        "status": "PASS",
+        "forbidden_found": null,
+        "expected_behavior": "Combat XP is automatic, AI should not add more",
+        "response_preview": "Your fighting spirit is strong, but your blade meets only empty air. You stand in the middle of the village square, sword half-drawn, but there are no goblins here to fight. The only sounds are the gentle splashing of the fountain and the distant clang of the blacksmith's hammer.\n\nA farmer leading a"
+      },
+      {
+        "test_id": 4,
+        "description": "No invented NPCs",
+        "status": "PASS",
+        "forbidden_found": null,
+        "expected_behavior": "AI should say NPC is unknown",
+        "response_preview": "You look around the square, hoping to spot an apothecary's sign or a temple, but see nothing of the sort among the simple wooden buildings. You approach a woman carrying a basket of laundry, who pauses and gives you a curious look.\n\n\"Elara the healer?\" she repeats, frowning slightly. \"I'm sorry, fri"
+      }
+    ],
+    "combat_variants": [
+      {
+        "test_id": 1,
+        "description": "Multiple enemies",
+        "status": "FAIL",
+        "combat_found": null,
+        "expected_pattern": "goblin.*goblin|goblin,\\s*goblin|goblins",
+        "response_preview": "You draw your weapon, your voice echoing through the square as you let out a fierce battle cry. The villagers freeze in their tracks, their eyes wide with alarm. The farmer ducks behind his hay cart, and a woman by the well gasps, pulling her child close. Even the rhythmic hammering from the blacksm"
+      },
+      {
+        "test_id": 2,
+        "description": "Surprise attack",
+        "status": "FAIL",
+        "combat_found": null,
+        "expected_pattern": "SURPRISE",
+        "response_preview": "You crouch down, ready to spring an ambush, your eyes scanning the area for a goblin lurking in the shadows. However, as you peer around the corner of the well and behind market stalls, you find no sign of any such creature. The only beings in the square are the scattered villagers going about their"
+      }
+    ],
+    "combat_triggers": [
+      {
+        "test_id": 1,
+        "description": "Attack goblin explicitly",
+        "status": "FAIL",
+        "combat_triggered": false,
+        "response_preview": "You draw your weapon with a flourish, your eyes scanning the square for a target. The farmers haggling over potatoes jump back in alarm, and a woman carrying a basket of laundry gasps, dropping her lo"
+      },
+      {
+        "test_id": 2,
+        "description": "Draw weapon on enemy",
+        "status": "WARN",
+        "combat_triggered": false,
+        "response_preview": "With a sudden battle cry, your hand flies to your hilt and you draw your blade. The sharp ring of steel slices through the peaceful atmosphere of the village square, and the sun glints off your weapon"
+      },
+      {
+        "test_id": 3,
+        "description": "Hostile action to NPC",
+        "status": "WARN",
+        "combat_triggered": false,
+        "response_preview": "You clench your fists, ready to deliver a mighty blow, but your eyes scan the open village square and find... no one to punch. The few villagers milling about are at a distance, and there is certainly"
+      },
+      {
+        "test_id": 4,
+        "description": "Indirect combat trigger",
+        "status": "FAIL",
+        "combat_triggered": false,
+        "response_preview": "Torvin the blacksmith stares at you, his face a mask of pure confusion. He looks around his forge, behind the anvil, into the barrel of cooled scrap metal, and then back at you.\n\n\"Goblin?\" he says, hi"
+      },
+      {
+        "test_id": 5,
+        "description": "Multiple enemies",
+        "status": "FAIL",
+        "combat_triggered": false,
+        "response_preview": "You stand in the middle of the village square, your hand instinctively going to the hilt of your weapon. A surge of battle-readiness flows through you, but as you scan the area, your eyes meet only th"
+      },
+      {
+        "test_id": 6,
+        "description": "Surprise attack",
+        "status": "FAIL",
+        "combat_triggered": false,
+        "response_preview": "You crouch low, your hand tightening on the hilt of your weapon, ready to strike from the shadows. Your eyes scan the area for your target, muscles tensed for the ambush... but there are no goblins he"
+      },
+      {
+        "test_id": 7,
+        "description": "Non-combat should not trigger",
+        "status": "PASS",
+        "combat_triggered": false,
+        "should_trigger": false,
+        "response_preview": "You stand in the dusty village square, your greeting carried away by the gentle breeze. The barkeep is presumably inside the tavern, the weathered building to the west with the sign of a foaming mug. "
+      }
+    ]
+  }
+}
