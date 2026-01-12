@@ -8,6 +8,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Two-Phase AI Arbiter System** - Reliable skill check triggering!
+  - New `dm_arbiter.py` module separates mechanics from narration
+  - Phase 1: Arbiter decides if action requires a skill check (structured JSON output)
+  - Phase 2: Narrator writes the story based on roll results
+  - Prevents "narrative temptation" where AI skips mechanics for storytelling
+  
+- **Code Overrides** - 100% reliable keyword detection for common skill checks:
+  - Monetary negotiations (gold, bargain, haggle) → Persuasion/Intimidation
+  - Deception (lie, bluff, deceive) → Deception check
+  - Threats (threaten, intimidate, demand) → Intimidation check
+  - Stealth (sneak, hide, quietly) → Stealth check
+  - Searching (search, examine, look for) → Perception/Investigation
+  - Physical feats (climb, jump, swim) → Athletics check
+  - Lock picking → Sleight of Hand check
+  
+- **Social Failure System** - Consequences for failed social interactions:
+  - Tracks failed social skill checks (persuasion, intimidation, deception)
+  - Blocks retry with same NPC + same skill (different approach allowed)
+  - Warning at 2 failures with "push your luck" hint
+  - Game over trigger at 3 social failures
+  - Narrative block messages for retry attempts
+  
+- **DM Assessment Test Suite** - Comprehensive AI behavior testing:
+  - `test_dm_assessment.py` - Mechanics compliance testing
+  - `test_dm_adversarial.py` - Prompt injection and rule abuse testing
+  - `test_dm_chaos.py` - Anti-social player behavior handling
+  - `test_dm_combat.py` - Combat triggering and format compliance
+  - JSON reports generated for each test category
+
 ### Security
 - **Comprehensive Security Testing (125 Tests Passing)** - Full hostile player testing complete!
   - 5 testing rounds covering 125 unique security test cases

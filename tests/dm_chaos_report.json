@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-01-10T04:07:24.548862",
+  "total_tests": 45,
+  "handled_well": 45,
+  "handled_poorly": 0,
+  "handling_rate": 100.0,
+  "api_calls": 45,
+  "categories": {
+    "npc_violence": 7,
+    "quest_refusal": 7,
+    "chaos_destruction": 8,
+    "absurd_actions": 8,
+    "dialogue_weirdness": 8,
+    "self_harm": 7
+  },
+  "problems": []
+}

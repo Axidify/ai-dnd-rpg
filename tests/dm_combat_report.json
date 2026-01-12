@@ -1,0 +1,298 @@
+{
+  "timestamp": "2026-01-10T04:13:38.007456",
+  "total_tests": 25,
+  "passed": 23,
+  "failed": 2,
+  "pass_rate": 92.0,
+  "api_calls": 25,
+  "results": [
+    {
+      "category": "combat_trigger",
+      "test_name": "Direct Attack - Single Goblin",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": [
+        "goblin"
+      ],
+      "actual_enemies": [
+        "goblin"
+      ],
+      "passed": true,
+      "notes": "Combat triggered: ['goblin']"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Direct Attack - Multiple Enemies",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": [
+        "goblin",
+        "goblin"
+      ],
+      "actual_enemies": [
+        "goblin",
+        "goblin"
+      ],
+      "passed": true,
+      "notes": "Combat triggered: ['goblin', 'goblin']"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Aggressive Action - Punch",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": [
+        "orc"
+      ],
+      "actual_enemies": [
+        "orc"
+      ],
+      "passed": true,
+      "notes": "Combat triggered: ['orc']"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Weapon Draw + Attack",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": [
+        "bandit"
+      ],
+      "actual_enemies": [
+        "bandit"
+      ],
+      "passed": true,
+      "notes": "Combat triggered: ['bandit']"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Stealth Attack",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": [
+        "bandit"
+      ],
+      "actual_enemies": [
+        "bandit"
+      ],
+      "passed": true,
+      "notes": "Combat triggered: ['bandit']"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Peaceful Dialogue",
+      "expected_combat": false,
+      "actual_combat": false,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly no combat"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Examine Enemy",
+      "expected_combat": false,
+      "actual_combat": false,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly no combat"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Flee Action",
+      "expected_combat": false,
+      "actual_combat": false,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly no combat"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Negotiate",
+      "expected_combat": false,
+      "actual_combat": false,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly no combat"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Implied Violence",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": [
+        "goblin"
+      ],
+      "actual_enemies": [
+        "goblin"
+      ],
+      "passed": true,
+      "notes": "Combat triggered: ['goblin']"
+    },
+    {
+      "category": "combat_trigger",
+      "test_name": "Defensive Strike",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": [
+        "wolf"
+      ],
+      "actual_enemies": [
+        "wolf"
+      ],
+      "passed": true,
+      "notes": "Combat triggered: ['wolf']"
+    },
+    {
+      "category": "combat_format",
+      "test_name": "Single Enemy Format",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": [
+        "goblin"
+      ],
+      "passed": true,
+      "notes": "Correct format: [COMBAT: goblin]"
+    },
+    {
+      "category": "combat_format",
+      "test_name": "Double Enemy Format",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": [
+        "skeleton",
+        "skeleton"
+      ],
+      "passed": true,
+      "notes": "Correct format: [COMBAT: skeleton, skeleton]"
+    },
+    {
+      "category": "combat_format",
+      "test_name": "Mixed Enemy Format",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": [
+        "goblin",
+        "orc"
+      ],
+      "passed": true,
+      "notes": "Correct format: [COMBAT: goblin, orc]"
+    },
+    {
+      "category": "surprise_mechanic",
+      "test_name": "Stealth Attack - Should Surprise",
+      "expected_combat": true,
+      "actual_combat": false,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": false,
+      "notes": "No combat triggered"
+    },
+    {
+      "category": "surprise_mechanic",
+      "test_name": "Sleeping Enemy - Should Surprise",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly used SURPRISE modifier"
+    },
+    {
+      "category": "surprise_mechanic",
+      "test_name": "Ambush from Hiding - Should Surprise",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly used SURPRISE modifier"
+    },
+    {
+      "category": "surprise_mechanic",
+      "test_name": "Face to Face - No Surprise",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly no SURPRISE"
+    },
+    {
+      "category": "surprise_mechanic",
+      "test_name": "Enemy Alert - No Surprise",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly no SURPRISE"
+    },
+    {
+      "category": "edge_cases",
+      "test_name": "Verbal Threat Only",
+      "expected_combat": false,
+      "actual_combat": false,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly used skill check: Intimidation"
+    },
+    {
+      "category": "edge_cases",
+      "test_name": "Attack Group",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Combat triggered: ['goblin', 'goblin', 'goblin']"
+    },
+    {
+      "category": "edge_cases",
+      "test_name": "Ranged Attack",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Combat triggered: ['wolf']"
+    },
+    {
+      "category": "edge_cases",
+      "test_name": "Unarmed Strike",
+      "expected_combat": true,
+      "actual_combat": false,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": false,
+      "notes": "DM chose skill check instead: Athletics DC 13"
+    },
+    {
+      "category": "edge_cases",
+      "test_name": "Attack Object",
+      "expected_combat": false,
+      "actual_combat": false,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Correctly used skill check: Athletics"
+    },
+    {
+      "category": "edge_cases",
+      "test_name": "Attack Friendly",
+      "expected_combat": true,
+      "actual_combat": true,
+      "expected_enemies": null,
+      "actual_enemies": null,
+      "passed": true,
+      "notes": "Combat triggered: ['barkeep']"
+    }
+  ]
+}

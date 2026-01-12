@@ -1,0 +1,145 @@
+{
+  "timestamp": "2026-01-10T03:55:28.340993",
+  "overall": {
+    "total_tests": 27,
+    "passed": 19,
+    "failed": 8,
+    "api_calls": 29,
+    "deviation_percentage": 29.629629629629626,
+    "compliance_percentage": 70.37037037037038
+  },
+  "categories": {
+    "skill_check_trigger": {
+      "tests_run": 9,
+      "passed": 8,
+      "failed": 1,
+      "deviation_percentage": 11.11111111111111
+    },
+    "skill_check_format": {
+      "tests_run": 3,
+      "passed": 2,
+      "failed": 1,
+      "deviation_percentage": 33.33333333333333
+    },
+    "combat_trigger": {
+      "tests_run": 5,
+      "passed": 2,
+      "failed": 3,
+      "deviation_percentage": 60.0
+    },
+    "combat_format": {
+      "tests_run": 2,
+      "passed": 0,
+      "failed": 2,
+      "deviation_percentage": 100.0
+    },
+    "item_reward": {
+      "tests_run": 1,
+      "passed": 1,
+      "failed": 0,
+      "deviation_percentage": 0.0
+    },
+    "xp_reward": {
+      "tests_run": 2,
+      "passed": 2,
+      "failed": 0,
+      "deviation_percentage": 0.0
+    },
+    "buy_transaction": {
+      "tests_run": 1,
+      "passed": 0,
+      "failed": 1,
+      "deviation_percentage": 100.0
+    },
+    "npc_invention": {
+      "tests_run": 1,
+      "passed": 1,
+      "failed": 0,
+      "deviation_percentage": 0.0
+    },
+    "location_invention": {
+      "tests_run": 1,
+      "passed": 1,
+      "failed": 0,
+      "deviation_percentage": 0.0
+    },
+    "navigation_compliance": {
+      "tests_run": 1,
+      "passed": 1,
+      "failed": 0,
+      "deviation_percentage": 0.0
+    },
+    "reroll_prevention": {
+      "tests_run": 1,
+      "passed": 1,
+      "failed": 0,
+      "deviation_percentage": 0.0
+    }
+  },
+  "deviations": [
+    {
+      "category": "skill_check_trigger",
+      "severity": "major",
+      "description": "Wrong skill check triggered",
+      "expected": "Should trigger one of: ['sleight_of_hand', 'dexterity']",
+      "actual": "Triggered: Lockpicking",
+      "root_cause": "Other - Unclassified deviation"
+    },
+    {
+      "category": "skill_check_format",
+      "severity": "major",
+      "description": "No skill check tag used",
+      "expected": "Should have [ROLL: Skill DC X] tag",
+      "actual": "No recognizable skill check format",
+      "root_cause": "Format Non-Compliance - AI using wrong tag format"
+    },
+    {
+      "category": "combat_trigger",
+      "severity": "critical",
+      "description": "Combat not triggered for attack",
+      "expected": "Should trigger combat when player attacks",
+      "actual": "No [COMBAT:] tag found",
+      "root_cause": "Other - Unclassified deviation"
+    },
+    {
+      "category": "combat_trigger",
+      "severity": "critical",
+      "description": "Combat not triggered for attack",
+      "expected": "Should trigger combat when player attacks",
+      "actual": "No [COMBAT:] tag found",
+      "root_cause": "Other - Unclassified deviation"
+    },
+    {
+      "category": "combat_trigger",
+      "severity": "critical",
+      "description": "Combat not triggered for attack",
+      "expected": "Should trigger combat when player attacks",
+      "actual": "No [COMBAT:] tag found",
+      "root_cause": "Other - Unclassified deviation"
+    },
+    {
+      "category": "combat_format",
+      "severity": "critical",
+      "description": "No combat tag for attack",
+      "expected": "Should have [COMBAT: ...] tag",
+      "actual": "No combat tag found",
+      "root_cause": "Format Non-Compliance - AI using wrong tag format"
+    },
+    {
+      "category": "combat_format",
+      "severity": "critical",
+      "description": "No combat tag for attack",
+      "expected": "Should have [COMBAT: ...] tag",
+      "actual": "No combat tag found",
+      "root_cause": "Format Non-Compliance - AI using wrong tag format"
+    },
+    {
+      "category": "buy_transaction",
+      "severity": "major",
+      "description": "No transaction tag for purchase",
+      "expected": "Should use [BUY: item, price] tag",
+      "actual": "No purchase tag found",
+      "root_cause": "Other - Unclassified deviation"
+    }
+  ]
+}

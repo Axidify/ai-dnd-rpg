@@ -504,6 +504,64 @@ When a character is created with `create_random()` or `create_character_interact
 
 ## AI Integration
 
+### Two-Phase Architecture (Arbiter + Narrator)
+
+The game uses a **Two-Phase AI Architecture** to ensure reliable mechanics:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 PLAYER ACTION                               │
+│           "I demand a downpayment of 10 gold"               │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│   PHASE 1: ARBITER (dm_arbiter.py)                         │
+│   ┌─────────────────┐  ┌─────────────────┐  ┌────────────┐ │
+│   │ Code Overrides  │→ │   AI Arbiter    │→ │  Fallback  │ │
+│   │ (100% reliable) │  │ (gemini-flash)  │  │ (default)  │ │
+│   └────────┬────────┘  └────────┬────────┘  └─────┬──────┘ │
+│            └─────────────┬──────┴─────────────────┘        │
+│                          ▼                                  │
+│   Output: {requires_roll: true, skill: "Intimidation",     │
+│            dc: 12, action_type: "social"}                  │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│   DICE ROLL (if required)                                   │
+│   roll_skill_check(character, "Intimidation", 12)          │
+│   → Result: 14 (Success) or 8 (Failure)                    │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│   PHASE 2: NARRATOR (dm_engine.py)                         │
+│   Model: gemini-2.5-pro                                    │
+│   Input: Original action + roll result + context           │
+│   Output: Narrative response with embedded tags            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Why Two Phases?**
+The AI narrator has "narrative temptation" - it wants to tell good stories, sometimes at the expense of game mechanics. By separating the mechanical decision (does this need a roll?) from the narrative (what happens?), we prevent the AI from skipping skill checks for storytelling reasons.
+
+### Code Overrides (dm_arbiter.py)
+
+Keywords that **always** trigger skill checks:
+
+| Keywords | Skill | DC |
+|----------|-------|-----|
+| gold + negotiate/bargain/haggle | Persuasion | 12 |
+| gold + demand/threaten | Intimidation | 12 |
+| lie, bluff, deceive, trick | Deception | 13 |
+| threaten, intimidate, demand | Intimidation | 13 |
+| sneak, hide, quietly, stealthily | Stealth | 12 |
+| search, examine, look for | Perception/Investigation | 12 |
+| climb, jump, swim, break | Athletics | 12 |
+| pick lock, lockpick | Sleight of Hand | 14 |
+| balance, tumble, flip | Acrobatics | 12 |
+
 ### Google Gemini Setup
 
 **Library:** `google-generativeai`
@@ -516,9 +574,9 @@ When a character is created with `create_random()` or `create_character_interact
 
 | Model | Speed | Quality | Cost | Use Case |
 |-------|-------|---------|------|----------|
+| `gemini-2.0-flash-lite` | Fastest | Good | Lowest | Arbiter (mechanics only) |
 | `gemini-2.0-flash` | Fast | Good | Low | Default, testing |
-| `gemini-1.5-flash-latest` | Fast | Good | Low | Alternative |
-| `gemini-1.5-pro` | Slower | Best | Higher | Production |
+| `gemini-2.5-pro` | Slower | Best | Higher | Narrator (production) |
 
 ### Chat Sessions
 

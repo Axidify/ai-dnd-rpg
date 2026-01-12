@@ -34,6 +34,7 @@ export default {
         'glow': 'glow 2s ease-in-out infinite alternate',
         'float': 'float 3s ease-in-out infinite',
         'shake': 'shake 0.5s ease-in-out',
+        'spin-slow': 'spin 8s linear infinite',
       },
       keyframes: {
         glow: {

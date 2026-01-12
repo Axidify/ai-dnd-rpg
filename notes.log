@@ -1,17 +1,17 @@
- *  Executing task: Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd "D:\Vibecoding\AI RPG V2"; .venv\Scripts\python.exe src/api_server.py'; Start-Sleep -Seconds 2; cd "D:\Vibecoding\AI RPG V2\frontend"; C:\flutter\bin\flutter.bat run -d chrome 
+**The Rusty Dragon Tavern**
 
-Set-Location : A positional parameter cannot be found that accepts argument 'RPG'.
-At line:1 char:161
-+ ... ; Start-Sleep -Seconds 2; cd D:\Vibecoding\AI RPG V2\frontend; C:\flu ...
-+                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidArgument: (:) [Set-Location], ParameterBindingException   
-    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.SetLoc 
-   ationCommand
- 
-Error: No pubspec.yaml file found.
-This command should be run from the root of your Flutter project.
+The heavy wooden door of The Rusty Dragon groans shut behind you, sealing out the evening's chill. Instantly, the warmth of a crackling hearth washes over you, carrying the mingled scents of wood smoke, spilled ale, and roasting meat. The common room is bathed in the flickering orange light of the fire and a few tallow candles, casting long, dancing shadows across the rough-hewn tables. The low murmur of conversations from a handful of weary-looking locals provides a steady drone, punctuated by the clinking of tankards.
 
- *  The terminal process "C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -Command Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd "D:\Vibecoding\AI RPG V2"; .venv\Scripts\python.exe src/api_server.py'; Start-Sleep -Seconds 2; cd "D:\Vibecoding\AI RPG V2\frontend"; C:\flutter\bin\flutter.bat run -d chrome" terminated with exit code: 1. 
- *  Terminal will be reused by tasks, press any key to close it. 
+Your eyes adjust to the dim light, and you notice a man sitting alone, hunched over a table near the fire. He's not drinking, merely staring into the flames with a haunted look. His clothes are simple farmer's garb, stained with mud and something darker. His hands tremble, and his face is a mask of raw panic and sleepless exhaustion. As you find a seat, his bloodshot eyes snap towards you, seizing upon you as if you were the last glimmer of hope in a darkening world.
 
+He lurches to his feet and stumbles over to your table, his hands gripping the edge so hard his knuckles are white. "Please," he rasps, his voice cracking with desperation. "You're... you're an adventurer, aren't you? You look strong. I need help. My... my daughter, Lily. The goblins took her." He swallows hard, his gaze pleading. "They came last night. Raided our farm, dragged her away. I'll give you everything I have... fifty gold coins. It's our family's savings. Just please... bring her back from Darkhollow Cave."
 
+only if i can get an advance first
+
+The farmer, whose name you learn is Bram, flinches at your condition. His already pale face seems to drain of all color. "An advance?" he whispers, his voice trembling. "But... that fifty gold is everything I have. It's all our savings. I was going to give it all to you, I swear it, the moment you brought Lily back."
+
+He looks down at his muddy boots, his shoulders slumping in defeat. The hope that had briefly ignited in his eyes seems to dim. "I need to know you'll come back... that you'll bring her back. It's all I have to offer." He is clearly at a breaking point, caught between his desperate need for help and the terror of being swindled out of his last few coins. You'll have to be convincing to get him to part with any of it now.
+
+[ROLL: Persuasion DC 13]
+
+🎲 Persuasion Check (DC 13): rolled 13 +1 = 14 ✅

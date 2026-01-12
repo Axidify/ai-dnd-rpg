@@ -43,6 +43,8 @@ from dm_engine import (
     build_full_dm_context, apply_rewards,
     SKILL_ABILITIES
 )
+# Import the new arbiter for two-phase skill check enforcement
+from dm_arbiter import get_arbiter_decision, ArbiterDecision
 import re
 
 # Load .env from project root (parent of src/)
@@ -239,6 +241,9 @@ cleanup_thread.start()
 class GameSession:
     """Represents an active game session."""
     
+    # Game over threshold for social failures
+    MAX_SOCIAL_FAILURES = 3
+    
     def __init__(self, session_id: str):
         self.session_id = session_id
         self.character = None
@@ -256,10 +261,67 @@ class GameSession:
         self.last_activity = datetime.now()  # Track last activity for session cleanup
         self.dm_model = None
         self.dm_chat = None  # Chat session for stateful conversation
+        
+        # Social check tracking (retry prevention + game over)
+        self.failed_social_checks = 0  # Total failed social checks
+        self.last_social_check_npc = None  # NPC involved in last social check
+        self.last_social_check_skill = None  # Skill used in last social check
+        self.social_check_blocked_npcs = set()  # NPCs who won't talk to player anymore
+        self.game_over = False
+        self.game_over_reason = None
     
     def touch(self):
         """Update last_activity timestamp to prevent session expiration."""
         self.last_activity = datetime.now()
+    
+    def record_social_failure(self, npc_context: str = None, skill: str = None):
+        """Record a failed social check and check for game over."""
+        self.failed_social_checks += 1
+        self.last_social_check_npc = npc_context
+        self.last_social_check_skill = skill
+        
+        # After 2 failures with same NPC context, block that NPC
+        if npc_context:
+            self.social_check_blocked_npcs.add(npc_context)
+        
+        # Check for game over
+        if self.failed_social_checks >= self.MAX_SOCIAL_FAILURES:
+            self.game_over = True
+            self.game_over_reason = "You've alienated too many people. Word has spread about your difficult nature, and no one in town will deal with you. Your adventure ends here."
+        
+        return {
+            'failures': self.failed_social_checks,
+            'max_failures': self.MAX_SOCIAL_FAILURES,
+            'game_over': self.game_over,
+            'warning': self.failed_social_checks == self.MAX_SOCIAL_FAILURES - 1
+        }
+    
+    def is_social_retry_blocked(self, npc_context: str = None, skill: str = None) -> tuple[bool, str]:
+        """
+        Check if a social check should be blocked (retry prevention).
+        Returns (blocked, reason).
+        """
+        # Game over - all actions blocked
+        if self.game_over:
+            return (True, "game_over")
+        
+        # Same NPC + same skill = blocked retry
+        if (npc_context and skill and 
+            npc_context == self.last_social_check_npc and 
+            skill == self.last_social_check_skill):
+            return (True, "same_approach")
+        
+        # NPC has rejected player entirely
+        if npc_context and npc_context in self.social_check_blocked_npcs:
+            return (True, "npc_hostile")
+        
+        return (False, None)
+    
+    def get_social_warning(self) -> str | None:
+        """Get warning message if player is close to game over."""
+        if self.failed_social_checks == self.MAX_SOCIAL_FAILURES - 1:
+            return "⚠️ **Warning:** You've failed multiple social checks. One more failure may end your adventure."
+        return None
     
     def _serialize_character(self):
         """Serialize character with proper enum handling for inventory items."""
@@ -415,8 +477,18 @@ Current Location: {session.current_location or 'Unknown'}
     return context_update
 
 
-def get_dm_response(session: GameSession, player_action: str, is_opening: bool = False, max_retries: int = 3) -> str:
-    """Get AI DM response for player action (non-streaming) using chat session."""
+def get_dm_response(session: GameSession, player_action: str, is_opening: bool = False, max_retries: int = 3, pre_roll_result: dict = None) -> str:
+    """
+    Get AI DM response for player action (non-streaming) using chat session.
+    
+    Args:
+        session: Game session
+        player_action: The player's action text
+        is_opening: Whether this is the opening narration
+        max_retries: Number of retries for API errors
+        pre_roll_result: If provided, the skill check result (from two-phase arbiter system)
+                        This tells the DM what the roll result was so it can narrate appropriately.
+    """
     import time
     
     chat = init_dm_chat(session)
@@ -428,7 +500,35 @@ def get_dm_response(session: GameSession, player_action: str, is_opening: bool =
     # Build the message with context refresh + action + skill hints
     context_refresh = refresh_chat_context(session)
     skill_hint = get_skill_hint(player_action)
-    full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}"
+    
+    # If we have a pre-resolved skill check result, include it in the message
+    if pre_roll_result:
+        is_social = pre_roll_result.get('action_type') == 'social'
+        is_failure = not pre_roll_result['success']
+        
+        # Add "push your luck" warning for social failures
+        push_luck_warning = ""
+        if is_social and is_failure:
+            push_luck_warning = """
+
+IMPORTANT: Since this was a FAILED social check, end your narration with a subtle hint that pushing their luck further with this NPC/approach would be unwise. Examples:
+- "Something in their eyes tells you that pressing further would only make things worse."
+- "You sense that any more demands would sour the situation beyond repair."
+- "The moment for negotiation seems to be slipping away."
+Do NOT be too heavy-handed - just a subtle narrative hint."""
+        
+        roll_instruction = f"""
+[SKILL CHECK ALREADY RESOLVED - DO NOT request another roll]
+The player attempted: {player_action}
+Skill Check Result: {pre_roll_result['skill']} DC {pre_roll_result['dc']} - {"SUCCESS" if pre_roll_result['success'] else "FAILURE"}
+Roll: {pre_roll_result['roll']} + {pre_roll_result['modifier']} = {pre_roll_result['total']}
+{"🌟 CRITICAL SUCCESS (Natural 20)!" if pre_roll_result.get('is_nat_20') else ""}
+{"💀 CRITICAL FAILURE (Natural 1)!" if pre_roll_result.get('is_nat_1') else ""}
+
+NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome of this check. Do NOT add [ROLL:] tags - the roll is already done.{push_luck_warning}"""
+        full_message = f"{context_refresh}\n\n{roll_instruction}"
+    else:
+        full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}"
     
     for attempt in range(max_retries):
         try:
@@ -467,8 +567,16 @@ def get_dm_response(session: GameSession, player_action: str, is_opening: bool =
     return get_fallback_response(session, player_action, is_opening)
 
 
-def stream_dm_response(session: GameSession, player_action: str, max_retries: int = 3):
-    """Generator that yields streaming DM response chunks using chat session."""
+def stream_dm_response(session: GameSession, player_action: str, max_retries: int = 3, pre_roll_result: dict = None):
+    """
+    Generator that yields streaming DM response chunks using chat session.
+    
+    Args:
+        session: Game session
+        player_action: The player's action text
+        max_retries: Number of retries for API errors
+        pre_roll_result: If provided, the skill check result (from two-phase arbiter system)
+    """
     import time
     
     chat = init_dm_chat(session)
@@ -481,7 +589,35 @@ def stream_dm_response(session: GameSession, player_action: str, max_retries: in
     # Only include context updates periodically or when state changes significantly
     context_refresh = refresh_chat_context(session)
     skill_hint = get_skill_hint(player_action)
-    full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}"
+    
+    # If we have a pre-resolved skill check result, include it in the message
+    if pre_roll_result:
+        is_social = pre_roll_result.get('action_type') == 'social'
+        is_failure = not pre_roll_result['success']
+        
+        # Add "push your luck" warning for social failures
+        push_luck_warning = ""
+        if is_social and is_failure:
+            push_luck_warning = """
+
+IMPORTANT: Since this was a FAILED social check, end your narration with a subtle hint that pushing their luck further with this NPC/approach would be unwise. Examples:
+- "Something in their eyes tells you that pressing further would only make things worse."
+- "You sense that any more demands would sour the situation beyond repair."
+- "The moment for negotiation seems to be slipping away."
+Do NOT be too heavy-handed - just a subtle narrative hint."""
+        
+        roll_instruction = f"""
+[SKILL CHECK ALREADY RESOLVED - DO NOT request another roll]
+The player attempted: {player_action}
+Skill Check Result: {pre_roll_result['skill']} DC {pre_roll_result['dc']} - {"SUCCESS" if pre_roll_result['success'] else "FAILURE"}
+Roll: {pre_roll_result['roll']} + {pre_roll_result['modifier']} = {pre_roll_result['total']}
+{"🌟 CRITICAL SUCCESS (Natural 20)!" if pre_roll_result.get('is_nat_20') else ""}
+{"💀 CRITICAL FAILURE (Natural 1)!" if pre_roll_result.get('is_nat_1') else ""}
+
+NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome of this check. Do NOT add [ROLL:] tags - the roll is already done.{push_luck_warning}"""
+        full_message = f"{context_refresh}\n\n{roll_instruction}"
+    else:
+        full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}"
     
     for attempt in range(max_retries):
         try:
@@ -766,7 +902,7 @@ Keep it to 2-3 paragraphs. Be immersive and atmospheric."""
 
 @app.route('/api/game/action', methods=['POST'])
 def game_action():
-    """Process a player action."""
+    """Process a player action using two-phase AI (arbiter + narrator)."""
     data = request.get_json() or {}
     
     session_id = data.get('session_id')
@@ -794,27 +930,128 @@ def game_action():
         'timestamp': datetime.now().isoformat()
     })
     
-    # Get DM response
-    dm_response = get_dm_response(session, action)
+    # =========================================================================
+    # CHECK FOR GAME OVER STATE
+    # =========================================================================
+    if session.game_over:
+        game_over_response = f"🎮 **GAME OVER**\n\n{session.game_over_reason}\n\n*Start a new game to try again.*"
+        session.messages.append({
+            'type': 'dm',
+            'content': game_over_response,
+            'timestamp': datetime.now().isoformat(),
+            'game_over': True
+        })
+        return jsonify({
+            'success': True,
+            'message': game_over_response,
+            'game_over': True,
+            'game_state': session.to_dict()
+        })
     
-    # Check for skill check request
-    skill, dc = parse_roll_request(dm_response)
-    roll_result = None
+    # =========================================================================
+    # PHASE 1: ARBITER - Determine if skill check is needed (BEFORE narrator)
+    # =========================================================================
+    arbiter_roll_result = None
+    context_for_arbiter = f"Location: {session.current_location or 'Unknown'}"
+    if session.quest_manager:
+        active_quests = session.quest_manager.get_active_quests()
+        if active_quests:
+            context_for_arbiter += f"\nActive quests: {', '.join(q.name for q in active_quests)}"
     
-    if skill and dc and session.character:
-        result = roll_skill_check(session.character, skill, dc)
-        roll_result = {
+    arbiter_decision = get_arbiter_decision(action, context_for_arbiter)
+    
+    # Check for blocked social retry BEFORE rolling
+    social_blocked = False
+    social_block_reason = None
+    is_social_check = arbiter_decision.action_type == "social" and arbiter_decision.requires_roll
+    
+    if is_social_check:
+        social_blocked, social_block_reason = session.is_social_retry_blocked(
+            npc_context=context_for_arbiter,
+            skill=arbiter_decision.skill
+        )
+    
+    if social_blocked:
+        if social_block_reason == "same_approach":
+            block_response = "*You consider pressing the same point again, but something in the NPC's expression tells you it would be futile. They've made their position clear, and repeating yourself would only damage what rapport remains.*\n\nPerhaps try a different approach, or accept the situation as it stands."
+        elif social_block_reason == "npc_hostile":
+            block_response = "*You move to speak, but the person pointedly turns away from you. Whatever chance you had with them has passed. Their body language makes it abundantly clear: this conversation is over.*\n\nYou'll need to find another way forward."
+        else:
+            block_response = session.game_over_reason or "You cannot proceed with this action."
+        
+        session.messages.append({
+            'type': 'dm',
+            'content': block_response,
+            'timestamp': datetime.now().isoformat(),
+            'blocked': True
+        })
+        return jsonify({
+            'success': True,
+            'message': block_response,
+            'blocked': True,
+            'block_reason': social_block_reason,
+            'game_state': session.to_dict()
+        })
+    
+    if arbiter_decision.requires_roll and session.character:
+        # Roll the skill check BEFORE calling the narrator
+        result = roll_skill_check(session.character, arbiter_decision.skill, arbiter_decision.dc)
+        arbiter_roll_result = {
             'skill': result['skill'],
             'roll': result['roll'],
             'modifier': result['modifier'],
             'total': result['total'],
-            'dc': dc,
+            'dc': arbiter_decision.dc,
             'success': result['success'],
-            'formatted': format_roll_result(result)
+            'is_nat_20': result.get('is_nat_20', False),
+            'is_nat_1': result.get('is_nat_1', False),
+            'formatted': format_roll_result(result),
+            'source': arbiter_decision.source,  # Track where the decision came from
+            'action_type': arbiter_decision.action_type  # Track action type for social failure tracking
         }
+        print(f"   🎲 Arbiter ({arbiter_decision.source}): {arbiter_roll_result['skill']} DC {arbiter_roll_result['dc']} = {arbiter_roll_result['total']} ({'✓' if arbiter_roll_result['success'] else '✗'})")
         
-        # Add roll result to response
-        dm_response += f"\n\n{format_roll_result(result)}"
+        # Track social check failures
+        if is_social_check and not arbiter_roll_result['success']:
+            failure_info = session.record_social_failure(
+                npc_context=context_for_arbiter,
+                skill=arbiter_decision.skill
+            )
+            print(f"   ⚠️ Social failure recorded ({failure_info['failures']}/{failure_info['max_failures']})")
+            
+            # Check for game over after failure
+            if failure_info['game_over']:
+                # Let the narrator describe the final failure, then add game over
+                pass  # Game over will be handled after narrator response
+    
+    # =========================================================================
+    # PHASE 2: NARRATOR - Get DM response (with pre-roll result if applicable)
+    # =========================================================================
+    dm_response = get_dm_response(session, action, pre_roll_result=arbiter_roll_result)
+    
+    # If arbiter required a roll, use that result (don't let narrator add another)
+    roll_result = arbiter_roll_result
+    
+    # If arbiter didn't require a roll, check if narrator requested one (fallback)
+    if not roll_result:
+        skill, dc = parse_roll_request(dm_response)
+        if skill and dc and session.character:
+            result = roll_skill_check(session.character, skill, dc)
+            roll_result = {
+                'skill': result['skill'],
+                'roll': result['roll'],
+                'modifier': result['modifier'],
+                'total': result['total'],
+                'dc': dc,
+                'success': result['success'],
+                'formatted': format_roll_result(result),
+                'source': 'narrator_ai'
+            }
+            # Add roll result to response
+            dm_response += f"\n\n{format_roll_result(result)}"
+    else:
+        # Arbiter handled the roll - add the formatted result to the response
+        dm_response = f"🎲 {roll_result['formatted']}\n\n{dm_response}"
     
     # Check for combat request
     enemies, surprise = parse_combat_request(dm_response)
@@ -885,13 +1122,25 @@ def game_action():
     if accepted_quests:
         print(f"   📜 Quests accepted: {accepted_quests}")
     
+    # =========================================================================
+    # CHECK FOR GAME OVER (triggered by this action's failure)
+    # =========================================================================
+    if session.game_over:
+        dm_response += f"\n\n---\n\n🎮 **GAME OVER**\n\n{session.game_over_reason}"
+    
+    # Add warning if player is close to game over
+    warning = session.get_social_warning()
+    if warning and not session.game_over:
+        dm_response += f"\n\n{warning}"
+    
     # Record DM response
     session.messages.append({
         'type': 'dm',
         'content': dm_response,
         'timestamp': datetime.now().isoformat(),
         'roll_result': roll_result,
-        'combat_started': combat_started
+        'combat_started': combat_started,
+        'game_over': session.game_over
     })
     
     return jsonify({
@@ -904,6 +1153,8 @@ def game_action():
         'xp_gained': sum(xp for xp, _ in xp_rewards) if xp_rewards else 0,
         'leveled_up': leveled_up,
         'quests_accepted': accepted_quests,
+        'game_over': session.game_over,
+        'social_failures': session.failed_social_checks,
         'game_state': session.to_dict()
     })
 
@@ -940,6 +1191,86 @@ def game_action_stream():
         'timestamp': datetime.now().isoformat()
     })
     
+    # =========================================================================
+    # CHECK FOR GAME OVER STATE
+    # =========================================================================
+    if session.game_over:
+        def generate_game_over():
+            game_over_response = f"🎮 **GAME OVER**\n\n{session.game_over_reason}\n\n*Start a new game to try again.*"
+            yield f"data: {json.dumps({'type': 'chunk', 'content': game_over_response}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'game_over', 'reason': session.game_over_reason}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'complete', 'game_state': session.to_dict()}, ensure_ascii=False)}\n\n"
+        
+        return Response(
+            stream_with_context(generate_game_over()),
+            mimetype='text/event-stream',
+            headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
+        )
+    
+    # =========================================================================
+    # PHASE 1: ARBITER - Determine if skill check is needed (BEFORE narrator)
+    # =========================================================================
+    context_for_arbiter = f"Location: {session.current_location or 'Unknown'}"
+    if session.quest_manager:
+        active_quests = session.quest_manager.get_active_quests()
+        if active_quests:
+            context_for_arbiter += f"\nActive quests: {', '.join(q.name for q in active_quests)}"
+    
+    arbiter_decision = get_arbiter_decision(action, context_for_arbiter)
+    arbiter_roll_result = None
+    is_social_check = arbiter_decision.action_type == "social" and arbiter_decision.requires_roll
+    
+    # Check for blocked social retry BEFORE rolling
+    if is_social_check:
+        social_blocked, social_block_reason = session.is_social_retry_blocked(
+            npc_context=context_for_arbiter,
+            skill=arbiter_decision.skill
+        )
+        if social_blocked:
+            if social_block_reason == "same_approach":
+                block_response = "*You consider pressing the same point again, but something in the NPC's expression tells you it would be futile. They've made their position clear, and repeating yourself would only damage what rapport remains.*\n\nPerhaps try a different approach, or accept the situation as it stands."
+            elif social_block_reason == "npc_hostile":
+                block_response = "*You move to speak, but the person pointedly turns away from you. Whatever chance you had with them has passed. Their body language makes it abundantly clear: this conversation is over.*\n\nYou'll need to find another way forward."
+            else:
+                block_response = "You cannot proceed with this action."
+            
+            def generate_blocked():
+                yield f"data: {json.dumps({'type': 'chunk', 'content': block_response}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'blocked', 'reason': social_block_reason}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'complete', 'game_state': session.to_dict()}, ensure_ascii=False)}\n\n"
+            
+            return Response(
+                stream_with_context(generate_blocked()),
+                mimetype='text/event-stream',
+                headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
+            )
+    
+    if arbiter_decision.requires_roll and session.character:
+        # Roll the skill check BEFORE calling the narrator
+        result = roll_skill_check(session.character, arbiter_decision.skill, arbiter_decision.dc)
+        arbiter_roll_result = {
+            'skill': result['skill'],
+            'roll': result['roll'],
+            'modifier': result['modifier'],
+            'total': result['total'],
+            'dc': arbiter_decision.dc,
+            'success': result['success'],
+            'is_nat_20': result.get('is_nat_20', False),
+            'is_nat_1': result.get('is_nat_1', False),
+            'formatted': format_roll_result(result),
+            'source': arbiter_decision.source,
+            'action_type': arbiter_decision.action_type
+        }
+        print(f"   🎲 Arbiter ({arbiter_decision.source}): {arbiter_roll_result['skill']} DC {arbiter_roll_result['dc']} = {arbiter_roll_result['total']} ({'✓' if arbiter_roll_result['success'] else '✗'})")
+        
+        # Track social check failures
+        if is_social_check and not arbiter_roll_result['success']:
+            failure_info = session.record_social_failure(
+                npc_context=context_for_arbiter,
+                skill=arbiter_decision.skill
+            )
+            print(f"   ⚠️ Social failure recorded ({failure_info['failures']}/{failure_info['max_failures']})")
+    
     def generate():
         full_response = []
         
@@ -947,8 +1278,15 @@ def game_action_stream():
         def json_sse(data):
             return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
         
-        # Stream the DM response
-        for chunk in stream_dm_response(session, action):
+        # If arbiter required a roll, send it first
+        if arbiter_roll_result:
+            yield json_sse({'type': 'roll', 'result': arbiter_roll_result})
+            roll_text = f"🎲 {arbiter_roll_result['formatted']}\n\n"
+            yield json_sse({'type': 'chunk', 'content': roll_text})
+            full_response.append(roll_text)
+        
+        # Stream the DM response (with pre-roll result if applicable)
+        for chunk in stream_dm_response(session, action, pre_roll_result=arbiter_roll_result):
             full_response.append(chunk)
             # Send as SSE format
             yield json_sse({'type': 'chunk', 'content': chunk})
@@ -956,26 +1294,29 @@ def game_action_stream():
         # Combine full response for post-processing
         dm_response = ''.join(full_response)
         
-        # Check for skill check request
-        skill, dc = parse_roll_request(dm_response)
-        roll_result = None
+        # Use arbiter roll result if available, otherwise check narrator's response
+        roll_result = arbiter_roll_result
         
-        if skill and dc and session.character:
-            result = roll_skill_check(session.character, skill, dc)
-            roll_result = {
-                'skill': result['skill'],
-                'roll': result['roll'],
-                'modifier': result['modifier'],
-                'total': result['total'],
-                'dc': dc,
-                'success': result['success'],
-                'formatted': format_roll_result(result)
-            }
-            # Send roll result as both a roll event AND a visible chunk
-            yield json_sse({'type': 'roll', 'result': roll_result})
-            roll_text = f"\n\n{format_roll_result(result)}"
-            yield json_sse({'type': 'chunk', 'content': roll_text})
-            dm_response += roll_text
+        # If arbiter didn't require a roll, check if narrator requested one (fallback)
+        if not roll_result:
+            skill, dc = parse_roll_request(dm_response)
+            if skill and dc and session.character:
+                result = roll_skill_check(session.character, skill, dc)
+                roll_result = {
+                    'skill': result['skill'],
+                    'roll': result['roll'],
+                    'modifier': result['modifier'],
+                    'total': result['total'],
+                    'dc': dc,
+                    'success': result['success'],
+                    'formatted': format_roll_result(result),
+                    'source': 'narrator_ai'
+                }
+                # Send roll result as both a roll event AND a visible chunk
+                yield json_sse({'type': 'roll', 'result': roll_result})
+                roll_text = f"\n\n{format_roll_result(result)}"
+                yield json_sse({'type': 'chunk', 'content': roll_text})
+                dm_response += roll_text
         
         # Check for combat request
         enemies, surprise = parse_combat_request(dm_response)
@@ -1087,11 +1428,24 @@ def game_action_stream():
             'content': dm_response,
             'timestamp': datetime.now().isoformat(),
             'roll_result': roll_result,
-            'combat_started': bool(enemies)
+            'combat_started': bool(enemies),
+            'game_over': session.game_over
         })
         
+        # Check for game over triggered by this action
+        if session.game_over:
+            game_over_text = f"\n\n---\n\n🎮 **GAME OVER**\n\n{session.game_over_reason}"
+            yield json_sse({'type': 'chunk', 'content': game_over_text})
+            yield json_sse({'type': 'game_over', 'reason': session.game_over_reason})
+        
+        # Add warning if close to game over
+        warning = session.get_social_warning()
+        if warning and not session.game_over:
+            yield json_sse({'type': 'chunk', 'content': f"\n\n{warning}"})
+            yield json_sse({'type': 'warning', 'message': warning})
+        
         # Send completion signal
-        yield json_sse({'type': 'done', 'game_state': session.to_dict()})
+        yield json_sse({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over})
     
     return Response(
         stream_with_context(generate()),
