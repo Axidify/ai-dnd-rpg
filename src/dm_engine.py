@@ -365,6 +365,73 @@ def parse_buy_transactions(dm_response: str) -> List[Tuple[str, int]]:
 
 
 # =============================================================================
+# CONTROL TAG STRIPPING (player should never see raw [TAG: ...] markup)
+# =============================================================================
+
+# Any of these bracket tags are internal DM directives, not narration.
+# They are parsed for mechanics elsewhere and must be removed from the text
+# shown to (and stored for) the player.
+CONTROL_TAG_PATTERN = re.compile(
+    r'\[(?:ROLL|COMBAT|ITEM|GOLD|XP|BUY|PAY|RECRUIT)\b[^\]]*\]',
+    re.IGNORECASE,
+)
+
+
+def strip_dm_tags(text: str) -> str:
+    """
+    Remove all DM control tags from a block of text and tidy the whitespace
+    left behind. Use this on the final narration before showing/storing it.
+    """
+    if not text:
+        return text or ""
+    cleaned = CONTROL_TAG_PATTERN.sub('', text)
+    # Tidy artifacts left where tags were removed
+    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)   # collapse runs of spaces
+    cleaned = re.sub(r' +\n', '\n', cleaned)        # trailing spaces before newline
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)    # collapse blank-line runs
+    return cleaned.strip()
+
+
+class StreamTagFilter:
+    """
+    Incrementally strips DM control tags from a *streamed* response so the
+    player never sees a partially-received tag (e.g. "[ROL" before the rest
+    of "[ROLL: ...]" arrives).
+
+    Strategy: hold back everything from the last unmatched '[' onward (it may
+    be the start of a tag) until the matching ']' arrives, then strip any
+    complete control tags before emitting.
+
+        f = StreamTagFilter()
+        for chunk in stream:
+            visible = f.feed(chunk)
+            if visible:
+                yield visible
+        tail = f.flush()
+        if tail:
+            yield tail
+    """
+
+    def __init__(self):
+        self._buffer = ""
+
+    def feed(self, text: str) -> str:
+        if text:
+            self._buffer += text
+        # If there is an unclosed '[', it might be the beginning of a tag.
+        idx = self._buffer.rfind('[')
+        if idx != -1 and ']' not in self._buffer[idx:]:
+            ready, self._buffer = self._buffer[:idx], self._buffer[idx:]
+        else:
+            ready, self._buffer = self._buffer, ""
+        return CONTROL_TAG_PATTERN.sub('', ready)
+
+    def flush(self) -> str:
+        ready, self._buffer = self._buffer, ""
+        return CONTROL_TAG_PATTERN.sub('', ready)
+
+
+# =============================================================================
 # CONTEXT BUILDING
 # =============================================================================
 
@@ -633,16 +700,42 @@ def roll_skill_check(character, skill_name: str, dc: int) -> Dict[str, Any]:
 
 def format_roll_result(result: Dict[str, Any]) -> str:
     """Format a skill check result for display."""
-    emoji = "✅" if result['success'] else "❌"
-    
-    if result['is_nat_20']:
-        emoji = "🌟 CRITICAL SUCCESS!"
-    elif result['is_nat_1']:
-        emoji = "💀 CRITICAL FAILURE!"
-    
+    if result.get('is_nat_20'):
+        outcome = "Critical success"
+    elif result.get('is_nat_1'):
+        outcome = "Critical failure"
+    elif result.get('success'):
+        outcome = "Success"
+    else:
+        outcome = "Failure"
+
     mod_str = f"+{result['modifier']}" if result['modifier'] >= 0 else str(result['modifier'])
-    
+
     return (
-        f"🎲 {result['skill']} Check (DC {result['dc']}): "
-        f"rolled {result['roll']} {mod_str} = {result['total']} {emoji}"
+        f"{result['skill']} check (DC {result['dc']}): "
+        f"d20 {result['roll']} {mod_str} = {result['total']} — {outcome}"
+    )
+
+
+def build_post_roll_narration_fallback(pre_roll_result: dict) -> str:
+    """Deterministic narration when the AI returns nothing useful after a resolved roll."""
+    skill = pre_roll_result.get('skill', 'Check')
+    if pre_roll_result.get('is_nat_20'):
+        return (
+            f"A stroke of impossible luck — your {skill.lower()} check is a critical success. "
+            f"Fortune bends in your favor. *What do you do next?*"
+        )
+    if pre_roll_result.get('is_nat_1'):
+        return (
+            f"Disaster — your {skill.lower()} check is a critical failure. "
+            f"Things go wrong in the worst possible way. *How do you recover?*"
+        )
+    if pre_roll_result.get('success'):
+        return (
+            f"Your {skill.lower()} check succeeds. You notice what you were looking for "
+            f"and can act on it. *What do you do next?*"
+        )
+    return (
+        f"Your {skill.lower()} check fails. You find nothing useful this time — "
+        f"the moment passes without giving you what you hoped for. *Try another approach?*"
     )

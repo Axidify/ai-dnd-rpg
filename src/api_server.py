@@ -12,6 +12,7 @@ import threading
 import time
 from dataclasses import asdict
 from datetime import datetime, timedelta
+from typing import Optional
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -39,18 +40,29 @@ from dm_engine import (
     parse_roll_request, parse_combat_request,
     parse_item_rewards, parse_gold_rewards, parse_xp_rewards, parse_buy_transactions,
     parse_gold_costs, parse_recruit_tags,
-    roll_skill_check, format_roll_result,
+    roll_skill_check, format_roll_result, build_post_roll_narration_fallback,
     build_full_dm_context, apply_rewards,
-    SKILL_ABILITIES
+    SKILL_ABILITIES,
+    strip_dm_tags, StreamTagFilter,
 )
+
+
+def safe_json_sse(data: dict) -> str:
+    """Serialize an SSE payload; never raise — broken JSON must not kill the stream."""
+    try:
+        return f"data: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
+    except Exception as exc:
+        print(f"⚠️ SSE JSON encode failed: {exc}")
+        minimal = {'type': data.get('type', 'error'), 'message': 'Serialization error'}
+        return f"data: {json.dumps(minimal)}\n\n"
 # Import the new arbiter for two-phase skill check enforcement
 from dm_arbiter import get_arbiter_decision, ArbiterDecision
 import re
 
 # Load .env from project root (parent of src/)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ENV_PATH = os.path.join(PROJECT_ROOT, '.env')
-load_dotenv(ENV_PATH)
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
+load_dotenv(os.path.join(PROJECT_ROOT, '.env.local'), override=True)
 
 
 def detect_npc_talk(action: str, npc_manager) -> list:
@@ -317,7 +329,7 @@ class GameSession:
         
         return (False, None)
     
-    def get_social_warning(self) -> str | None:
+    def get_social_warning(self) -> Optional[str]:
         """Get warning message if player is close to game over."""
         if self.failed_social_checks == self.MAX_SOCIAL_FAILURES - 1:
             return "⚠️ **Warning:** You've failed multiple social checks. One more failure may end your adventure."
@@ -1049,9 +1061,7 @@ def game_action():
             }
             # Add roll result to response
             dm_response += f"\n\n{format_roll_result(result)}"
-    else:
-        # Arbiter handled the roll - add the formatted result to the response
-        dm_response = f"🎲 {roll_result['formatted']}\n\n{dm_response}"
+    # (Roll result is returned separately in roll_result; don't prepend to prose)
     
     # Check for combat request
     enemies, surprise = parse_combat_request(dm_response)
@@ -1133,6 +1143,15 @@ def game_action():
     if warning and not session.game_over:
         dm_response += f"\n\n{warning}"
     
+    # Strip internal control tags so the player never sees raw [TAG: ...] markup
+    dm_response = strip_dm_tags(dm_response)
+    if roll_result and len(dm_response.strip()) < 100:
+        dm_response = build_post_roll_narration_fallback(roll_result)
+    elif not dm_response.strip() and roll_result:
+        dm_response = build_post_roll_narration_fallback(roll_result)
+    elif not dm_response.strip():
+        dm_response = "The Dungeon Master pauses. *What would you like to do?*"
+    
     # Record DM response
     session.messages.append({
         'type': 'dm',
@@ -1199,7 +1218,7 @@ def game_action_stream():
             game_over_response = f"🎮 **GAME OVER**\n\n{session.game_over_reason}\n\n*Start a new game to try again.*"
             yield f"data: {json.dumps({'type': 'chunk', 'content': game_over_response}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'game_over', 'reason': session.game_over_reason}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'complete', 'game_state': session.to_dict()}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over}, ensure_ascii=False)}\n\n"
         
         return Response(
             stream_with_context(generate_game_over()),
@@ -1237,7 +1256,7 @@ def game_action_stream():
             def generate_blocked():
                 yield f"data: {json.dumps({'type': 'chunk', 'content': block_response}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'blocked', 'reason': social_block_reason}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'complete', 'game_state': session.to_dict()}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over}, ensure_ascii=False)}\n\n"
             
             return Response(
                 stream_with_context(generate_blocked()),
@@ -1272,181 +1291,219 @@ def game_action_stream():
             print(f"   ⚠️ Social failure recorded ({failure_info['failures']}/{failure_info['max_failures']})")
     
     def generate():
-        full_response = []
-        
-        # Helper for JSON with unicode support
-        def json_sse(data):
-            return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-        
-        # If arbiter required a roll, send it first
-        if arbiter_roll_result:
-            yield json_sse({'type': 'roll', 'result': arbiter_roll_result})
-            roll_text = f"🎲 {arbiter_roll_result['formatted']}\n\n"
-            yield json_sse({'type': 'chunk', 'content': roll_text})
-            full_response.append(roll_text)
-        
-        # Stream the DM response (with pre-roll result if applicable)
-        for chunk in stream_dm_response(session, action, pre_roll_result=arbiter_roll_result):
-            full_response.append(chunk)
-            # Send as SSE format
-            yield json_sse({'type': 'chunk', 'content': chunk})
-        
-        # Combine full response for post-processing
-        dm_response = ''.join(full_response)
-        
-        # Use arbiter roll result if available, otherwise check narrator's response
-        roll_result = arbiter_roll_result
-        
-        # If arbiter didn't require a roll, check if narrator requested one (fallback)
-        if not roll_result:
-            skill, dc = parse_roll_request(dm_response)
-            if skill and dc and session.character:
-                result = roll_skill_check(session.character, skill, dc)
-                roll_result = {
-                    'skill': result['skill'],
-                    'roll': result['roll'],
-                    'modifier': result['modifier'],
-                    'total': result['total'],
-                    'dc': dc,
-                    'success': result['success'],
-                    'formatted': format_roll_result(result),
-                    'source': 'narrator_ai'
-                }
-                # Send roll result as both a roll event AND a visible chunk
-                yield json_sse({'type': 'roll', 'result': roll_result})
-                roll_text = f"\n\n{format_roll_result(result)}"
-                yield json_sse({'type': 'chunk', 'content': roll_text})
-                dm_response += roll_text
-        
-        # Check for combat request
-        enemies, surprise = parse_combat_request(dm_response)
-        if enemies:
-            session.in_combat = True
-            session.combat_state = {'enemies': enemies, 'surprise': surprise, 'round': 1}
-            yield json_sse({'type': 'combat', 'enemies': enemies})
-            combat_text = f"\n\n⚔️ COMBAT STARTED! Enemies: {', '.join(enemies)}"
-            yield json_sse({'type': 'chunk', 'content': combat_text})
-        
-        # Parse and apply item rewards [ITEM: item_name]
-        items_gained = parse_item_rewards(dm_response)
-        for item_name in items_gained:
-            item = get_item(item_name)
-            if item and session.character:
-                add_item_to_inventory(session.character.inventory, item)
-                item_text = f"\n\n📦 Received: {item.name}"
-                yield json_sse({'type': 'item', 'item': item_name, 'message': f'Received: {item.name}'})
-                yield json_sse({'type': 'chunk', 'content': item_text})
-                
-                # Update quest objectives for item acquisition
-                if session.quest_manager:
-                    completed = session.quest_manager.on_item_acquired(item_name.lower().replace(' ', '_'))
+        # raw_narration keeps the narrator's UNFILTERED text (with control tags)
+        # for mechanics parsing. display_parts is what the player actually sees
+        # (control tags removed) and is what we store in the transcript.
+        raw_narration = []
+        display_parts = []
+        tag_filter = StreamTagFilter()
+
+        try:
+            # If arbiter required a roll, notify the client (UI renders the roll card)
+            if arbiter_roll_result:
+                yield safe_json_sse({'type': 'roll', 'result': arbiter_roll_result})
+
+            # Stream the DM response (with pre-roll result if applicable),
+            # filtering out any control tags before they reach the player.
+            for chunk in stream_dm_response(session, action, pre_roll_result=arbiter_roll_result):
+                raw_narration.append(chunk)
+                visible = tag_filter.feed(chunk)
+                if visible:
+                    display_parts.append(visible)
+                    yield safe_json_sse({'type': 'chunk', 'content': visible})
+            tail = tag_filter.flush()
+            if tail:
+                display_parts.append(tail)
+                yield safe_json_sse({'type': 'chunk', 'content': tail})
+
+            # Raw narrator text (with tags) drives mechanics parsing.
+            narrator_text = ''.join(raw_narration)
+            dm_response = narrator_text
+            clean_narration = strip_dm_tags(narrator_text).strip()
+
+            # Graceful fallback: empty narration, leaked-only tag, or a tiny setup
+            # line that never describes the roll outcome (common perception-check bug).
+            needs_fallback = not clean_narration
+            if arbiter_roll_result and clean_narration and len(clean_narration) < 100:
+                needs_fallback = True
+            if needs_fallback:
+                if arbiter_roll_result:
+                    fallback_text = build_post_roll_narration_fallback(arbiter_roll_result)
+                else:
+                    fallback_text = "The Dungeon Master pauses. *What would you like to do?*"
+                display_parts.append(fallback_text)
+                yield safe_json_sse({'type': 'chunk', 'content': fallback_text})
+
+            # Use arbiter roll result if available, otherwise check narrator's response
+            roll_result = arbiter_roll_result
+
+            # If arbiter didn't require a roll, check if narrator requested one (fallback)
+            if not roll_result:
+                skill, dc = parse_roll_request(narrator_text)
+                if skill and dc and session.character:
+                    result = roll_skill_check(session.character, skill, dc)
+                    roll_result = {
+                        'skill': result['skill'],
+                        'roll': result['roll'],
+                        'modifier': result['modifier'],
+                        'total': result['total'],
+                        'dc': dc,
+                        'success': result['success'],
+                        'formatted': format_roll_result(result),
+                        'source': 'narrator_ai'
+                    }
+                    yield safe_json_sse({'type': 'roll', 'result': roll_result})
+
+            # Check for combat request
+            enemies, surprise = parse_combat_request(dm_response)
+            if enemies:
+                session.in_combat = True
+                session.combat_state = {'enemies': enemies, 'surprise': surprise, 'round': 1}
+                yield safe_json_sse({'type': 'combat', 'enemies': enemies})
+                combat_text = f"\n\n⚔️ COMBAT STARTED! Enemies: {', '.join(enemies)}"
+                display_parts.append(combat_text)
+                yield safe_json_sse({'type': 'chunk', 'content': combat_text})
+
+            # Parse and apply item rewards [ITEM: item_name]
+            items_gained = parse_item_rewards(dm_response)
+            for item_name in items_gained:
+                item = get_item(item_name)
+                if item and session.character:
+                    add_item_to_inventory(session.character.inventory, item)
+                    item_text = f"\n\n📦 Received: {item.name}"
+                    display_parts.append(item_text)
+                    yield safe_json_sse({'type': 'item', 'item': item_name, 'message': f'Received: {item.name}'})
+                    yield safe_json_sse({'type': 'chunk', 'content': item_text})
+
+                    # Update quest objectives for item acquisition
+                    if session.quest_manager:
+                        completed = session.quest_manager.on_item_acquired(item_name.lower().replace(' ', '_'))
+                        for quest_id, objective in completed:
+                            quest = session.quest_manager.get_quest(quest_id)
+                            if quest:
+                                yield safe_json_sse({'type': 'quest_update', 'quest_id': quest_id, 'objective_id': objective.id, 'quest': quest.to_dict()})
+
+            # Parse and apply gold rewards [GOLD: amount]
+            gold_gained = parse_gold_rewards(dm_response)
+            if gold_gained > 0 and session.character:
+                session.character.gold += gold_gained
+                gold_text = f"\n\n💰 Received {gold_gained} gold (Total: {session.character.gold})"
+                display_parts.append(gold_text)
+                yield safe_json_sse({'type': 'gold', 'amount': gold_gained, 'total': session.character.gold})
+                yield safe_json_sse({'type': 'chunk', 'content': gold_text})
+
+            # Parse and apply XP rewards [XP: amount | reason]
+            xp_rewards = parse_xp_rewards(dm_response)
+            for xp_amount, reason in xp_rewards:
+                if session.character:
+                    result = session.character.gain_xp(xp_amount, reason)
+                    leveled_up = result.get('level_up', False)
+                    xp_text = f"\n\n⭐ Gained {xp_amount} XP: {reason}" + (" 🎉 LEVEL UP!" if leveled_up else "")
+                    display_parts.append(xp_text)
+                    yield safe_json_sse({'type': 'xp', 'amount': xp_amount, 'reason': reason, 'leveled_up': leveled_up})
+                    yield safe_json_sse({'type': 'chunk', 'content': xp_text})
+
+            # Parse and apply buy transactions [BUY: item_name, price]
+            buy_transactions = parse_buy_transactions(dm_response)
+            for item_name, price in buy_transactions:
+                if session.character and session.character.gold >= price:
+                    item = get_item(item_name)
+                    if item:
+                        session.character.gold -= price
+                        add_item_to_inventory(session.character.inventory, item)
+                        buy_text = f"\n\n🛒 Purchased {item_name} for {price} gold (Gold: {session.character.gold})"
+                        display_parts.append(buy_text)
+                        yield safe_json_sse({'type': 'buy', 'item': item_name, 'price': price, 'gold_remaining': session.character.gold})
+                        yield safe_json_sse({'type': 'chunk', 'content': buy_text})
+
+            # Parse and apply gold costs [PAY: amount, reason] - for hiring, bribes, etc.
+            gold_costs = parse_gold_costs(dm_response)
+            for cost, reason in gold_costs:
+                if session.character and session.character.gold >= cost:
+                    session.character.gold -= cost
+                    pay_text = f"\n\n💸 Paid {cost} gold: {reason} (Gold: {session.character.gold})"
+                    display_parts.append(pay_text)
+                    yield safe_json_sse({'type': 'pay', 'amount': cost, 'reason': reason, 'gold_remaining': session.character.gold})
+                    yield safe_json_sse({'type': 'chunk', 'content': pay_text})
+                    print(f"   💸 Paid {cost} gold: {reason}")
+
+            # Parse and apply recruitment [RECRUIT: npc_id]
+            recruited_npcs = parse_recruit_tags(dm_response)
+            for npc_id in recruited_npcs:
+                from party import get_recruitable_npc, Party
+                if not session.party:
+                    session.party = Party()
+                if not session.party.is_full():
+                    member = get_recruitable_npc(npc_id)
+                    if member:
+                        session.party.add_member(member)
+                        recruit_text = f"\n\n🎉 {member.name} joins your party!"
+                        display_parts.append(recruit_text)
+                        yield safe_json_sse({'type': 'recruit', 'npc_id': npc_id, 'name': member.name})
+                        yield safe_json_sse({'type': 'chunk', 'content': recruit_text})
+                        print(f"   🎉 {member.name} joined the party!")
+
+            # Check for NPC talk in player action for quest objectives
+            if session.quest_manager and session.npc_manager:
+                talked_npcs = detect_npc_talk(action, session.npc_manager)
+                for npc_id in talked_npcs:
+                    completed = session.quest_manager.on_npc_talked(npc_id)
                     for quest_id, objective in completed:
                         quest = session.quest_manager.get_quest(quest_id)
                         if quest:
-                            yield json_sse({'type': 'quest_update', 'quest_id': quest_id, 'objective_id': objective.id, 'quest': quest.to_dict()})
-        
-        # Parse and apply gold rewards [GOLD: amount]
-        gold_gained = parse_gold_rewards(dm_response)
-        if gold_gained > 0 and session.character:
-            session.character.gold += gold_gained
-            gold_text = f"\n\n💰 Received {gold_gained} gold (Total: {session.character.gold})"
-            yield json_sse({'type': 'gold', 'amount': gold_gained, 'total': session.character.gold})
-            yield json_sse({'type': 'chunk', 'content': gold_text})
-        
-        # Parse and apply XP rewards [XP: amount | reason]
-        xp_rewards = parse_xp_rewards(dm_response)
-        for xp_amount, reason in xp_rewards:
-            if session.character:
-                result = session.character.gain_xp(xp_amount, reason)
-                leveled_up = result.get('level_up', False)
-                xp_text = f"\n\n⭐ Gained {xp_amount} XP: {reason}" + (" 🎉 LEVEL UP!" if leveled_up else "")
-                yield json_sse({'type': 'xp', 'amount': xp_amount, 'reason': reason, 'leveled_up': leveled_up})
-                yield json_sse({'type': 'chunk', 'content': xp_text})
-        
-        # Parse and apply buy transactions [BUY: item_name, price]
-        buy_transactions = parse_buy_transactions(dm_response)
-        for item_name, price in buy_transactions:
-            if session.character and session.character.gold >= price:
-                item = get_item(item_name)
-                if item:
-                    session.character.gold -= price
-                    add_item_to_inventory(session.character.inventory, item)
-                    buy_text = f"\n\n🛒 Purchased {item_name} for {price} gold (Gold: {session.character.gold})"
-                    yield json_sse({'type': 'buy', 'item': item_name, 'price': price, 'gold_remaining': session.character.gold})
-                    yield json_sse({'type': 'chunk', 'content': buy_text})
-        
-        # Parse and apply gold costs [PAY: amount, reason] - for hiring, bribes, etc.
-        gold_costs = parse_gold_costs(dm_response)
-        for cost, reason in gold_costs:
-            if session.character and session.character.gold >= cost:
-                session.character.gold -= cost
-                pay_text = f"\n\n💸 Paid {cost} gold: {reason} (Gold: {session.character.gold})"
-                yield json_sse({'type': 'pay', 'amount': cost, 'reason': reason, 'gold_remaining': session.character.gold})
-                yield json_sse({'type': 'chunk', 'content': pay_text})
-                print(f"   💸 Paid {cost} gold: {reason}")
-        
-        # Parse and apply recruitment [RECRUIT: npc_id]
-        recruited_npcs = parse_recruit_tags(dm_response)
-        for npc_id in recruited_npcs:
-            from party import get_recruitable_npc, Party
-            if not session.party:
-                session.party = Party()
-            if not session.party.is_full():
-                member = get_recruitable_npc(npc_id)
-                if member:
-                    session.party.add_member(member)
-                    recruit_text = f"\n\n🎉 {member.name} joins your party!"
-                    yield json_sse({'type': 'recruit', 'npc_id': npc_id, 'name': member.name})
-                    yield json_sse({'type': 'chunk', 'content': recruit_text})
-                    print(f"   🎉 {member.name} joined the party!")
-        
-        # Check for NPC talk in player action for quest objectives
-        if session.quest_manager and session.npc_manager:
-            talked_npcs = detect_npc_talk(action, session.npc_manager)
-            for npc_id in talked_npcs:
-                completed = session.quest_manager.on_npc_talked(npc_id)
-                for quest_id, objective in completed:
-                    quest = session.quest_manager.get_quest(quest_id)
-                    if quest:
-                        quest_text = f"\n\n📜 Quest Objective Complete: {objective.description}"
-                        yield json_sse({'type': 'quest_update', 'quest_id': quest_id, 'objective_id': objective.id, 'quest': quest.to_dict()})
-                        yield json_sse({'type': 'chunk', 'content': quest_text})
-        
-        # Detect quest acceptance based on player action and DM response
-        accepted_quests = detect_quest_acceptance(action, dm_response, session.quest_manager)
-        for quest_id in accepted_quests:
-            quest = session.quest_manager.get_quest(quest_id)
-            if quest:
-                quest_text = f"\n\n📜 Quest Accepted: {quest.name}"
-                yield json_sse({'type': 'quest_accepted', 'quest_id': quest_id, 'quest': quest.to_dict()})
-                yield json_sse({'type': 'chunk', 'content': quest_text})
-                print(f"   📜 Quest accepted: {quest.name}")
-        
-        # Record full DM response
-        session.messages.append({
-            'type': 'dm',
-            'content': dm_response,
-            'timestamp': datetime.now().isoformat(),
-            'roll_result': roll_result,
-            'combat_started': bool(enemies),
-            'game_over': session.game_over
-        })
-        
-        # Check for game over triggered by this action
-        if session.game_over:
-            game_over_text = f"\n\n---\n\n🎮 **GAME OVER**\n\n{session.game_over_reason}"
-            yield json_sse({'type': 'chunk', 'content': game_over_text})
-            yield json_sse({'type': 'game_over', 'reason': session.game_over_reason})
-        
-        # Add warning if close to game over
-        warning = session.get_social_warning()
-        if warning and not session.game_over:
-            yield json_sse({'type': 'chunk', 'content': f"\n\n{warning}"})
-            yield json_sse({'type': 'warning', 'message': warning})
-        
-        # Send completion signal
-        yield json_sse({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over})
-    
+                            quest_text = f"\n\n📜 Quest Objective Complete: {objective.description}"
+                            display_parts.append(quest_text)
+                            yield safe_json_sse({'type': 'quest_update', 'quest_id': quest_id, 'objective_id': objective.id, 'quest': quest.to_dict()})
+                            yield safe_json_sse({'type': 'chunk', 'content': quest_text})
+
+            # Detect quest acceptance based on player action and DM response
+            accepted_quests = detect_quest_acceptance(action, dm_response, session.quest_manager)
+            for quest_id in accepted_quests:
+                quest = session.quest_manager.get_quest(quest_id)
+                if quest:
+                    quest_text = f"\n\n📜 Quest Accepted: {quest.name}"
+                    display_parts.append(quest_text)
+                    yield safe_json_sse({'type': 'quest_accepted', 'quest_id': quest_id, 'quest': quest.to_dict()})
+                    yield safe_json_sse({'type': 'chunk', 'content': quest_text})
+                    print(f"   📜 Quest accepted: {quest.name}")
+
+            # Record the player-facing transcript (control tags already stripped)
+            session.messages.append({
+                'type': 'dm',
+                'content': ''.join(display_parts).strip(),
+                'timestamp': datetime.now().isoformat(),
+                'roll_result': roll_result,
+                'combat_started': bool(enemies),
+                'game_over': session.game_over
+            })
+
+            # Check for game over triggered by this action
+            if session.game_over:
+                game_over_text = f"\n\n---\n\n🎮 **GAME OVER**\n\n{session.game_over_reason}"
+                yield safe_json_sse({'type': 'chunk', 'content': game_over_text})
+                yield safe_json_sse({'type': 'game_over', 'reason': session.game_over_reason})
+
+            # Add warning if close to game over
+            warning = session.get_social_warning()
+            if warning and not session.game_over:
+                yield safe_json_sse({'type': 'chunk', 'content': f"\n\n{warning}"})
+                yield safe_json_sse({'type': 'warning', 'message': warning})
+
+            # Send completion signal
+            yield safe_json_sse({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over})
+
+        except Exception as e:
+            # Never let a mid-stream error silently truncate the turn. Always
+            # close out the stream so the client stops loading and stays usable.
+            print(f"❌ Stream post-processing error: {e}")
+            import traceback
+            traceback.print_exc()
+            yield safe_json_sse({'type': 'chunk', 'content': "\n\n*The threads of fate tangle for a moment. (Try your action again.)*"})
+            try:
+                yield safe_json_sse({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over})
+            except Exception:
+                yield safe_json_sse({'type': 'done', 'game_state': None, 'game_over': False})
+
     return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',

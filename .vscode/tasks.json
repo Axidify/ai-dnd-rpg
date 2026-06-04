@@ -2,14 +2,14 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "🎮 Start Backend (Flask)",
+			"label": "🎮 Start Backend (Flask, Mac)",
 			"type": "shell",
-			"command": "${workspaceFolder}/.venv/Scripts/python.exe",
+			"command": "${workspaceFolder}/.venv/bin/python",
 			"args": ["src/api_server.py"],
 			"options": {
 				"cwd": "${workspaceFolder}",
 				"env": {
-					"API_PORT": "5000",
+					"API_PORT": "5001",
 					"DEBUG": "false"
 				}
 			},
@@ -20,8 +20,40 @@
 				},
 				"background": {
 					"activeOnStart": true,
-					"beginsPattern": "^.*Flask app.*$",
-					"endsPattern": "^.*Running on.*$"
+					"beginsPattern": "AI RPG API Server",
+					"endsPattern": "Running on"
+				}
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "new",
+				"clear": true
+			}
+		},
+		{
+			"label": "🎮 Start Backend (Flask)",
+			"type": "shell",
+			"command": "${workspaceFolder}/.venv/bin/python",
+			"args": ["src/api_server.py"],
+			"options": {
+				"cwd": "${workspaceFolder}",
+				"env": {
+					"API_PORT": "5000",
+					"DEBUG": "false"
+				}
+			},
+			"windows": {
+				"command": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+			},
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^never-match$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "AI RPG API Server",
+					"endsPattern": "Running on"
 				}
 			},
 			"presentation": {
@@ -45,8 +77,8 @@
 				},
 				"background": {
 					"activeOnStart": true,
-					"beginsPattern": "^.*vite.*$",
-					"endsPattern": "^.*Local.*$"
+					"beginsPattern": "vite",
+					"endsPattern": "Local:"
 				}
 			},
 			"presentation": {
@@ -56,8 +88,11 @@
 			}
 		},
 		{
-			"label": "🚀 Start Full Stack",
-			"dependsOn": ["🎮 Start Backend (Flask)", "🌐 Start Frontend (React)"],
+			"label": "🚀 Start Full Stack (Mac)",
+			"dependsOn": [
+				"🎮 Start Backend (Flask, Mac)",
+				"🌐 Start Frontend (React)"
+			],
 			"dependsOrder": "parallel",
 			"problemMatcher": [],
 			"group": {
@@ -66,12 +101,46 @@
 			}
 		},
 		{
+			"label": "🚀 Start Full Stack",
+			"dependsOn": [
+				"🎮 Start Backend (Flask)",
+				"🌐 Start Frontend (React)"
+			],
+			"dependsOrder": "parallel",
+			"problemMatcher": []
+		},
+		{
+			"label": "🛑 Stop All Servers (Mac)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"for port in 5001 3000; do pid=$(lsof -ti tcp:$port 2>/dev/null); [ -n \"$pid\" ] && kill -9 $pid 2>/dev/null; done; pkill -f 'src/api_server.py' 2>/dev/null || true; pkill -f 'vite.*option1-react' 2>/dev/null || true; echo 'Stopped servers on ports 5001 and 3000.'"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
 			"label": "🛑 Stop All Servers",
 			"type": "shell",
-			"command": "taskkill",
-			"args": ["/F", "/IM", "python.exe"],
+			"command": "bash",
+			"args": [
+				"-lc",
+				"for port in 5000 3000; do pid=$(lsof -ti tcp:$port 2>/dev/null); [ -n \"$pid\" ] && kill -9 $pid 2>/dev/null; done; pkill -f 'src/api_server.py' 2>/dev/null || true; echo 'Stopped servers on ports 5000 and 3000.'"
+			],
 			"windows": {
-				"command": "Get-Process -Name python,node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+				"command": "powershell",
+				"args": [
+					"-NoProfile",
+					"-Command",
+					"Get-Process -Name python,node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+				]
 			},
 			"problemMatcher": [],
 			"presentation": {

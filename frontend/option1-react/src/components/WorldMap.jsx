@@ -207,18 +207,18 @@ export default function WorldMap({ isOpen, onClose }) {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="rpg-card w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden border-2 border-rpg-gold/30"
+            className="rpg-card w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden border border-rpg-border-gold shadow-paper-lg"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-3 md:p-4 border-b border-gray-700 bg-gradient-to-r from-rpg-primary/20 to-transparent">
+            <div className="flex items-center justify-between p-3 md:p-4 border-b border-rpg-border/60 bg-gradient-to-r from-rpg-primary/20 to-transparent">
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <Compass className="text-rpg-gold animate-spin-slow" size={28} />
                   <div className="absolute inset-0 blur-sm bg-rpg-gold/30 rounded-full" />
                 </div>
                 <div>
-                  <h2 className="text-xl md:text-2xl font-medieval text-rpg-gold">World Map</h2>
+                  <h2 className="text-xl md:text-2xl font-display text-rpg-gold">World Map</h2>
                   <p className="text-xs text-gray-400 hidden md:block">
                     {locations.filter(l => l.visited).length} of {locations.length} locations discovered
                   </p>
@@ -371,10 +371,10 @@ export default function WorldMap({ isOpen, onClose }) {
                   <div className="absolute top-[18%] right-[18%] opacity-20">
                     <div className="relative w-24 h-24">
                       <div className="absolute inset-0 flex items-center justify-center text-5xl">🧭</div>
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-xs text-rpg-gold font-medieval">N</div>
-                      <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs text-rpg-gold font-medieval">S</div>
-                      <div className="absolute top-1/2 -left-4 -translate-y-1/2 text-xs text-rpg-gold font-medieval">W</div>
-                      <div className="absolute top-1/2 -right-4 -translate-y-1/2 text-xs text-rpg-gold font-medieval">E</div>
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-xs text-rpg-gold font-display">N</div>
+                      <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs text-rpg-gold font-display">S</div>
+                      <div className="absolute top-1/2 -left-4 -translate-y-1/2 text-xs text-rpg-gold font-display">W</div>
+                      <div className="absolute top-1/2 -right-4 -translate-y-1/2 text-xs text-rpg-gold font-display">E</div>
                     </div>
                   </div>
                   
@@ -526,8 +526,8 @@ export default function WorldMap({ isOpen, onClose }) {
                               y: isCurrent || isSelected || isHovered ? 0 : -5
                             }}
                             className={`
-                              text-xs md:text-sm font-medieval px-2 py-1 rounded bg-black/80 whitespace-nowrap
-                              border border-gray-700/50 shadow-lg
+                              text-xs md:text-sm font-display px-2 py-1 rounded bg-black/80 whitespace-nowrap
+                              border border-rpg-border/60/50 shadow-lg
                               ${isCurrent ? 'text-rpg-gold' : loc.visited ? 'text-white' : 'text-gray-400'}
                             `}
                           >
@@ -554,7 +554,7 @@ export default function WorldMap({ isOpen, onClose }) {
                 )}
                 
                 {/* Mini-map / Overview in corner */}
-                <div className="absolute bottom-4 left-4 w-32 h-24 bg-black/60 border border-gray-700 rounded-lg overflow-hidden hidden md:block">
+                <div className="absolute bottom-4 left-4 w-32 h-24 bg-black/60 border border-rpg-border/60 rounded-lg overflow-hidden hidden md:block">
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-950/50 to-stone-900/50">
                     {locations.map(loc => (
                       <div
@@ -597,7 +597,7 @@ export default function WorldMap({ isOpen, onClose }) {
               </div>
               
               {/* Sidebar - Location Details */}
-              <div className="w-64 md:w-80 border-l border-gray-700 bg-gradient-to-b from-gray-900/95 to-black/95 flex flex-col">
+              <div className="w-64 md:w-80 border-l border-rpg-border/60 bg-gradient-to-b from-gray-900/95 to-black/95 flex flex-col">
                 {/* Selected Location Details */}
                 <div className="flex-1 p-4 overflow-y-auto">
                   {selectedLocation ? (
@@ -611,7 +611,7 @@ export default function WorldMap({ isOpen, onClose }) {
                         <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-rpg-gold/30 flex items-center justify-center shadow-xl">
                           <span className="text-4xl drop-shadow-lg">{selectedLocation.map_icon}</span>
                         </div>
-                        <h3 className="text-xl font-medieval text-rpg-gold">
+                        <h3 className="text-xl font-display text-rpg-gold">
                           {selectedLocation.name}
                         </h3>
                         <div className="flex items-center justify-center gap-3 mt-2">
@@ -652,7 +652,7 @@ export default function WorldMap({ isOpen, onClose }) {
                       
                       {/* Cannot reach message */}
                       {!selectedLocation.reachable && !selectedLocation.is_current && (
-                        <div className="text-center text-gray-500 text-sm py-4 bg-gray-800/30 rounded-lg border border-gray-700/50">
+                        <div className="text-center text-gray-500 text-sm py-4 bg-gray-800/30 rounded-lg border border-rpg-border/60/50">
                           <p className="text-yellow-500/80">🚫 Cannot reach from here</p>
                           <p className="mt-2 text-xs">Find a path to this location first</p>
                         </div>
@@ -663,7 +663,7 @@ export default function WorldMap({ isOpen, onClose }) {
                       <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800/50 flex items-center justify-center">
                         <MapPin size={32} className="opacity-50" />
                       </div>
-                      <p className="font-medieval text-lg">Select a Location</p>
+                      <p className="font-display text-lg">Select a Location</p>
                       <p className="text-sm mt-2 text-gray-500">Click on a marker to view details</p>
                       <p className="text-xs mt-4 text-gray-600">Tip: Use scroll to zoom, drag to pan</p>
                     </div>
@@ -672,7 +672,7 @@ export default function WorldMap({ isOpen, onClose }) {
                 
                 {/* Current Location Info */}
                 {currentLocation && (
-                  <div className="p-4 border-t border-gray-700 bg-black/30">
+                  <div className="p-4 border-t border-rpg-border/60 bg-black/30">
                     <p className="text-xs text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-2">
                       <span className="w-2 h-2 bg-rpg-gold rounded-full animate-pulse" />
                       Current Location
@@ -681,13 +681,13 @@ export default function WorldMap({ isOpen, onClose }) {
                       <div className="w-10 h-10 rounded-full bg-rpg-gold/20 border border-rpg-gold/50 flex items-center justify-center">
                         <span className="text-xl">{currentLocation.map_icon || '📍'}</span>
                       </div>
-                      <span className="font-medieval text-rpg-gold">{currentLocation.name}</span>
+                      <span className="font-display text-rpg-gold">{currentLocation.name}</span>
                     </div>
                   </div>
                 )}
                 
                 {/* Legend */}
-                <div className="p-4 border-t border-gray-700 bg-gradient-to-t from-black/50 to-transparent">
+                <div className="p-4 border-t border-rpg-border/60 bg-gradient-to-t from-black/50 to-transparent">
                   <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Legend</p>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center gap-2">
@@ -703,7 +703,7 @@ export default function WorldMap({ isOpen, onClose }) {
                       <span className="text-gray-400">Visited</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full border-2 border-gray-700 bg-gray-900/50 opacity-50" />
+                      <div className="w-4 h-4 rounded-full border-2 border-rpg-border/60 bg-gray-900/50 opacity-50" />
                       <span className="text-gray-400">Unknown</span>
                     </div>
                   </div>

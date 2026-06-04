@@ -1,5 +1,13 @@
 import { create } from 'zustand'
 import axios from 'axios'
+import { stripDmTags } from '../lib/stripDmTags'
+
+function findLastDmIndex(messages) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.type === 'dm') return i
+  }
+  return messages.length - 1
+}
 
 const api = axios.create({
   baseURL: '/api',
@@ -107,132 +115,150 @@ export const useGameStore = create((set, get) => ({
   sendActionStreaming: async (action) => {
     const { sessionId } = get()
     if (!sessionId) return
-    
-    // Add player message immediately
-    set(state => ({
-      messages: [...state.messages, { type: 'player', content: action }],
+
+    set({
+      messages: [
+        ...get().messages,
+        { type: 'player', content: action },
+        { type: 'dm', content: '', isStreaming: true },
+      ],
       isLoading: true,
-      error: null
-    }))
-    
-    // Add empty DM message that we'll update as chunks arrive
-    const dmMessageIndex = get().messages.length
-    set(state => ({
-      messages: [...state.messages, { 
-        type: 'dm', 
-        content: '',
-        isStreaming: true
-      }]
-    }))
-    
+      error: null,
+    })
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120000)
+
+    let fullContent = ''
+    let rollResult = null
+    let combatStarted = false
+    let gameState = null
+    let gotDone = false
+
+    const patchDm = (patch) => {
+      set((state) => {
+        const newMessages = [...state.messages]
+        const idx = findLastDmIndex(newMessages)
+        newMessages[idx] = { ...newMessages[idx], ...patch }
+        return { messages: newMessages }
+      })
+    }
+
     try {
       const response = await fetch('/api/game/action/stream', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-          action: action
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, action }),
+        signal: controller.signal,
       })
-      
+
       if (!response.ok) {
-        throw new Error('Stream request failed')
+        const errText = await response.text().catch(() => '')
+        throw new Error(errText || `Request failed (${response.status})`)
       }
-      
+
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let fullContent = ''
-      let rollResult = null
-      let combatStarted = false
-      let gameState = null
-      
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        
+
         buffer += decoder.decode(value, { stream: true })
-        
-        // Process SSE events
         const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // Keep incomplete line in buffer
-        
+        buffer = lines.pop() || ''
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              
-              if (data.type === 'chunk') {
-                fullContent += data.content
-                // Update the DM message with accumulated content
-                set(state => {
-                  const newMessages = [...state.messages]
-                  newMessages[dmMessageIndex] = {
-                    ...newMessages[dmMessageIndex],
-                    content: fullContent
-                  }
-                  return { messages: newMessages }
-                })
-              } else if (data.type === 'roll') {
-                rollResult = data.result
-              } else if (data.type === 'combat') {
-                combatStarted = data.started
-              } else if (data.type === 'quest_update') {
-                // Handle real-time quest objective completion
-                console.log('📜 Quest update:', data.quest_id, data.objective_id)
-                if (data.quest) {
-                  set(state => {
-                    const updatedQuests = state.quests.map(q => 
-                      q.id === data.quest_id ? data.quest : q
-                    )
-                    // If quest wasn't in the list, add it
-                    if (!updatedQuests.find(q => q.id === data.quest_id)) {
-                      updatedQuests.push(data.quest)
-                    }
-                    return { quests: updatedQuests }
-                  })
-                }
-              } else if (data.type === 'done') {
-                gameState = data.game_state
-              } else if (data.type === 'error') {
-                throw new Error(data.message)
+          if (!line.startsWith('data: ')) continue
+          const payload = line.slice(6).trim()
+          if (!payload) continue
+
+          let data
+          try {
+            data = JSON.parse(payload)
+          } catch (parseError) {
+            console.warn('SSE JSON parse failed:', parseError, payload.slice(0, 120))
+            continue
+          }
+
+          if (data.type === 'chunk' && data.content) {
+            fullContent += stripDmTags(data.content)
+            patchDm({ content: fullContent, rollResult })
+          } else if (data.type === 'roll' && data.result) {
+            rollResult = data.result
+            patchDm({ rollResult })
+          } else if (data.type === 'combat') {
+            combatStarted = true
+          } else if (data.type === 'quest_update' && data.quest) {
+            set((state) => {
+              const updated = state.quests.map((q) =>
+                q.id === data.quest_id ? data.quest : q
+              )
+              if (!updated.find((q) => q.id === data.quest_id)) {
+                updated.push(data.quest)
               }
-            } catch (parseError) {
-              // Ignore parse errors for incomplete JSON
-              console.debug('SSE parse:', parseError)
-            }
+              return { quests: updated }
+            })
+          } else if (data.type === 'done' || data.type === 'complete') {
+            gotDone = true
+            gameState = data.game_state
+          } else if (data.type === 'error') {
+            throw new Error(data.message || 'Stream error')
           }
         }
       }
-      
-      // Finalize the message
-      set(state => {
+
+      if (!gotDone) {
+        console.warn('Stream ended without done event')
+      }
+
+      if (!fullContent.trim() && rollResult) {
+        const outcome = rollResult.success ? 'succeeds' : 'fails'
+        fullContent = `The ${rollResult.skill || 'check'} ${outcome}. *What do you do next?*`
+      }
+
+      set((state) => {
         const newMessages = [...state.messages]
-        newMessages[dmMessageIndex] = {
+        const idx = findLastDmIndex(newMessages)
+        newMessages[idx] = {
           type: 'dm',
-          content: fullContent,
+          content: fullContent.trim(),
           rollResult,
           combatStarted,
-          isStreaming: false
+          isStreaming: false,
         }
         return {
           messages: newMessages,
           character: gameState?.character || state.character,
           currentLocation: gameState?.current_location || state.currentLocation,
-          inCombat: gameState?.in_combat || combatStarted || false,
+          inCombat: gameState?.in_combat ?? combatStarted ?? state.inCombat,
           quests: gameState?.quest_log || state.quests,
-          isLoading: false
+          isLoading: false,
         }
       })
     } catch (error) {
-      // Remove the empty DM message on error
-      set(state => ({
-        messages: state.messages.slice(0, dmMessageIndex),
-        error: error.message || 'Streaming failed',
-        isLoading: false
-      }))
+      const msg =
+        error.name === 'AbortError'
+          ? 'The Dungeon Master took too long to respond. Please try again.'
+          : error.message || 'Streaming failed'
+
+      set((state) => {
+        const newMessages = [...state.messages]
+        const idx = findLastDmIndex(newMessages)
+        if (idx >= 0 && newMessages[idx]?.type === 'dm') {
+          newMessages[idx] = {
+            type: 'dm',
+            content: fullContent.trim() || `*${msg}*`,
+            rollResult,
+            isStreaming: false,
+          }
+        }
+        return { messages: newMessages, error: msg, isLoading: false }
+      })
+    } finally {
+      clearTimeout(timeoutId)
+      set({ isLoading: false })
     }
   },
   

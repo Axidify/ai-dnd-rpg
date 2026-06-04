@@ -1,67 +1,307 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar - Dark Fantasy theme */
+@layer base {
+  :root {
+    /* Warm candlelit palette */
+    --bg: #14110b;
+    --bg-deep: #0d0b07;
+    --surface: #1c1810;
+    --surface-2: #251f15;
+    --line: rgba(233, 224, 204, 0.09);
+    --line-strong: rgba(233, 224, 204, 0.18);
+
+    --gold: #c2a868;
+    --gold-bright: #d8bd7e;
+    --gold-soft: rgba(194, 168, 104, 0.13);
+    --ember: #c76b4a;
+    --sage: #93a877;
+
+    --ink: #ece5d5;
+    --ink-2: #b1a890;
+    --ink-3: #786f5b;
+
+    --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --font-read: 'Spectral', Georgia, serif;
+    --font-ui: 'DM Sans', system-ui, -apple-system, sans-serif;
+
+    /* legacy aliases (WorldMap + leftovers) */
+    --rpg-ink: var(--bg);
+    --rpg-ink-deep: var(--bg-deep);
+    --rpg-paper: var(--surface);
+    --rpg-paper-raised: var(--surface-2);
+    --rpg-paper-inset: var(--bg-deep);
+    --rpg-border: var(--line-strong);
+    --rpg-border-gold: var(--line-strong);
+    --rpg-gold: var(--gold);
+    --rpg-gold-dim: var(--ink-3);
+    --rpg-text: var(--ink);
+    --rpg-text-secondary: var(--ink-2);
+    --rpg-text-muted: var(--ink-3);
+    --rpg-dm-bubble: var(--surface);
+    --rpg-player-bubble: var(--surface-2);
+    --shadow-paper: 0 1px 0 rgba(194, 168, 104, 0.1), 0 18px 50px rgba(0, 0, 0, 0.55);
+  }
+
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-ui);
+    color: var(--ink);
+    min-height: 100vh;
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(120% 80% at 50% -10%, rgba(194, 168, 104, 0.08), transparent 55%),
+      radial-gradient(90% 60% at 50% 120%, rgba(120, 80, 40, 0.06), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Subtle film grain / vignette overlay applied to the app root */
+.atmosphere {
+  position: relative;
+}
+.atmosphere::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow: inset 0 0 220px rgba(0, 0, 0, 0.55);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 9px;
+  height: 9px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #1A1A1A;
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #D4AF37;
-  border-radius: 4px;
+  background: var(--line-strong);
+  border-radius: 9px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #e8c547;
+  background: var(--ink-3);
+  background-clip: padding-box;
 }
 
-/* Base styles - Dark Fantasy theme */
-body {
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
-  min-height: 100vh;
-  color: #F5F5DC;
-}
-
-/* Utility classes */
 @layer components {
-  .rpg-card {
-    @apply bg-rpg-surface rounded-xl border border-rpg-primary/30 shadow-lg;
+  /* ---- Focus ---- */
+  .focus-ring:focus {
+    outline: none;
   }
-  
-  .rpg-button {
-    @apply bg-rpg-primary hover:bg-rpg-primary/80 text-rpg-dark font-semibold 
-           px-6 py-3 rounded-lg transition-all duration-200 
-           hover:shadow-lg hover:shadow-rpg-primary/30;
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--gold);
   }
-  
-  .rpg-input {
-    @apply bg-rpg-dark border border-rpg-primary/30 rounded-lg px-4 py-3 
-           text-rpg-text placeholder-rpg-text-secondary focus:border-rpg-primary 
-           focus:ring-1 focus:ring-rpg-primary outline-none transition-all;
+
+  /* ---- Buttons ---- */
+  .btn {
+    font-family: var(--font-ui);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    border-radius: 0.5rem;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.1s ease;
+    cursor: pointer;
   }
-  
-  .stat-bar {
-    @apply h-4 rounded-full overflow-hidden bg-rpg-dark;
+  .btn:active:not(:disabled) {
+    transform: translateY(0.5px);
   }
-  
-  .stat-bar-fill {
-    @apply h-full rounded-full transition-all duration-500 ease-out;
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
-  
-  /* Message bubbles */
-  .dm-message {
-    @apply bg-rpg-dm-bubble rounded-lg p-4 text-rpg-text;
+
+  .btn-primary {
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: #1a1408;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 6px 18px rgba(0, 0, 0, 0.35);
   }
-  
-  .player-message {
-    @apply bg-rpg-player-bubble rounded-lg p-4 text-rpg-text;
+  .btn-primary:hover:not(:disabled) {
+    background: var(--gold-bright);
   }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-2);
+    border: 1px solid var(--line-strong);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--gold);
+    border-color: var(--gold);
+    background: var(--gold-soft);
+  }
+
+  /* ---- Field ---- */
+  .field {
+    font-family: var(--font-ui);
+    background: transparent;
+    color: var(--ink);
+    border: none;
+    width: 100%;
+  }
+  .field::placeholder {
+    color: var(--ink-3);
+    font-style: italic;
+  }
+  .field:focus {
+    outline: none;
+  }
+
+  .field-boxed {
+    font-family: var(--font-ui);
+    background: var(--bg-deep);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: 0.5rem;
+    padding: 0.75rem 0.95rem;
+    width: 100%;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .field-boxed::placeholder {
+    color: var(--ink-3);
+  }
+  .field-boxed:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold-soft);
+  }
+
+  /* ---- Surfaces ---- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-paper);
+  }
+  .panel-inset {
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+  }
+
+  /* ---- Typographic helpers ---- */
+  .caps {
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--gold);
+  }
+  .caps-muted {
+    font-family: var(--font-ui);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--ink-3);
+  }
+  .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    line-height: 1.05;
+    color: var(--ink);
+  }
+
+  /* ---- Story (the heart) ---- */
+  .story-prose {
+    font-family: var(--font-read);
+    font-size: 1.18rem;
+    line-height: 1.78;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-break: break-word;
+    letter-spacing: 0.003em;
+  }
+  .story-prose::first-letter {
+    /* refined, only meaningful on opening scene via .story-prose--opening */
+  }
+  .story-prose--opening::first-letter {
+    font-family: var(--font-display);
+    font-size: 3.1rem;
+    line-height: 0.8;
+    float: left;
+    margin: 0.35rem 0.6rem 0 0;
+    color: var(--gold);
+  }
+
+  .interlude {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.4rem 0;
+  }
+  .interlude-rule {
+    width: 46px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.7;
+  }
+  .interlude-text {
+    font-family: var(--font-read);
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--ink-2);
+    text-align: center;
+    max-width: 90%;
+    letter-spacing: 0.01em;
+  }
+
+  .caret {
+    display: inline-block;
+    width: 0.5rem;
+    height: 1.05rem;
+    margin-left: 0.15rem;
+    vertical-align: text-bottom;
+    background: var(--gold);
+    opacity: 0.85;
+    animation: caretBlink 1.05s steps(1) infinite;
+  }
+  @keyframes caretBlink {
+    50% { opacity: 0; }
+  }
+
+  /* ---- legacy compatibility (WorldMap + any leftovers) ---- */
+  .rpg-focus:focus { outline: none; }
+  .rpg-focus:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--gold); }
+  .rpg-card { background: var(--surface); border: 1px solid var(--line); border-radius: 0.75rem; box-shadow: var(--shadow-paper); }
+  .rpg-card-inset { background: var(--bg-deep); border: 1px solid var(--line); border-radius: 0.55rem; }
+  .rpg-button { background: linear-gradient(180deg, var(--gold-bright), var(--gold)); color: #1a1408; font-weight: 600; padding: 0.55rem 1.1rem; border-radius: 0.5rem; border: none; cursor: pointer; }
+  .rpg-button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .rpg-button-ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line-strong); padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; }
+  .rpg-input { background: var(--bg-deep); border: 1px solid var(--line-strong); border-radius: 0.5rem; padding: 0.7rem 0.9rem; color: var(--ink); width: 100%; }
+  .rpg-input:focus { outline: none; border-color: var(--gold); }
+  .rpg-scrollbar { scrollbar-color: var(--line-strong) transparent; }
+  .dm-message { background: var(--surface); border-left: 2px solid var(--gold); border-radius: 0 0.5rem 0.5rem 0.5rem; padding: 1rem 1.25rem; }
+  .player-message { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 0.5rem; padding: 0.75rem 1rem; }
+  .rpg-story { font-family: var(--font-read); font-size: 1.1rem; line-height: 1.75; color: var(--ink); }
+  .rpg-label { font-family: var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold); }
 }
