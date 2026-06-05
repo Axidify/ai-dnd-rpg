@@ -8,6 +8,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.2.0] - 2026-06-05
+
+### Added
+- **Scene-aware DM** (`dm_scene.py`) — free first survey, repeat redirect, fail-forward roll outcomes
+- **Game mechanics layer** (`game_mechanics.py`) — HP defeat lifecycle, hostile-action combat gate, full travel pipeline
+- **Integration tests** — save/load, combat blocks, lifecycle, scene rules
+
+### Fixed
+- HP reaching 0 now sets `game_over` and blocks actions (combat, rest, travel, narrative)
+- Hostile narrative actions route to structured combat instead of free-form damage
+- `/api/quests/complete` uses `QuestManager.complete_quest()` (active → completed)
+- Travel wires exit skill checks, key consumption, random encounters, and location event effects
+- Save/load round-trip through SaveManager with session state serialization
+- Party allies attack in combat; class hit dice on short rest; game-over UI locks CommandBar
+- Frontend syncs `game_state` on mutations; SSE gold/xp/item updates; combat death → game over modal
+- Arbiter default model aligned with `GEMINI_MODEL` (was dead flash-lite)
+
+---
+
+## [1.1.0] - 2026-06-04
+
 ### Added
 - **Two-Phase AI Arbiter System** - Reliable skill check triggering!
   - New `dm_arbiter.py` module separates mechanics from narration

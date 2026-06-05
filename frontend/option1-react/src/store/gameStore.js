@@ -9,6 +9,28 @@ function findLastDmIndex(messages) {
   return messages.length - 1
 }
 
+/** Pull character + session fields from API responses (game_state is canonical). */
+function syncFromGameState(gameState, prev = {}) {
+  if (!gameState) return {}
+  return {
+    character: gameState.character ?? prev.character,
+    currentLocation: gameState.current_location ?? prev.currentLocation,
+    inCombat: gameState.in_combat ?? prev.inCombat,
+    quests: gameState.quest_log ?? prev.quests,
+    party: gameState.party ?? prev.party,
+    gameOver: gameState.game_over ?? prev.gameOver,
+    gameOverReason: gameState.game_over_reason ?? prev.gameOverReason,
+  }
+}
+
+function applyMutation(set, data, extra = {}) {
+  set((state) => ({
+    ...syncFromGameState(data?.game_state, state),
+    ...extra,
+    isLoading: false,
+  }))
+}
+
 const api = axios.create({
   baseURL: '/api',
   timeout: 30000,
@@ -25,6 +47,9 @@ export const useGameStore = create((set, get) => ({
   currentLocation: null,
   scenarios: [],
   quests: [],  // Quest log
+  party: [],
+  gameOver: false,
+  gameOverReason: null,
   
   // Fetch available scenarios
   fetchScenarios: async () => {
@@ -55,11 +80,9 @@ export const useGameStore = create((set, get) => ({
       
       set({
         sessionId: session_id,
-        character: game_state.character,
         messages: initialMessages,
-        currentLocation: game_state.current_location,
-        quests: game_state.quest_log || [],
-        isLoading: false
+        ...syncFromGameState(game_state),
+        isLoading: false,
       })
     } catch (error) {
       set({ 
@@ -113,8 +136,16 @@ export const useGameStore = create((set, get) => ({
   
   // Send action with streaming response
   sendActionStreaming: async (action) => {
-    const { sessionId } = get()
+    const { sessionId, inCombat, gameOver } = get()
     if (!sessionId) return
+    if (gameOver) {
+      set({ error: 'Game over — start a new adventure to continue.' })
+      return
+    }
+    if (inCombat) {
+      set({ error: 'Use Attack, Defend, or Flee during combat.' })
+      return
+    }
 
     set({
       messages: [
@@ -190,6 +221,26 @@ export const useGameStore = create((set, get) => ({
             patchDm({ rollResult })
           } else if (data.type === 'combat') {
             combatStarted = true
+            set({ inCombat: true })
+          } else if (data.type === 'gold' && data.total != null) {
+            set((state) => ({
+              character: state.character
+                ? { ...state.character, gold: data.total }
+                : state.character,
+            }))
+          } else if (data.type === 'xp' && data.amount) {
+            set((state) => {
+              if (!state.character) return {}
+              const xp = (state.character.experience || 0) + data.amount
+              return { character: { ...state.character, experience: xp } }
+            })
+          } else if (data.type === 'item' && data.item) {
+            set((state) => {
+              if (!state.character) return {}
+              const inv = [...(state.character.inventory || [])]
+              inv.push({ name: data.item })
+              return { character: { ...state.character, inventory: inv } }
+            })
           } else if (data.type === 'quest_update' && data.quest) {
             set((state) => {
               const updated = state.quests.map((q) =>
@@ -200,9 +251,23 @@ export const useGameStore = create((set, get) => ({
               }
               return { quests: updated }
             })
+          } else if (data.type === 'quest_accepted' && data.quest) {
+            set((state) => ({
+              quests: state.quests.some((q) => q.id === data.quest_id)
+                ? state.quests.map((q) => (q.id === data.quest_id ? data.quest : q))
+                : [...state.quests, data.quest],
+            }))
+          } else if (data.type === 'game_over') {
+            set({ gameOver: true, gameOverReason: data.reason || null })
           } else if (data.type === 'done' || data.type === 'complete') {
             gotDone = true
             gameState = data.game_state
+            if (data.game_over) {
+              set({
+                gameOver: true,
+                gameOverReason: gameState?.game_over_reason || null,
+              })
+            }
           } else if (data.type === 'error') {
             throw new Error(data.message || 'Stream error')
           }
@@ -230,10 +295,10 @@ export const useGameStore = create((set, get) => ({
         }
         return {
           messages: newMessages,
-          character: gameState?.character || state.character,
-          currentLocation: gameState?.current_location || state.currentLocation,
-          inCombat: gameState?.in_combat ?? combatStarted ?? state.inCombat,
-          quests: gameState?.quest_log || state.quests,
+          ...syncFromGameState(gameState, {
+            ...state,
+            inCombat: gameState?.in_combat ?? combatStarted ?? state.inCombat,
+          }),
           isLoading: false,
         }
       })
@@ -290,7 +355,7 @@ export const useGameStore = create((set, get) => ({
       const response = await api.post('/game/save', {
         session_id: sessionId,
         slot,
-        description
+        description,
       })
       set({ isLoading: false })
       return response.data
@@ -301,19 +366,20 @@ export const useGameStore = create((set, get) => ({
   },
   
   // Load game
-  loadGame: async (filepath) => {
+  loadGame: async (saveName) => {
     set({ isLoading: true, error: null })
     try {
-      const response = await api.post('/game/load', { filepath })
+      const isPath = saveName?.includes?.('/') || saveName?.includes?.('\\')
+      const payload = isPath ? { filepath: saveName } : { name: saveName?.endsWith?.('.json') ? saveName.slice(0, -5) : saveName }
+      const response = await api.post('/game/load', payload)
       const { session_id, game_state } = response.data
       
       set({
         sessionId: session_id,
-        character: game_state.character,
         messages: game_state.messages || [],
-        currentLocation: game_state.current_location,
-        quests: game_state.quest_log || [],
-        isLoading: false
+        combatStatus: null,
+        ...syncFromGameState(game_state),
+        isLoading: false,
       })
       return { success: true }
     } catch (error) {
@@ -346,12 +412,7 @@ export const useGameStore = create((set, get) => ({
         params: { session_id: sessionId }
       })
       const { game_state } = response.data
-      set({
-        character: game_state.character,
-        currentLocation: game_state.current_location,
-        inCombat: game_state.in_combat,
-        quests: game_state.quest_log || []
-      })
+      set((state) => syncFromGameState(game_state, state))
     } catch (error) {
       console.error('Failed to refresh state:', error)
     }
@@ -391,29 +452,34 @@ export const useGameStore = create((set, get) => ({
         const game_state = response.data.game_state
         const quest_updates = response.data.quest_updates || []
         
-        set(state => {
-          // Update quests from quest_updates
+        set((state) => {
           let updatedQuests = [...state.quests]
           for (const update of quest_updates) {
-            updatedQuests = updatedQuests.map(q => 
+            updatedQuests = updatedQuests.map((q) =>
               q.id === update.quest_id ? update.quest : q
             )
-            // If quest wasn't in the list, add it
-            if (!updatedQuests.find(q => q.id === update.quest_id)) {
+            if (!updatedQuests.find((q) => q.id === update.quest_id)) {
               updatedQuests.push(update.quest)
             }
           }
-          
-          return {
-            currentLocation: typeof newLocation === 'object' ? newLocation.name : newLocation,
-            messages: [...state.messages, {
-              type: 'dm',
-              content: response.data.message,
-              timestamp: new Date().toISOString()
-            }],
+          const synced = syncFromGameState(game_state, {
+            ...state,
             quests: game_state?.quest_log || updatedQuests,
-            character: game_state?.character || state.character,
-            isLoading: false
+            inCombat: response.data.in_combat ?? response.data.combat_started ?? state.inCombat,
+          })
+          return {
+            ...synced,
+            currentLocation:
+              typeof newLocation === 'object' ? newLocation.name : newLocation,
+            messages: [
+              ...state.messages,
+              {
+                type: 'dm',
+                content: response.data.message,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+            isLoading: false,
           }
         })
       } else {
@@ -428,14 +494,30 @@ export const useGameStore = create((set, get) => ({
     }
   },
   
-  endSession: () => set({
-    sessionId: null,
-    character: null,
-    messages: [],
-    error: null,
-    inCombat: false,
-    currentLocation: null
-  }),
+  endSession: async () => {
+    const { sessionId } = get()
+    if (sessionId) {
+      try {
+        await api.post('/game/end', { session_id: sessionId })
+      } catch {
+        /* best-effort cleanup */
+      }
+    }
+    set({
+      sessionId: null,
+      character: null,
+      messages: [],
+      error: null,
+      inCombat: false,
+      currentLocation: null,
+      quests: [],
+      party: [],
+      gameOver: false,
+      gameOverReason: null,
+      combatStatus: null,
+      shopInventory: null,
+    })
+  },
 
   // ========== Combat Actions ==========
   combatStatus: null,
@@ -448,7 +530,8 @@ export const useGameStore = create((set, get) => ({
       const response = await api.get('/combat/status', {
         params: { session_id: sessionId }
       })
-      set({ combatStatus: response.data, inCombat: response.data.active })
+      const inCombat = response.data.in_combat ?? response.data.active ?? false
+      set({ combatStatus: response.data, inCombat })
       return response.data
     } catch (error) {
       console.error('Failed to get combat status:', error)
@@ -464,17 +547,20 @@ export const useGameStore = create((set, get) => ({
     try {
       const response = await api.post('/combat/attack', {
         session_id: sessionId,
-        target_index: targetIndex
+        target: targetIndex,
       })
-      const { message, game_state, combat_log } = response.data
+      const { message, combat_status } = response.data
       
-      // Add combat log to messages
-      set(state => ({
+      const died = response.data.player_died || response.data.game_over
+      set((state) => ({
         messages: [...state.messages, { type: 'dm', content: message }],
-        character: game_state?.character || state.character,
-        inCombat: game_state?.in_combat ?? state.inCombat,
-        combatStatus: response.data.combat_status || null,
-        isLoading: false
+        ...syncFromGameState(response.data.game_state, state),
+        inCombat: response.data.game_state?.in_combat ?? state.inCombat,
+        gameOver: died || response.data.game_state?.game_over || state.gameOver,
+        gameOverReason:
+          response.data.game_state?.game_over_reason || state.gameOverReason,
+        combatStatus: combat_status || response.data.combat_status || null,
+        isLoading: false,
       }))
       return response.data
     } catch (error) {
@@ -495,12 +581,15 @@ export const useGameStore = create((set, get) => ({
       })
       const { message, game_state } = response.data
       
-      set(state => ({
+      const died = response.data.player_died || response.data.game_over
+      set((state) => ({
         messages: [...state.messages, { type: 'dm', content: message }],
-        character: game_state?.character || state.character,
+        ...syncFromGameState(game_state, state),
         inCombat: game_state?.in_combat ?? state.inCombat,
+        gameOver: died || game_state?.game_over || state.gameOver,
+        gameOverReason: game_state?.game_over_reason || state.gameOverReason,
         combatStatus: response.data.combat_status || null,
-        isLoading: false
+        isLoading: false,
       }))
       return response.data
     } catch (error) {
@@ -521,12 +610,15 @@ export const useGameStore = create((set, get) => ({
       })
       const { message, game_state } = response.data
       
-      set(state => ({
+      const died = response.data.player_died || response.data.game_over
+      set((state) => ({
         messages: [...state.messages, { type: 'dm', content: message }],
-        character: game_state?.character || state.character,
+        ...syncFromGameState(game_state, state),
         inCombat: game_state?.in_combat ?? state.inCombat,
+        gameOver: died || game_state?.game_over || state.gameOver,
+        gameOverReason: game_state?.game_over_reason || state.gameOverReason,
         combatStatus: response.data.combat_status || null,
-        isLoading: false
+        isLoading: false,
       }))
       return response.data
     } catch (error) {
@@ -548,11 +640,9 @@ export const useGameStore = create((set, get) => ({
         choice
       })
       
-      set(state => ({
-        character: response.data.character || state.character,
-        messages: [...state.messages, { type: 'dm', content: response.data.message }],
-        isLoading: false
-      }))
+      applyMutation(set, response.data, {
+        messages: [...get().messages, { type: 'dm', content: response.data.message }],
+      })
       return response.data
     } catch (error) {
       set({ isLoading: false })
@@ -569,14 +659,12 @@ export const useGameStore = create((set, get) => ({
     try {
       const response = await api.post('/character/rest', {
         session_id: sessionId,
-        rest_type: restType
+        type: restType,
       })
       
-      set(state => ({
-        character: response.data.character || state.character,
-        messages: [...state.messages, { type: 'dm', content: response.data.message }],
-        isLoading: false
-      }))
+      applyMutation(set, response.data, {
+        messages: [...get().messages, { type: 'dm', content: response.data.message }],
+      })
       return response.data
     } catch (error) {
       set({ isLoading: false })
@@ -598,11 +686,9 @@ export const useGameStore = create((set, get) => ({
         target
       })
       
-      set(state => ({
-        character: response.data.character || state.character,
-        messages: [...state.messages, { type: 'dm', content: response.data.message }],
-        isLoading: false
-      }))
+      applyMutation(set, response.data, {
+        messages: [...get().messages, { type: 'dm', content: response.data.message }],
+      })
       return response.data
     } catch (error) {
       set({ isLoading: false })
@@ -622,11 +708,9 @@ export const useGameStore = create((set, get) => ({
         item_name: itemName
       })
       
-      set(state => ({
-        character: response.data.character || state.character,
-        messages: [...state.messages, { type: 'dm', content: response.data.message }],
-        isLoading: false
-      }))
+      applyMutation(set, response.data, {
+        messages: [...get().messages, { type: 'dm', content: response.data.message }],
+      })
       return response.data
     } catch (error) {
       set({ isLoading: false })
@@ -654,7 +738,7 @@ export const useGameStore = create((set, get) => ({
     }
   },
   
-  buyItem: async (itemName, quantity = 1) => {
+  buyItem: async (itemIdOrName, quantity = 1) => {
     const { sessionId } = get()
     if (!sessionId) return null
     
@@ -662,15 +746,13 @@ export const useGameStore = create((set, get) => ({
     try {
       const response = await api.post('/shop/buy', {
         session_id: sessionId,
-        item_name: itemName,
-        quantity
+        item_id: itemIdOrName,
+        quantity,
       })
       
-      set(state => ({
-        character: response.data.character || state.character,
-        messages: [...state.messages, { type: 'dm', content: response.data.message }],
-        isLoading: false
-      }))
+      applyMutation(set, response.data, {
+        messages: [...get().messages, { type: 'dm', content: response.data.message }],
+      })
       // Refresh shop inventory after purchase
       get().browseShop()
       return response.data
@@ -693,11 +775,9 @@ export const useGameStore = create((set, get) => ({
         quantity
       })
       
-      set(state => ({
-        character: response.data.character || state.character,
-        messages: [...state.messages, { type: 'dm', content: response.data.message }],
-        isLoading: false
-      }))
+      applyMutation(set, response.data, {
+        messages: [...get().messages, { type: 'dm', content: response.data.message }],
+      })
       // Refresh shop inventory after sale
       get().browseShop()
       return response.data
@@ -709,7 +789,6 @@ export const useGameStore = create((set, get) => ({
   },
 
   // ========== Party Actions ==========
-  party: [],
   availableRecruits: [],
   
   getParty: async () => {
@@ -720,9 +799,10 @@ export const useGameStore = create((set, get) => ({
       const response = await api.get('/party/view', {
         params: { session_id: sessionId }
       })
-      set({ 
-        party: response.data.party || [],
-        availableRecruits: response.data.available_recruits || []
+      const members = response.data.party || response.data.members || []
+      set({
+        party: members,
+        availableRecruits: response.data.available_recruits || [],
       })
       return response.data
     } catch (error) {
@@ -731,7 +811,7 @@ export const useGameStore = create((set, get) => ({
     }
   },
   
-  recruitMember: async (npcName) => {
+  recruitMember: async (npcId) => {
     const { sessionId } = get()
     if (!sessionId) return null
     
@@ -739,14 +819,13 @@ export const useGameStore = create((set, get) => ({
     try {
       const response = await api.post('/party/recruit', {
         session_id: sessionId,
-        npc_name: npcName
+        npc_id: npcId,
       })
       
-      set(state => ({
-        party: response.data.party || state.party,
-        messages: [...state.messages, { type: 'dm', content: response.data.message }],
-        isLoading: false
-      }))
+      applyMutation(set, response.data, {
+        party: response.data.game_state?.party || get().party,
+        messages: [...get().messages, { type: 'dm', content: response.data.message }],
+      })
       // Refresh party data
       get().getParty()
       return response.data

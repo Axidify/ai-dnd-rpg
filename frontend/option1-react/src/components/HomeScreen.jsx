@@ -64,11 +64,12 @@ export default function HomeScreen({ onNewGame, onContinue }) {
             <ul className="space-y-2">
               {saves.slice(0, 4).map((save, idx) => {
                 const Icon = getClassIcon(save.character_class)
+                const saveKey = save.filepath || save.name || idx
                 return (
-                  <li key={save.filepath || idx}>
+                  <li key={saveKey}>
                     <button
                       type="button"
-                      onClick={() => handleLoad(save.filepath)}
+                      onClick={() => handleLoad(save.filepath || save.name)}
                       disabled={isLoading}
                       className="focus-ring group w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)] transition disabled:opacity-50"
                     >

@@ -38,6 +38,7 @@ export default function GameScreen({ onLeaveGame }) {
 
   const {
     character, messages, sendActionStreaming, isLoading, currentLocation, inCombat, quests,
+    gameOver, gameOverReason,
     saveGame, loadGame, listSaves,
     combatStatus, getCombatStatus, combatAttack, combatDefend, combatFlee,
     levelUp, rest, useItem, equipItem,
@@ -60,7 +61,7 @@ export default function GameScreen({ onLeaveGame }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (input.trim() && !isLoading) {
+    if (input.trim() && !isLoading && !gameOver) {
       sendActionStreaming(input.trim())
       setInput('')
       setTimeout(() => inputRef.current?.focus(), 0)
@@ -68,7 +69,7 @@ export default function GameScreen({ onLeaveGame }) {
   }
 
   const send = (action) => {
-    if (!isLoading) sendActionStreaming(action)
+    if (!isLoading && !gameOver) sendActionStreaming(action)
   }
 
   const { canLevelUp } = getXpProgress(character)
@@ -181,6 +182,7 @@ export default function GameScreen({ onLeaveGame }) {
         onSuggestion={send}
         isLoading={isLoading}
         inCombat={inCombat}
+        gameOver={gameOver}
         combatStatus={combatStatus}
         onAttack={combatAttack}
         onDefend={combatDefend}
@@ -257,6 +259,28 @@ export default function GameScreen({ onLeaveGame }) {
 
       <Modal open={showLoad} onClose={() => setShowLoad(false)} eyebrow="Return to a journey" title="Load" titleId="load-title" maxWidth="max-w-md">
         <LoadPanel saves={saves} onLoad={handleLoadFile} />
+      </Modal>
+
+      <Modal
+        open={gameOver}
+        onClose={() => {}}
+        eyebrow="The tale ends"
+        title="Game Over"
+        titleId="gameover-title"
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-5 text-center">
+          <p className="font-read text-[var(--ink-2)] leading-relaxed">
+            {gameOverReason || 'Your adventure has come to an end.'}
+          </p>
+          <button
+            type="button"
+            onClick={handleLeave}
+            className="btn btn-primary focus-ring w-full py-3"
+          >
+            Return to the hearth
+          </button>
+        </div>
       </Modal>
     </div>
   )

@@ -678,8 +678,12 @@ def roll_skill_check(character, skill_name: str, dc: int) -> Dict[str, Any]:
     else:
         ability = skill_lower
     
-    # Get modifier from character
-    modifier = character.get_ability_modifier(ability)
+    # Ability mod + proficiency when applicable
+    try:
+        from game_mechanics import skill_check_modifier
+        modifier = skill_check_modifier(character, skill_name, SKILL_ABILITIES)
+    except Exception:
+        modifier = character.get_ability_modifier(ability)
     
     # Roll d20
     roll = random.randint(1, 20)

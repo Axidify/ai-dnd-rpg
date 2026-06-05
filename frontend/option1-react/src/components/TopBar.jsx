@@ -32,7 +32,7 @@ export default function TopBar({
   onOpenQuests,
   onOpenMenu,
 }) {
-  const ClassIcon = getClassIcon(character?.class)
+  const ClassIcon = getClassIcon(character?.char_class || character?.class)
   const hp = getCharacterHp(character)
   const locationName =
     typeof currentLocation === 'object' ? currentLocation?.name : currentLocation

@@ -123,6 +123,7 @@ class Enemy:
     xp_reward: int = 25    # XP awarded when defeated (Phase 3.2.2)
     loot: List[str] = field(default_factory=list)  # Phase 3.2.2: Fixed loot drops
     gold_drop: int = 0     # Phase 3.2.2: Fixed gold drop
+    enemy_type: str = ""   # Preset key (e.g. goblin_boss) for quests and loot
     current_hp: int = field(init=False)
     _is_dead: bool = field(default=False, repr=False)  # Internal flag, use property
     initiative: int = 0
@@ -271,8 +272,9 @@ ENEMIES = {
 
 def create_enemy(enemy_type: str) -> Optional[Enemy]:
     """Create a new enemy instance from preset."""
-    if enemy_type.lower() in ENEMIES:
-        template = ENEMIES[enemy_type.lower()]
+    key = enemy_type.lower().replace(' ', '_')
+    if key in ENEMIES:
+        template = ENEMIES[key]
         return Enemy(
             name=template.name,
             max_hp=template.max_hp,
@@ -283,7 +285,8 @@ def create_enemy(enemy_type: str) -> Optional[Enemy]:
             dex_modifier=template.dex_modifier,
             xp_reward=template.xp_reward,  # Phase 3.2.2: Include XP reward
             loot=template.loot.copy(),     # Phase 3.2.2: Fixed loot drops
-            gold_drop=template.gold_drop   # Phase 3.2.2: Fixed gold drop
+            gold_drop=template.gold_drop,  # Phase 3.2.2: Fixed gold drop
+            enemy_type=key,
         )
     return None
 
@@ -455,8 +458,7 @@ def calculate_attack_bonus(character: Character, weapon_name: str = 'longsword')
     """Calculate character's attack bonus for a weapon."""
     weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['unarmed'])
     
-    # Proficiency bonus (simplified: level 1-4 = +2)
-    proficiency = 2
+    proficiency = character.get_proficiency_bonus()
     
     # Use DEX for finesse weapons, STR otherwise
     if weapon.get('finesse', False):

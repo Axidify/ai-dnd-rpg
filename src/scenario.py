@@ -1239,7 +1239,12 @@ class LocationManager:
             return result
         return {}
     
-    def move(self, direction: str, game_state: dict = None) -> Tuple[bool, Optional[Location], str, List[LocationEvent]]:
+    def move(
+        self,
+        direction: str,
+        game_state: dict = None,
+        skill_check_override: bool = False,
+    ) -> Tuple[bool, Optional[Location], str, List[LocationEvent]]:
         """
         Attempt to move in a direction.
         
@@ -1326,6 +1331,7 @@ class LocationManager:
                         break
         
         if dest_id and matched_exit_name:
+            travel_note = ""
             # Phase 3.2.1 Priority 6: Check exit conditions
             exit_cond = location.get_exit_condition(matched_exit_name)
             if exit_cond and not location.is_exit_unlocked(matched_exit_name):
@@ -1337,17 +1343,15 @@ class LocationManager:
                         fail_msg = exit_cond.fail_message or reason or "You can't go that way."
                         return False, None, fail_msg, []
                     elif reason.startswith("skill_check:"):
-                        # Skill check needed - return special message for game.py to handle
-                        return False, None, reason, []
+                        if not skill_check_override:
+                            return False, None, reason, []
+                        location.unlock_exit(matched_exit_name)
                     else:
                         # Condition met - unlock the exit
                         location.unlock_exit(matched_exit_name)
-                        # If consume_item is True, remove the key from inventory
                         if exit_cond.consume_item and exit_cond.condition.startswith("has_item:"):
                             item_key = exit_cond.condition.split(":")[1]
-                            # The actual removal happens in game.py since we don't have inventory methods here
-                            # We'll add a marker to the message
-                            reason = f"CONSUME_ITEM:{item_key}|{reason}"
+                            travel_note = f"CONSUME_ITEM:{item_key}"
                 else:
                     # No game_state provided, can't check conditions
                     fail_msg = exit_cond.fail_message or "Something blocks your path."
@@ -1370,7 +1374,7 @@ class LocationManager:
                 for event in events:
                     new_location.trigger_event(event.id)
                 
-                return True, new_location, "", events
+                return True, new_location, travel_note, events
         
         # No valid exit found
         valid_exits = list(available_exits.keys())

@@ -61,7 +61,7 @@ export default function HeroDrawer({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  const ClassIcon = getClassIcon(character?.class)
+  const ClassIcon = getClassIcon(character?.char_class || character?.class)
   const hp = getCharacterHp(character)
   const xp = getXpProgress(character)
   const ac = character?.armor_class ?? character?.ac ?? '—'
@@ -97,7 +97,7 @@ export default function HeroDrawer({
                   <div className="min-w-0">
                     <h2 className="display text-2xl truncate">{character?.name || 'Adventurer'}</h2>
                     <p className="text-xs text-[var(--ink-3)] font-ui">
-                      Level {character?.level || 1} · {character?.race || ''} {character?.class || ''}
+                      Level {character?.level || 1} · {character?.race || ''} {character?.char_class || character?.class || ''}
                     </p>
                   </div>
                 </div>

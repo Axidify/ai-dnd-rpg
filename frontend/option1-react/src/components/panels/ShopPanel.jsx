@@ -20,19 +20,21 @@ export default function ShopPanel({ character, shopInventory, isLoading, onBuy, 
         <div className="space-y-6">
           <section>
             <p className="caps mb-3">For sale</p>
-            {shopInventory.shop_items?.length ? (
+            {(shopInventory.items || shopInventory.shop_items || []).length ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {shopInventory.shop_items.map((item, i) => {
+                {(shopInventory.items || shopInventory.shop_items || []).map((item, i) => {
                   const tooPoor = gold < item.price
                   return (
-                    <div key={i} className="panel-inset rounded-lg p-3 flex items-center justify-between gap-3">
+                    <div key={item.id || i} className="panel-inset rounded-lg p-3 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-[var(--ink)] font-medium truncate">{item.name}</div>
-                        <div className="text-xs text-[var(--ink-3)]">{item.type}</div>
+                        {item.stock != null && (
+                          <div className="text-xs text-[var(--ink-3)]">Stock: {item.stock < 0 ? '∞' : item.stock}</div>
+                        )}
                       </div>
                       <button
                         type="button"
-                        onClick={() => onBuy?.(item.name)}
+                        onClick={() => onBuy?.(item.id || item.name)}
                         disabled={isLoading || tooPoor}
                         className="focus-ring shrink-0 text-xs px-3 py-1.5 rounded-md border border-[var(--sage)]/50 text-[var(--sage)] hover:bg-[var(--sage)]/10 transition disabled:opacity-40"
                       >

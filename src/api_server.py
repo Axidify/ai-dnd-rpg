@@ -33,6 +33,28 @@ from combat import (
 from inventory import ITEMS, get_item, add_item_to_inventory, remove_item_from_inventory, ItemType
 from save_system import SaveManager
 from party import Party
+from dm_scene import (
+    prepare_action_turn,
+    build_survey_dm_instruction,
+    build_roll_outcome_instruction,
+    build_roll_outcome_narration,
+    is_weak_roll_narration,
+)
+from game_mechanics import (
+    apply_location_event_effects,
+    apply_scenario_transition,
+    run_party_ally_attacks,
+    serialize_session_state,
+    restore_session_state,
+    sync_session_from_scenario,
+    get_class_hit_die,
+    is_thin_legacy_save,
+    apply_player_damage,
+    on_player_defeat,
+    is_session_blocked,
+    process_travel,
+    try_hostile_combat_gate,
+)
 
 # Import from shared DM engine (single source of truth)
 from dm_engine import (
@@ -56,7 +78,6 @@ def safe_json_sse(data: dict) -> str:
         minimal = {'type': data.get('type', 'error'), 'message': 'Serialization error'}
         return f"data: {json.dumps(minimal)}\n\n"
 # Import the new arbiter for two-phase skill check enforcement
-from dm_arbiter import get_arbiter_decision, ArbiterDecision
 import re
 
 # Load .env from project root (parent of src/)
@@ -154,8 +175,6 @@ def detect_quest_acceptance(player_action: str, dm_response: str, quest_manager)
                 accepted_quests.append(quest_id)
     
     return accepted_quests
-    
-    return talked_to
 
 
 def get_skill_hint(player_action: str) -> str:
@@ -165,11 +184,14 @@ def get_skill_hint(player_action: str) -> str:
     """
     input_lower = player_action.lower()
     
-    # Perception/Investigation triggers
-    perception_words = ["look", "search", "examine", "inspect", "scan", "check", "investigate", 
-                       "what do i see", "look around", "look for", "notice", "observe"]
-    if any(word in input_lower for word in perception_words):
-        return "\n[HINT: This is an exploration action. Consider calling for a Perception or Investigation check (DC 10-15) before revealing hidden details.]"
+    # Specific search only — vague "look around" gets free survey (no roll hint)
+    from dm_scene import classify_exploration_action
+    if classify_exploration_action(player_action) == "specific_search":
+        return (
+            "\n[HINT: The player is searching for something specific. "
+            "The skill check (if any) is handled by the arbiter — do NOT add [ROLL:] tags "
+            "unless the arbiter did not resolve one. Narrate the outcome.]"
+        )
     
     # Stealth triggers
     stealth_words = ["sneak", "hide", "quietly", "stealthily", "creep", "silently", "lurk"]
@@ -281,6 +303,7 @@ class GameSession:
         self.social_check_blocked_npcs = set()  # NPCs who won't talk to player anymore
         self.game_over = False
         self.game_over_reason = None
+        self.scene_state = {}  # Per-location survey counts, scene memory
     
     def touch(self):
         """Update last_activity timestamp to prevent session expiration."""
@@ -375,13 +398,27 @@ class GameSession:
         
     def to_dict(self):
         """Convert session to dictionary for JSON response."""
+        party_members = []
+        if self.party and self.party.members:
+            for m in self.party.members:
+                party_members.append({
+                    'id': m.id,
+                    'name': m.name,
+                    'class': m.char_class.value if hasattr(m.char_class, 'value') else str(m.char_class),
+                    'hp': m.current_hp,
+                    'max_hp': m.max_hp,
+                })
         return {
             'session_id': self.session_id,
             'character': self._serialize_character(),
             'current_location': self.current_location,
+            'current_location_id': self.current_location_id,
             'in_combat': self.in_combat,
             'messages': self.messages[-50:],  # Last 50 messages
             'quest_log': self._get_quest_log(),
+            'party': party_members,
+            'game_over': self.game_over,
+            'game_over_reason': self.game_over_reason,
         }
     
     def _get_quest_log(self):
@@ -389,6 +426,170 @@ class GameSession:
         if not self.quest_manager:
             return []
         return [q.to_dict() for q in self.quest_manager.get_active_quests()]
+
+
+# Quest kill targets may use different ids than combat presets (goblin_chief vs goblin_boss)
+ENEMY_KILL_ALIASES = {
+    'goblin_boss': ['goblin_boss', 'goblin_chief'],
+}
+
+
+def ensure_combat_enemies(session: GameSession):
+    """Materialize Enemy objects from combat_state enemy type list."""
+    from combat import create_enemy
+
+    if session.combat_state is None:
+        session.combat_state = {}
+    if session.combat_state.get('enemy_objects'):
+        return session.combat_state['enemy_objects']
+
+    session.combat_state['enemy_objects'] = []
+    for enemy_type in session.combat_state.get('enemies', []):
+        enemy = create_enemy(enemy_type.lower().replace(' ', '_'))
+        if enemy:
+            session.combat_state['enemy_objects'].append(enemy)
+    return session.combat_state['enemy_objects']
+
+
+def build_combat_status_payload(session: GameSession) -> dict:
+    """JSON payload for combat status (shared by status + attack endpoints)."""
+    if not session.in_combat:
+        return {
+            'success': True,
+            'in_combat': False,
+            'active': False,
+            'message': 'Not in combat',
+        }
+
+    enemies = ensure_combat_enemies(session)
+    enemies_status = []
+    for enemy in enemies:
+        enemies_status.append({
+            'name': enemy.name,
+            'current_hp': enemy.current_hp,
+            'max_hp': enemy.max_hp,
+            'hp': enemy.current_hp,
+            'is_dead': enemy.is_dead,
+            'status': enemy.get_status(),
+        })
+
+    return {
+        'success': True,
+        'in_combat': True,
+        'active': True,
+        'round': session.combat_state.get('round', 1),
+        'surprise': session.combat_state.get('surprise', False),
+        'enemies': enemies_status,
+        'player_hp': session.character.current_hp if session.character else 0,
+        'player_max_hp': session.character.max_hp if session.character else 0,
+    }
+
+
+def resolve_weapon_key(character) -> str:
+    """Map equipped / inventory weapon name to a WEAPONS table key."""
+    from combat import WEAPONS
+
+    name = (character.weapon if character and character.weapon else 'longsword')
+    key = name.lower().replace(' ', '_')
+    for prefix in ('legendary_', 'superior_', 'fine_'):
+        if key.startswith(prefix):
+            key = key[len(prefix):]
+    if key in WEAPONS:
+        return key
+    if character and character.inventory:
+        for item in character.inventory:
+            if getattr(item, 'damage_dice', None):
+                ikey = item.name.lower().replace(' ', '_')
+                for prefix in ('legendary_', 'superior_', 'fine_'):
+                    if ikey.startswith(prefix):
+                        ikey = ikey[len(prefix):]
+                if ikey in WEAPONS:
+                    return ikey
+    return 'longsword'
+
+
+def quest_kills_for_enemy(enemy) -> list:
+    """Enemy type ids to report to quest manager on kill."""
+    primary = getattr(enemy, 'enemy_type', None) or enemy.name.lower().replace(' ', '_')
+    ids = [primary]
+    for alias in ENEMY_KILL_ALIASES.get(primary, []):
+        if alias not in ids:
+            ids.append(alias)
+    return ids
+
+
+def apply_combat_victory(session: GameSession, enemies: list, result_messages: list) -> dict:
+    """Grant XP, gold, loot, and boss hit-dice restore after combat victory."""
+    from combat import get_enemy_loot_for_class
+    from inventory import get_item, add_item_to_inventory
+
+    rewards = {'xp': 0, 'gold': 0, 'items': []}
+    boss_killed = False
+
+    for enemy in enemies:
+        if not enemy.is_dead:
+            continue
+        rewards['xp'] += enemy.xp_reward
+        rewards['gold'] += enemy.gold_drop
+        etype = getattr(enemy, 'enemy_type', '') or enemy.name.lower()
+        if 'boss' in etype or 'chief' in etype:
+            boss_killed = True
+        if session.character:
+            loot_items, _ = get_enemy_loot_for_class(
+                getattr(enemy, 'enemy_type', None) or etype,
+                session.character.char_class,
+            )
+            for item_name in loot_items:
+                item = get_item(item_name)
+                if item:
+                    add_item_to_inventory(session.character.inventory, item)
+                    rewards['items'].append(item.name)
+                    result_messages.append(f"📦 Looted: {item.name}")
+
+    if session.character:
+        if rewards['xp'] > 0:
+            session.character.gain_xp(rewards['xp'], 'combat victory')
+            result_messages.append(f"⭐ Gained {rewards['xp']} XP!")
+        if rewards['gold'] > 0:
+            session.character.gold += rewards['gold']
+            result_messages.append(f"💰 Looted {rewards['gold']} gold!")
+        if boss_killed:
+            if session.combat_state is None:
+                session.combat_state = {}
+            session.combat_state['hit_dice_remaining'] = session.character.level
+            result_messages.append('🎲 Hit dice restored after boss victory!')
+
+    return rewards
+
+
+def run_enemy_turn(session: GameSession, living_enemies: list, result_messages: list,
+                   ac_override: int = None) -> bool:
+    """
+    Enemies attack the player. Returns True if player died.
+    Skips attacks when player ambushed (surprise) on round 1.
+    """
+    from combat import enemy_attack, format_enemy_attack
+
+    surprise = (
+        session.combat_state.get('surprise', False)
+        and session.combat_state.get('round', 1) == 1
+    )
+    if surprise:
+        result_messages.append('\n⚡ Enemies are surprised and cannot act this round!')
+        return False
+
+    result_messages.append('\n--- Enemy Turn ---')
+    target_ac = ac_override if ac_override is not None else session.character.armor_class
+    for enemy in living_enemies:
+        enemy_atk, enemy_dmg = enemy_attack(enemy, target_ac)
+        result_messages.append(format_enemy_attack(enemy_atk, enemy_dmg))
+        if enemy_dmg:
+            _, defeated = apply_player_damage(
+                session, enemy_dmg['total'], enemy.name
+            )
+            if defeated:
+                return True
+    return False
 
 
 def get_or_create_session(session_id: str = None) -> GameSession:
@@ -489,7 +690,15 @@ Current Location: {session.current_location or 'Unknown'}
     return context_update
 
 
-def get_dm_response(session: GameSession, player_action: str, is_opening: bool = False, max_retries: int = 3, pre_roll_result: dict = None) -> str:
+def get_dm_response(
+    session: GameSession,
+    player_action: str,
+    is_opening: bool = False,
+    max_retries: int = 3,
+    pre_roll_result: dict = None,
+    scene_action: str = None,
+    arbiter_no_roll: bool = False,
+) -> str:
     """
     Get AI DM response for player action (non-streaming) using chat session.
     
@@ -538,9 +747,22 @@ Roll: {pre_roll_result['roll']} + {pre_roll_result['modifier']} = {pre_roll_resu
 {"💀 CRITICAL FAILURE (Natural 1)!" if pre_roll_result.get('is_nat_1') else ""}
 
 NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome of this check. Do NOT add [ROLL:] tags - the roll is already done.{push_luck_warning}"""
-        full_message = f"{context_refresh}\n\n{roll_instruction}"
+        outcome_rules = build_roll_outcome_instruction(player_action, pre_roll_result)
+        full_message = f"{context_refresh}\n\n{roll_instruction}{outcome_rules}"
+    elif scene_action == "survey_first":
+        survey_instruction = build_survey_dm_instruction(session)
+        full_message = (
+            f"{context_refresh}\n\n{survey_instruction}\n\n"
+            f"Player action: {player_action}"
+        )
     else:
-        full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}"
+        no_roll_note = ""
+        if arbiter_no_roll:
+            no_roll_note = (
+                "\n[ARBITER: No skill check needed for this action. "
+                "Do NOT add [ROLL:] tags. Narrate freely.]"
+            )
+        full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}{no_roll_note}"
     
     for attempt in range(max_retries):
         try:
@@ -579,7 +801,14 @@ NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome o
     return get_fallback_response(session, player_action, is_opening)
 
 
-def stream_dm_response(session: GameSession, player_action: str, max_retries: int = 3, pre_roll_result: dict = None):
+def stream_dm_response(
+    session: GameSession,
+    player_action: str,
+    max_retries: int = 3,
+    pre_roll_result: dict = None,
+    scene_action: str = None,
+    arbiter_no_roll: bool = False,
+):
     """
     Generator that yields streaming DM response chunks using chat session.
     
@@ -627,9 +856,22 @@ Roll: {pre_roll_result['roll']} + {pre_roll_result['modifier']} = {pre_roll_resu
 {"💀 CRITICAL FAILURE (Natural 1)!" if pre_roll_result.get('is_nat_1') else ""}
 
 NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome of this check. Do NOT add [ROLL:] tags - the roll is already done.{push_luck_warning}"""
-        full_message = f"{context_refresh}\n\n{roll_instruction}"
+        outcome_rules = build_roll_outcome_instruction(player_action, pre_roll_result)
+        full_message = f"{context_refresh}\n\n{roll_instruction}{outcome_rules}"
+    elif scene_action == "survey_first":
+        survey_instruction = build_survey_dm_instruction(session)
+        full_message = (
+            f"{context_refresh}\n\n{survey_instruction}\n\n"
+            f"Player action: {player_action}"
+        )
     else:
-        full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}"
+        no_roll_note = ""
+        if arbiter_no_roll:
+            no_roll_note = (
+                "\n[ARBITER: No skill check needed for this action. "
+                "Do NOT add [ROLL:] tags. Narrate freely.]"
+            )
+        full_message = f"{context_refresh}\n\nPlayer action: {player_action}{skill_hint}{no_roll_note}"
     
     for attempt in range(max_retries):
         try:
@@ -724,7 +966,7 @@ def health_check():
     """Health check endpoint."""
     return jsonify({
         'status': 'ok',
-        'version': '1.0.0',
+        'version': '1.2.0',
         'timestamp': datetime.now().isoformat()
     })
 
@@ -942,9 +1184,29 @@ def game_action():
         'timestamp': datetime.now().isoformat()
     })
     
+    if session.in_combat:
+        combat_msg = (
+            "⚔️ **Combat is underway!** Use **Attack**, **Defend**, or **Flee** "
+            "below — narrative actions are paused until the fight ends."
+        )
+        session.messages.append({
+            'type': 'dm',
+            'content': combat_msg,
+            'timestamp': datetime.now().isoformat(),
+        })
+        return jsonify({
+            'success': True,
+            'message': combat_msg,
+            'game_state': session.to_dict(),
+        })
+    
     # =========================================================================
-    # CHECK FOR GAME OVER STATE
+    # CHECK FOR GAME OVER / DEFEAT STATE
     # =========================================================================
+    blocked, _ = is_session_blocked(session)
+    if blocked:
+        session.game_over = True
+
     if session.game_over:
         game_over_response = f"🎮 **GAME OVER**\n\n{session.game_over_reason}\n\n*Start a new game to try again.*"
         session.messages.append({
@@ -959,30 +1221,66 @@ def game_action():
             'game_over': True,
             'game_state': session.to_dict()
         })
+
+    # =========================================================================
+    # HOSTILE ACTION → STRUCTURED COMBAT (before narrator)
+    # =========================================================================
+    hostile = try_hostile_combat_gate(session, action)
+    if hostile:
+        session.messages.append({
+            'type': 'dm',
+            'content': hostile['message'],
+            'timestamp': datetime.now().isoformat(),
+        })
+        return jsonify({
+            'success': True,
+            'message': hostile['message'],
+            'combat_started': True,
+            'game_state': session.to_dict(),
+        })
     
     # =========================================================================
-    # PHASE 1: ARBITER - Determine if skill check is needed (BEFORE narrator)
+    # PHASE 1: ARBITER + SCENE RULES (BEFORE narrator)
     # =========================================================================
-    arbiter_roll_result = None
     context_for_arbiter = f"Location: {session.current_location or 'Unknown'}"
     if session.quest_manager:
         active_quests = session.quest_manager.get_active_quests()
         if active_quests:
             context_for_arbiter += f"\nActive quests: {', '.join(q.name for q in active_quests)}"
-    
-    arbiter_decision = get_arbiter_decision(action, context_for_arbiter)
-    
-    # Check for blocked social retry BEFORE rolling
-    social_blocked = False
-    social_block_reason = None
-    is_social_check = arbiter_decision.action_type == "social" and arbiter_decision.requires_roll
-    
-    if is_social_check:
-        social_blocked, social_block_reason = session.is_social_retry_blocked(
-            npc_context=context_for_arbiter,
-            skill=arbiter_decision.skill
+
+    turn = prepare_action_turn(session, action, context_for_arbiter)
+    arbiter_decision = turn["arbiter_decision"]
+    arbiter_roll_result = turn["arbiter_roll_result"]
+    scene_action = turn["scene_action"]
+    social_blocked = turn["social_blocked"]
+    social_block_reason = turn["social_block_reason"]
+    is_social_check = turn["is_social_check"]
+    arbiter_no_roll = turn["arbiter_no_roll"]
+
+    if arbiter_roll_result:
+        print(
+            f"   🎲 Arbiter ({arbiter_decision.source}): "
+            f"{arbiter_roll_result['skill']} DC {arbiter_roll_result['dc']} = "
+            f"{arbiter_roll_result['total']} "
+            f"({'✓' if arbiter_roll_result['success'] else '✗'})"
         )
-    
+    if turn.get("social_failure_info"):
+        info = turn["social_failure_info"]
+        print(f"   ⚠️ Social failure recorded ({info['failures']}/{info['max_failures']})")
+
+    if turn.get("deterministic_response"):
+        det = turn["deterministic_response"]
+        session.messages.append({
+            "type": "dm",
+            "content": det,
+            "timestamp": datetime.now().isoformat(),
+        })
+        return jsonify({
+            "success": True,
+            "message": det,
+            "game_state": session.to_dict(),
+        })
+
     if social_blocked:
         if social_block_reason == "same_approach":
             block_response = "*You consider pressing the same point again, but something in the NPC's expression tells you it would be futile. They've made their position clear, and repeating yourself would only damage what rapport remains.*\n\nPerhaps try a different approach, or accept the situation as it stands."
@@ -1005,47 +1303,21 @@ def game_action():
             'game_state': session.to_dict()
         })
     
-    if arbiter_decision.requires_roll and session.character:
-        # Roll the skill check BEFORE calling the narrator
-        result = roll_skill_check(session.character, arbiter_decision.skill, arbiter_decision.dc)
-        arbiter_roll_result = {
-            'skill': result['skill'],
-            'roll': result['roll'],
-            'modifier': result['modifier'],
-            'total': result['total'],
-            'dc': arbiter_decision.dc,
-            'success': result['success'],
-            'is_nat_20': result.get('is_nat_20', False),
-            'is_nat_1': result.get('is_nat_1', False),
-            'formatted': format_roll_result(result),
-            'source': arbiter_decision.source,  # Track where the decision came from
-            'action_type': arbiter_decision.action_type  # Track action type for social failure tracking
-        }
-        print(f"   🎲 Arbiter ({arbiter_decision.source}): {arbiter_roll_result['skill']} DC {arbiter_roll_result['dc']} = {arbiter_roll_result['total']} ({'✓' if arbiter_roll_result['success'] else '✗'})")
-        
-        # Track social check failures
-        if is_social_check and not arbiter_roll_result['success']:
-            failure_info = session.record_social_failure(
-                npc_context=context_for_arbiter,
-                skill=arbiter_decision.skill
-            )
-            print(f"   ⚠️ Social failure recorded ({failure_info['failures']}/{failure_info['max_failures']})")
-            
-            # Check for game over after failure
-            if failure_info['game_over']:
-                # Let the narrator describe the final failure, then add game over
-                pass  # Game over will be handled after narrator response
-    
     # =========================================================================
     # PHASE 2: NARRATOR - Get DM response (with pre-roll result if applicable)
     # =========================================================================
-    dm_response = get_dm_response(session, action, pre_roll_result=arbiter_roll_result)
+    dm_response = get_dm_response(
+        session,
+        action,
+        pre_roll_result=arbiter_roll_result,
+        scene_action=scene_action,
+        arbiter_no_roll=arbiter_no_roll,
+    )
     
     # If arbiter required a roll, use that result (don't let narrator add another)
     roll_result = arbiter_roll_result
     
-    # If arbiter didn't require a roll, check if narrator requested one (fallback)
-    if not roll_result:
+    if not roll_result and not arbiter_no_roll:
         skill, dc = parse_roll_request(dm_response)
         if skill and dc and session.character:
             result = roll_skill_check(session.character, skill, dc)
@@ -1059,9 +1331,13 @@ def game_action():
                 'formatted': format_roll_result(result),
                 'source': 'narrator_ai'
             }
-            # Add roll result to response
             dm_response += f"\n\n{format_roll_result(result)}"
-    # (Roll result is returned separately in roll_result; don't prepend to prose)
+
+    if roll_result and is_weak_roll_narration(strip_dm_tags(dm_response), roll_result):
+        dm_response = (
+            (dm_response.strip() + "\n\n" if dm_response.strip() else "")
+            + build_roll_outcome_narration(session, action, roll_result)
+        )
     
     # Check for combat request
     enemies, surprise = parse_combat_request(dm_response)
@@ -1131,6 +1407,13 @@ def game_action():
     accepted_quests = detect_quest_acceptance(action, dm_response, session.quest_manager)
     if accepted_quests:
         print(f"   📜 Quests accepted: {accepted_quests}")
+    
+    # Scenario scene transitions and adventure progress
+    if session.scenario:
+        session.scenario.record_exchange()
+    transition = apply_scenario_transition(session, action, dm_response)
+    if transition:
+        dm_response += f"\n\n{transition}"
     
     # =========================================================================
     # CHECK FOR GAME OVER (triggered by this action's failure)
@@ -1210,9 +1493,28 @@ def game_action_stream():
         'timestamp': datetime.now().isoformat()
     })
     
+    if session.in_combat:
+        def generate_combat_block():
+            msg = (
+                "⚔️ **Combat is underway!** Use **Attack**, **Defend**, or **Flee** "
+                "below — narrative actions are paused until the fight ends."
+            )
+            yield safe_json_sse({'type': 'chunk', 'content': msg})
+            yield safe_json_sse({'type': 'done', 'game_state': session.to_dict()})
+
+        return Response(
+            stream_with_context(generate_combat_block()),
+            mimetype='text/event-stream',
+            headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
+        )
+    
     # =========================================================================
-    # CHECK FOR GAME OVER STATE
+    # CHECK FOR GAME OVER / DEFEAT STATE
     # =========================================================================
+    blocked, _ = is_session_blocked(session)
+    if blocked:
+        session.game_over = True
+
     if session.game_over:
         def generate_game_over():
             game_over_response = f"🎮 **GAME OVER**\n\n{session.game_over_reason}\n\n*Start a new game to try again.*"
@@ -1225,71 +1527,91 @@ def game_action_stream():
             mimetype='text/event-stream',
             headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
         )
+
+    # =========================================================================
+    # HOSTILE ACTION → STRUCTURED COMBAT (before narrator)
+    # =========================================================================
+    hostile = try_hostile_combat_gate(session, action)
+    if hostile:
+        def generate_hostile_combat():
+            session.messages.append({
+                'type': 'dm',
+                'content': hostile['message'],
+                'timestamp': datetime.now().isoformat(),
+            })
+            yield safe_json_sse({'type': 'chunk', 'content': hostile['message']})
+            yield safe_json_sse({'type': 'combat', 'enemies': hostile.get('enemies', [])})
+            yield safe_json_sse({'type': 'done', 'game_state': session.to_dict()})
+
+        return Response(
+            stream_with_context(generate_hostile_combat()),
+            mimetype='text/event-stream',
+            headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+        )
     
     # =========================================================================
-    # PHASE 1: ARBITER - Determine if skill check is needed (BEFORE narrator)
+    # PHASE 1: ARBITER + SCENE RULES (BEFORE narrator)
     # =========================================================================
     context_for_arbiter = f"Location: {session.current_location or 'Unknown'}"
     if session.quest_manager:
         active_quests = session.quest_manager.get_active_quests()
         if active_quests:
             context_for_arbiter += f"\nActive quests: {', '.join(q.name for q in active_quests)}"
-    
-    arbiter_decision = get_arbiter_decision(action, context_for_arbiter)
-    arbiter_roll_result = None
-    is_social_check = arbiter_decision.action_type == "social" and arbiter_decision.requires_roll
-    
-    # Check for blocked social retry BEFORE rolling
-    if is_social_check:
-        social_blocked, social_block_reason = session.is_social_retry_blocked(
-            npc_context=context_for_arbiter,
-            skill=arbiter_decision.skill
+
+    turn = prepare_action_turn(session, action, context_for_arbiter)
+    arbiter_roll_result = turn["arbiter_roll_result"]
+    scene_action = turn["scene_action"]
+    arbiter_no_roll = turn["arbiter_no_roll"]
+
+    if arbiter_roll_result:
+        ad = turn["arbiter_decision"]
+        print(
+            f"   🎲 Arbiter ({ad.source}): {arbiter_roll_result['skill']} "
+            f"DC {arbiter_roll_result['dc']} = {arbiter_roll_result['total']} "
+            f"({'✓' if arbiter_roll_result['success'] else '✗'})"
         )
-        if social_blocked:
-            if social_block_reason == "same_approach":
-                block_response = "*You consider pressing the same point again, but something in the NPC's expression tells you it would be futile. They've made their position clear, and repeating yourself would only damage what rapport remains.*\n\nPerhaps try a different approach, or accept the situation as it stands."
-            elif social_block_reason == "npc_hostile":
-                block_response = "*You move to speak, but the person pointedly turns away from you. Whatever chance you had with them has passed. Their body language makes it abundantly clear: this conversation is over.*\n\nYou'll need to find another way forward."
-            else:
-                block_response = "You cannot proceed with this action."
-            
-            def generate_blocked():
-                yield f"data: {json.dumps({'type': 'chunk', 'content': block_response}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'blocked', 'reason': social_block_reason}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over}, ensure_ascii=False)}\n\n"
-            
-            return Response(
-                stream_with_context(generate_blocked()),
-                mimetype='text/event-stream',
-                headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
-            )
-    
-    if arbiter_decision.requires_roll and session.character:
-        # Roll the skill check BEFORE calling the narrator
-        result = roll_skill_check(session.character, arbiter_decision.skill, arbiter_decision.dc)
-        arbiter_roll_result = {
-            'skill': result['skill'],
-            'roll': result['roll'],
-            'modifier': result['modifier'],
-            'total': result['total'],
-            'dc': arbiter_decision.dc,
-            'success': result['success'],
-            'is_nat_20': result.get('is_nat_20', False),
-            'is_nat_1': result.get('is_nat_1', False),
-            'formatted': format_roll_result(result),
-            'source': arbiter_decision.source,
-            'action_type': arbiter_decision.action_type
-        }
-        print(f"   🎲 Arbiter ({arbiter_decision.source}): {arbiter_roll_result['skill']} DC {arbiter_roll_result['dc']} = {arbiter_roll_result['total']} ({'✓' if arbiter_roll_result['success'] else '✗'})")
-        
-        # Track social check failures
-        if is_social_check and not arbiter_roll_result['success']:
-            failure_info = session.record_social_failure(
-                npc_context=context_for_arbiter,
-                skill=arbiter_decision.skill
-            )
-            print(f"   ⚠️ Social failure recorded ({failure_info['failures']}/{failure_info['max_failures']})")
-    
+    if turn.get("social_failure_info"):
+        info = turn["social_failure_info"]
+        print(f"   ⚠️ Social failure recorded ({info['failures']}/{info['max_failures']})")
+
+    if turn.get("deterministic_response"):
+        det = turn["deterministic_response"]
+
+        def generate_deterministic():
+            session.messages.append({
+                "type": "dm",
+                "content": det,
+                "timestamp": datetime.now().isoformat(),
+            })
+            yield safe_json_sse({"type": "chunk", "content": det})
+            yield safe_json_sse({"type": "done", "game_state": session.to_dict()})
+
+        return Response(
+            stream_with_context(generate_deterministic()),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    if turn["social_blocked"]:
+        social_block_reason = turn["social_block_reason"]
+        if social_block_reason == "same_approach":
+            block_response = "*You consider pressing the same point again, but something in the NPC's expression tells you it would be futile. They've made their position clear, and repeating yourself would only damage what rapport remains.*\n\nPerhaps try a different approach, or accept the situation as it stands."
+        elif social_block_reason == "npc_hostile":
+            block_response = "*You move to speak, but the person pointedly turns away from you. Whatever chance you had with them has passed. Their body language makes it abundantly clear: this conversation is over.*\n\nYou'll need to find another way forward."
+        else:
+            block_response = "You cannot proceed with this action."
+
+        def generate_blocked():
+            yield safe_json_sse({"type": "chunk", "content": block_response})
+            yield safe_json_sse({"type": "blocked", "reason": social_block_reason})
+            yield safe_json_sse({"type": "done", "game_state": session.to_dict()})
+
+        return Response(
+            stream_with_context(generate_blocked()),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     def generate():
         # raw_narration keeps the narrator's UNFILTERED text (with control tags)
         # for mechanics parsing. display_parts is what the player actually sees
@@ -1305,7 +1627,13 @@ def game_action_stream():
 
             # Stream the DM response (with pre-roll result if applicable),
             # filtering out any control tags before they reach the player.
-            for chunk in stream_dm_response(session, action, pre_roll_result=arbiter_roll_result):
+            for chunk in stream_dm_response(
+                session,
+                action,
+                pre_roll_result=arbiter_roll_result,
+                scene_action=scene_action,
+                arbiter_no_roll=arbiter_no_roll,
+            ):
                 raw_narration.append(chunk)
                 visible = tag_filter.feed(chunk)
                 if visible:
@@ -1324,21 +1652,21 @@ def game_action_stream():
             # Graceful fallback: empty narration, leaked-only tag, or a tiny setup
             # line that never describes the roll outcome (common perception-check bug).
             needs_fallback = not clean_narration
-            if arbiter_roll_result and clean_narration and len(clean_narration) < 100:
+            if arbiter_roll_result and is_weak_roll_narration(clean_narration, arbiter_roll_result):
                 needs_fallback = True
             if needs_fallback:
                 if arbiter_roll_result:
-                    fallback_text = build_post_roll_narration_fallback(arbiter_roll_result)
+                    fallback_text = build_roll_outcome_narration(
+                        session, action, arbiter_roll_result
+                    )
                 else:
                     fallback_text = "The Dungeon Master pauses. *What would you like to do?*"
                 display_parts.append(fallback_text)
                 yield safe_json_sse({'type': 'chunk', 'content': fallback_text})
 
-            # Use arbiter roll result if available, otherwise check narrator's response
             roll_result = arbiter_roll_result
 
-            # If arbiter didn't require a roll, check if narrator requested one (fallback)
-            if not roll_result:
+            if not roll_result and not arbiter_no_roll:
                 skill, dc = parse_roll_request(narrator_text)
                 if skill and dc and session.character:
                     result = roll_skill_check(session.character, skill, dc)
@@ -1466,6 +1794,15 @@ def game_action_stream():
                     yield safe_json_sse({'type': 'quest_accepted', 'quest_id': quest_id, 'quest': quest.to_dict()})
                     yield safe_json_sse({'type': 'chunk', 'content': quest_text})
                     print(f"   📜 Quest accepted: {quest.name}")
+
+            if session.scenario:
+                session.scenario.record_exchange()
+            transition = apply_scenario_transition(session, action, dm_response)
+            if transition:
+                transition_text = f"\n\n{transition}"
+                display_parts.append(transition_text)
+                yield safe_json_sse({'type': 'chunk', 'content': transition_text})
+                yield safe_json_sse({'type': 'transition', 'message': transition})
 
             # Record the player-facing transcript (control tags already stripped)
             session.messages.append({
@@ -1609,7 +1946,11 @@ def save_game():
     """Save the current game."""
     data = request.get_json() or {}
     session_id = data.get('session_id')
-    save_name = data.get('name', 'quicksave')
+    save_name = data.get('name')
+    if not save_name and data.get('slot') is not None:
+        save_name = f"slot_{data.get('slot')}"
+    if not save_name:
+        save_name = 'quicksave'
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -1633,61 +1974,128 @@ def save_game():
     if not save_name:
         save_name = 'quicksave'
     
-    # Create save data
-    save_data = {
-        'session_id': session.session_id,
-        'character': session._serialize_character(),
-        'messages': session.messages,
-        'current_location': session.current_location,
-        'in_combat': session.in_combat,
-        'saved_at': datetime.now().isoformat()
-    }
+    if not session.character:
+        return jsonify({'error': 'No character to save'}), 400
     
-    # Save to file
+    slot_num = data.get('slot')
+    if slot_num is None and save_name.startswith('slot_'):
+        try:
+            slot_num = int(save_name.replace('slot_', ''))
+        except ValueError:
+            slot_num = None
+    
     saves_dir = os.path.join(os.path.dirname(__file__), '..', 'saves')
     os.makedirs(saves_dir, exist_ok=True)
+    save_manager = SaveManager(saves_dir)
     
-    save_path = os.path.join(saves_dir, f"{save_name}.json")
-    with open(save_path, 'w') as f:
-        json.dump(save_data, f, indent=2)
+    filepath, message = save_manager.save_game(
+        session.character,
+        scenario_manager=session.scenario,
+        quest_manager=session.quest_manager,
+        chat_history=session.messages,
+        slot=slot_num,
+        description=data.get('description', ''),
+        party=session.party,
+        session_state=serialize_session_state(session),
+    )
+    
+    if not filepath:
+        return jsonify({'success': False, 'error': message}), 500
     
     return jsonify({
         'success': True,
-        'message': f'Game saved as {save_name}',
-        'save_path': save_path
+        'message': message,
+        'save_path': filepath,
+        'name': os.path.basename(filepath)[:-5],
     })
+
+
+def _resolve_save_path(saves_dir: str, save_name: str) -> str:
+    """Resolve save name or filepath to an absolute path."""
+    if os.path.isabs(save_name) and os.path.exists(save_name):
+        return save_name
+    if save_name.endswith('.json'):
+        if os.path.dirname(save_name):
+            return save_name
+        save_name = save_name[:-5]
+    path = os.path.join(saves_dir, f"{save_name}.json")
+    if os.path.exists(path):
+        return path
+    import re
+    slot_match = re.match(r'slot_(\d+)$', save_name)
+    if slot_match:
+        slot_suffix = f"_slot{slot_match.group(1)}.json"
+        for filename in os.listdir(saves_dir):
+            if filename.endswith(slot_suffix):
+                return os.path.join(saves_dir, filename)
+    return path
 
 
 @app.route('/api/game/load', methods=['POST'])
 def load_game():
     """Load a saved game."""
     data = request.get_json() or {}
-    save_name = data.get('name', 'quicksave')
+    save_name = data.get('name') or data.get('filepath')
+    if not save_name:
+        save_name = 'quicksave'
     
     saves_dir = os.path.join(os.path.dirname(__file__), '..', 'saves')
-    save_path = os.path.join(saves_dir, f"{save_name}.json")
+    save_path = _resolve_save_path(saves_dir, save_name)
     
     if not os.path.exists(save_path):
         return jsonify({'error': 'Save not found'}), 404
     
-    with open(save_path, 'r') as f:
+    with open(save_path, 'r', encoding='utf-8') as f:
         save_data = json.load(f)
     
-    # Restore session
-    session_id = save_data.get('session_id', str(uuid.uuid4()))
-    session = get_or_create_session(session_id)
+    session_id = str(uuid.uuid4())
+    with session_lock:
+        session = GameSession(session_id)
+        game_sessions[session_id] = session
     
-    # Restore character
-    if save_data.get('character'):
-        session.character = Character.from_dict(save_data['character'])
+    session.dm_chat = None
+    session.failed_social_checks = 0
+    session.social_check_blocked_npcs = set()
     
-    session.messages = save_data.get('messages', [])
-    session.current_location = save_data.get('current_location', 'Village Square')
-    session.in_combat = save_data.get('in_combat', False)
+    if is_thin_legacy_save(save_data):
+        session.scenario = ScenarioManager()
+        session.npc_manager = NPCManager()
+        session.quest_manager = QuestManager()
+        session.party = Party()
+        session.location_manager = LocationManager()
+        session.combat_state = None
+        session.game_over = False
+        
+        if save_data.get('character'):
+            session.character = Character.from_dict(save_data['character'])
+        session.messages = save_data.get('messages', [])
+        session.current_location = save_data.get('current_location', 'Village Square')
+        session.current_location_id = save_data.get('current_location_id')
+        session.in_combat = save_data.get('in_combat', False)
+        if session.in_combat and save_data.get('combat_state'):
+            session.combat_state = save_data.get('combat_state')
+    else:
+        save_manager = SaveManager(saves_dir)
+        quest_manager = QuestManager()
+        result = save_manager.load_game(
+            save_path, Character, ScenarioManager, quest_manager, Party
+        )
+        if not result or not result.get('character'):
+            return jsonify({'error': 'Failed to load save data'}), 500
+        
+        session.character = result['character']
+        session.messages = result.get('chat_history', [])
+        session.scenario = result.get('scenario_manager') or ScenarioManager()
+        session.quest_manager = quest_manager
+        session.party = result.get('party') or Party()
+        session.npc_manager = NPCManager()
+        session.location_manager = LocationManager()
+        sync_session_from_scenario(session)
+        restore_session_state(session, result.get('session_state'))
     
     return jsonify({
         'success': True,
-        'message': f'Game loaded from {save_name}',
+        'message': f'Game loaded from {os.path.basename(save_path)}',
         'session_id': session.session_id,
         'game_state': session.to_dict()
     })
@@ -1701,25 +2109,35 @@ def list_saves():
     if not os.path.exists(saves_dir):
         return jsonify({'success': True, 'saves': []})
     
-    saves = []
-    for filename in os.listdir(saves_dir):
-        if filename.endswith('.json'):
-            save_path = os.path.join(saves_dir, filename)
-            try:
-                with open(save_path, 'r') as f:
-                    save_data = json.load(f)
-                saves.append({
-                    'name': filename[:-5],  # Remove .json
-                    'saved_at': save_data.get('saved_at'),
-                    'character_name': save_data.get('character', {}).get('name', 'Unknown')
-                })
-            except:
-                pass
+    save_manager = SaveManager(saves_dir)
+    saves, _errors = save_manager.list_saves()
+    seen_paths = {s['filepath'] for s in saves}
     
-    return jsonify({
-        'success': True,
-        'saves': saves
-    })
+    for filename in os.listdir(saves_dir):
+        if not filename.endswith('.json') or filename.startswith('save_'):
+            continue
+        save_path = os.path.join(saves_dir, filename)
+        if save_path in seen_paths:
+            continue
+        try:
+            with open(save_path, 'r', encoding='utf-8') as f:
+                save_data = json.load(f)
+            char = save_data.get('character', {})
+            saves.append({
+                'filename': filename,
+                'name': filename[:-5],
+                'filepath': save_path,
+                'timestamp': save_data.get('saved_at') or save_data.get('timestamp', ''),
+                'character_name': char.get('name', 'Unknown'),
+                'character_class': char.get('char_class') or char.get('class', 'Adventurer'),
+                'character_level': char.get('level', 1),
+                'description': save_data.get('description', ''),
+            })
+        except Exception:
+            pass
+    
+    saves.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+    return jsonify({'success': True, 'saves': saves})
 
 
 @app.route('/api/classes', methods=['GET'])
@@ -1856,84 +2274,45 @@ def travel():
             'error': 'Cannot travel during combat! Defeat enemies or flee first.',
             'in_combat': True
         }), 400
-    
-    if not session.location_manager:
-        # Fallback for free adventure mode (no structured locations)
-        old_location = session.current_location
-        session.current_location = destination.title()
-        
-        travel_msg = f"📍 You travel to **{session.current_location}**."
-        session.messages.append({
-            'type': 'dm',
-            'content': travel_msg,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        return jsonify({
-            'success': True,
-            'message': travel_msg,
-            'new_location': session.current_location,
-            'old_location': old_location
-        })
-    
-    # Use location manager for structured scenarios
-    game_state = {
-        'character': session.character,
-        'inventory': session.character.inventory if session.character else [],
-        'visited_locations': [loc.id for loc in session.location_manager.locations.values() if loc.visited]
-    }
-    
-    success, new_location, message, events = session.location_manager.move(destination, game_state)
-    
-    if success and new_location:
-        session.current_location = new_location.name
-        session.current_location_id = new_location.id
-        
-        # Update quest objectives for location entry
-        quest_updates = []
-        if session.quest_manager:
-            completed = session.quest_manager.on_location_entered(new_location.id)
-            for quest_id, objective in completed:
-                quest = session.quest_manager.get_quest(quest_id)
-                if quest:
-                    quest_updates.append({
-                        'quest_id': quest_id,
-                        'objective_id': objective.id,
-                        'quest': quest.to_dict()
-                    })
-        
-        # Build travel narration
-        travel_msg = f"📍 You travel to **{new_location.name}**.\n\n{new_location.description}"
-        
-        # Add any triggered events
-        if events:
-            for event in events:
-                travel_msg += f"\n\nâš¡ {event.narration}"
-        
-        session.messages.append({
-            'type': 'dm',
-            'content': travel_msg,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        return jsonify({
-            'success': True,
-            'message': travel_msg,
-            'new_location': {
-                'id': new_location.id,
-                'name': new_location.name,
-                'description': new_location.description,
-                'exits': list(session.location_manager.get_exits().keys())
-            },
-            'events': [e.to_dict() for e in events],
-            'quest_updates': quest_updates,
-            'game_state': session.to_dict()
-        })
-    else:
+
+    blocked, block_reason = is_session_blocked(session)
+    if blocked:
         return jsonify({
             'success': False,
-            'message': message or "You cannot go that way."
+            'message': block_reason,
+            'game_over': True,
+            'game_state': session.to_dict(),
+        }), 400
+
+    result = process_travel(session, destination)
+
+    if result.get('success'):
+        session.messages.append({
+            'type': 'dm',
+            'content': result['message'],
+            'timestamp': datetime.now().isoformat(),
         })
+        payload = {
+            'success': True,
+            'message': result['message'],
+            'new_location': result.get('new_location'),
+            'events': result.get('events', []),
+            'quest_updates': result.get('quest_updates', []),
+            'in_combat': session.in_combat,
+            'combat_started': result.get('combat_started', False),
+            'game_over': session.game_over,
+            'game_state': session.to_dict(),
+        }
+        if session.game_over:
+            payload['game_over_reason'] = session.game_over_reason
+        return jsonify(payload)
+
+    return jsonify({
+        'success': False,
+        'message': result.get('message') or "You cannot go that way.",
+        'game_over': result.get('game_over', False),
+        'game_state': session.to_dict() if session.game_over else None,
+    })
 
 
 # =============================================================================
@@ -1949,49 +2328,17 @@ def combat_status():
         return jsonify({'error': 'Invalid session'}), 400
     
     session = game_sessions[session_id]
-    
-    if not session.in_combat:
-        return jsonify({
-            'success': True,
-            'in_combat': False,
-            'message': 'Not in combat'
-        })
-    
-    # Get enemy statuses
-    enemies_status = []
-    if session.combat_state and 'enemy_objects' in session.combat_state:
-        for enemy in session.combat_state['enemy_objects']:
-            enemies_status.append({
-                'name': enemy.name,
-                'current_hp': enemy.current_hp,
-                'max_hp': enemy.max_hp,
-                'is_dead': enemy.is_dead,
-                'status': enemy.get_status()
-            })
-    
-    return jsonify({
-        'success': True,
-        'in_combat': True,
-        'round': session.combat_state.get('round', 1),
-        'surprise': session.combat_state.get('surprise', False),
-        'enemies': enemies_status,
-        'player_hp': session.character.current_hp if session.character else 0,
-        'player_max_hp': session.character.max_hp if session.character else 0
-    })
+    return jsonify(build_combat_status_payload(session))
 
 
 @app.route('/api/combat/attack', methods=['POST'])
 def combat_attack():
     """Player attacks an enemy."""
-    from combat import (
-        create_enemy, roll_attack, roll_attack_with_advantage, roll_damage,
-        format_attack_result, format_damage_result, enemy_attack, format_enemy_attack,
-        get_enemy_loot_for_class
-    )
+    from combat import roll_attack, roll_attack_with_advantage, roll_damage, format_attack_result, format_damage_result
     
     data = request.get_json() or {}
     session_id = data.get('session_id')
-    target_index = data.get('target', 0)
+    target_index = data.get('target', data.get('target_index', 0))
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -2004,15 +2351,7 @@ def combat_attack():
     if not session.character:
         return jsonify({'error': 'No character'}), 400
     
-    # Initialize enemy objects if not done
-    if 'enemy_objects' not in session.combat_state:
-        session.combat_state['enemy_objects'] = []
-        for enemy_type in session.combat_state.get('enemies', []):
-            enemy = create_enemy(enemy_type.lower().replace(' ', '_'))
-            if enemy:
-                session.combat_state['enemy_objects'].append(enemy)
-    
-    enemies = session.combat_state['enemy_objects']
+    enemies = ensure_combat_enemies(session)
     living_enemies = [e for e in enemies if not e.is_dead]
     
     if not living_enemies:
@@ -2021,24 +2360,21 @@ def combat_attack():
             'success': True,
             'combat_over': True,
             'victory': True,
-            'message': '🎉 Victory! All enemies defeated!'
+            'message': '🎉 Victory! All enemies defeated!',
+            'game_state': session.to_dict(),
+            'combat_status': build_combat_status_payload(session),
         })
     
+    try:
+        target_index = int(target_index)
+    except (TypeError, ValueError):
+        target_index = 0
     if target_index >= len(living_enemies):
         target_index = 0
     target = living_enemies[target_index]
     
-    # Get equipped weapon (or fallback to first weapon in inventory)
-    weapon_name = 'longsword'
-    if session.character.weapon:
-        weapon_name = session.character.weapon.lower().replace(' ', '_')
-    elif session.character.inventory:
-        for item in session.character.inventory:
-            if hasattr(item, 'damage_dice') and item.damage_dice:
-                weapon_name = item.name.lower().replace(' ', '_')
-                break
+    weapon_name = resolve_weapon_key(session.character)
     
-    # Roll attack
     has_surprise = session.combat_state.get('surprise', False) and session.combat_state.get('round', 1) == 1
     if has_surprise:
         attack = roll_attack_with_advantage(session.character, target.armor_class, weapon_name)
@@ -2057,50 +2393,45 @@ def combat_attack():
         result_messages.append(status_msg)
         target_killed = target.is_dead
         
-        # Track quest objective for killed enemies
         if target_killed and session.quest_manager:
-            enemy_id = target.enemy_type if hasattr(target, 'enemy_type') else target.name.lower().replace(' ', '_')
-            completed = session.quest_manager.on_enemy_killed(enemy_id)
-            for quest_id, obj in completed:
-                result_messages.append(f"📜 Quest Objective Complete: {obj.description}")
+            for enemy_id in quest_kills_for_enemy(target):
+                completed = session.quest_manager.on_enemy_killed(enemy_id)
+                for quest_id, obj in completed:
+                    result_messages.append(f"📜 Quest Objective Complete: {obj.description}")
     
     living_enemies = [e for e in enemies if not e.is_dead]
     combat_over = len(living_enemies) == 0
-    
     rewards = {'xp': 0, 'gold': 0, 'items': []}
+    
     if combat_over:
         session.in_combat = False
         result_messages.append("\n🎉 **VICTORY!**")
-        for enemy in enemies:
-            rewards['xp'] += enemy.xp_reward
-            rewards['gold'] += enemy.gold_drop
-        if rewards['xp'] > 0:
-            session.character.gain_xp(rewards['xp'], "combat victory")
-            result_messages.append(f"⭐ Gained {rewards['xp']} XP!")
-        if rewards['gold'] > 0:
-            session.character.gold += rewards['gold']
-            result_messages.append(f"💰 Looted {rewards['gold']} gold!")
+        rewards = apply_combat_victory(session, enemies, result_messages)
     else:
-        result_messages.append("\n--- Enemy Turn ---")
-        for enemy in living_enemies:
-            enemy_atk, enemy_dmg = enemy_attack(enemy, session.character.armor_class)
-            result_messages.append(format_enemy_attack(enemy_atk, enemy_dmg))
-            if enemy_dmg:
-                session.character.current_hp -= enemy_dmg['total']
-                if session.character.current_hp <= 0:
-                    session.character.current_hp = 0
-                    session.in_combat = False
-                    result_messages.append("\n💀 **DEFEAT!**")
-                    return jsonify({
-                        'success': True,
-                        'combat_over': True,
-                        'victory': False,
-                        'player_died': True,
-                        'message': '\n'.join(result_messages),
-                        'game_state': session.to_dict()
-                    })
-        session.combat_state['round'] = session.combat_state.get('round', 1) + 1
+        living_enemies = run_party_ally_attacks(session, living_enemies, result_messages)
+        living_enemies = [e for e in enemies if not e.is_dead]
+        if len(living_enemies) == 0:
+            combat_over = True
+            session.in_combat = False
+            result_messages.append("\n🎉 **VICTORY!**")
+            rewards = apply_combat_victory(session, enemies, result_messages)
+        elif run_enemy_turn(session, living_enemies, result_messages):
+            on_player_defeat(session, "You have fallen in battle.")
+            result_messages.append("\n💀 **DEFEAT!**")
+            return jsonify({
+                'success': True,
+                'combat_over': True,
+                'victory': False,
+                'player_died': True,
+                'game_over': True,
+                'message': '\n'.join(result_messages),
+                'game_state': session.to_dict(),
+                'combat_status': build_combat_status_payload(session),
+            })
+        else:
+            session.combat_state['round'] = session.combat_state.get('round', 1) + 1
     
+    combat_payload = build_combat_status_payload(session)
     return jsonify({
         'success': True,
         'hit': attack['hit'],
@@ -2109,17 +2440,18 @@ def combat_attack():
         'combat_over': combat_over,
         'victory': combat_over,
         'rewards': rewards if combat_over else None,
-        'enemies': [{'name': e.name, 'hp': e.current_hp, 'max_hp': e.max_hp, 'dead': e.is_dead} for e in enemies],
+        'enemies': combat_payload.get('enemies', []),
         'player_hp': session.character.current_hp,
         'message': '\n'.join(result_messages),
-        'game_state': session.to_dict()
+        'game_state': session.to_dict(),
+        'combat_status': combat_payload,
     })
 
 
 @app.route('/api/combat/defend', methods=['POST'])
 def combat_defend():
     """Player takes defensive action."""
-    from combat import enemy_attack, format_enemy_attack, create_enemy
+    from combat import enemy_attack, format_enemy_attack
     
     data = request.get_json() or {}
     session_id = data.get('session_id')
@@ -2132,44 +2464,48 @@ def combat_defend():
     if not session.in_combat:
         return jsonify({'error': 'Not in combat'}), 400
     
-    if 'enemy_objects' not in session.combat_state:
-        session.combat_state['enemy_objects'] = []
-        for enemy_type in session.combat_state.get('enemies', []):
-            enemy = create_enemy(enemy_type.lower().replace(' ', '_'))
-            if enemy:
-                session.combat_state['enemy_objects'].append(enemy)
-    
-    enemies = session.combat_state['enemy_objects']
+    enemies = ensure_combat_enemies(session)
     living_enemies = [e for e in enemies if not e.is_dead]
     
     result_messages = ["🛡️ You take a defensive stance (+2 AC, half damage)"]
     boosted_ac = session.character.armor_class + 2
     
-    for enemy in living_enemies:
-        enemy_atk, enemy_dmg = enemy_attack(enemy, boosted_ac)
-        result_messages.append(format_enemy_attack(enemy_atk, enemy_dmg))
-        if enemy_dmg:
-            reduced_damage = max(1, enemy_dmg['total'] // 2)
-            session.character.current_hp -= reduced_damage
-            result_messages.append(f"   (Reduced to {reduced_damage} damage)")
-            if session.character.current_hp <= 0:
-                session.character.current_hp = 0
-                session.in_combat = False
-                return jsonify({
-                    'success': True,
-                    'combat_over': True,
-                    'player_died': True,
-                    'message': '\n'.join(result_messages),
-                    'game_state': session.to_dict()
-                })
+    surprise = (
+        session.combat_state.get('surprise', False)
+        and session.combat_state.get('round', 1) == 1
+    )
+    if surprise:
+        result_messages.append('\n⚡ Enemies are surprised and cannot act this round!')
+    else:
+        for enemy in living_enemies:
+            enemy_atk, enemy_dmg = enemy_attack(enemy, boosted_ac)
+            result_messages.append(format_enemy_attack(enemy_atk, enemy_dmg))
+            if enemy_dmg:
+                reduced_damage = max(1, enemy_dmg['total'] // 2)
+                result_messages.append(f"   (Reduced to {reduced_damage} damage)")
+                _, defeated = apply_player_damage(
+                    session, reduced_damage, enemy.name
+                )
+                if defeated:
+                    return jsonify({
+                        'success': True,
+                        'combat_over': True,
+                        'player_died': True,
+                        'game_over': True,
+                        'message': '\n'.join(result_messages),
+                        'game_state': session.to_dict(),
+                        'combat_status': build_combat_status_payload(session),
+                    })
     
     session.combat_state['round'] = session.combat_state.get('round', 1) + 1
+    combat_payload = build_combat_status_payload(session)
     
     return jsonify({
         'success': True,
         'message': '\n'.join(result_messages),
         'player_hp': session.character.current_hp,
-        'game_state': session.to_dict()
+        'game_state': session.to_dict(),
+        'combat_status': combat_payload,
     })
 
 
@@ -2190,14 +2526,7 @@ def combat_flee():
     if not session.in_combat:
         return jsonify({'error': 'Not in combat'}), 400
     
-    if 'enemy_objects' not in session.combat_state:
-        session.combat_state['enemy_objects'] = []
-        for enemy_type in session.combat_state.get('enemies', []):
-            enemy = create_enemy(enemy_type.lower().replace(' ', '_'))
-            if enemy:
-                session.combat_state['enemy_objects'].append(enemy)
-    
-    enemies = session.combat_state['enemy_objects']
+    enemies = ensure_combat_enemies(session)
     living_enemies = [e for e in enemies if not e.is_dead]
     
     dex_mod = session.character.get_ability_modifier('dexterity')
@@ -2216,26 +2545,23 @@ def combat_flee():
             'fled': True,
             'combat_over': True,
             'message': '\n'.join(result_messages),
-            'game_state': session.to_dict()
+            'game_state': session.to_dict(),
+            'combat_status': build_combat_status_payload(session),
         })
     
     result_messages.append("❌ Failed! Enemies attack...")
-    for enemy in living_enemies:
-        enemy_atk, enemy_dmg = enemy_attack(enemy, session.character.armor_class)
-        result_messages.append(format_enemy_attack(enemy_atk, enemy_dmg))
-        if enemy_dmg:
-            session.character.current_hp -= enemy_dmg['total']
-            if session.character.current_hp <= 0:
-                session.character.current_hp = 0
-                session.in_combat = False
-                return jsonify({
-                    'success': True,
-                    'fled': False,
-                    'combat_over': True,
-                    'player_died': True,
-                    'message': '\n'.join(result_messages),
-                    'game_state': session.to_dict()
-                })
+    if run_enemy_turn(session, living_enemies, result_messages):
+        on_player_defeat(session, "You were cut down while trying to flee.")
+        return jsonify({
+            'success': True,
+            'fled': False,
+            'combat_over': True,
+            'player_died': True,
+            'game_over': True,
+            'message': '\n'.join(result_messages),
+            'game_state': session.to_dict(),
+            'combat_status': build_combat_status_payload(session),
+        })
     
     session.combat_state['round'] = session.combat_state.get('round', 1) + 1
     return jsonify({
@@ -2243,7 +2569,8 @@ def combat_flee():
         'fled': False,
         'combat_over': False,
         'message': '\n'.join(result_messages),
-        'game_state': session.to_dict()
+        'game_state': session.to_dict(),
+        'combat_status': build_combat_status_payload(session),
     })
 
 
@@ -2300,6 +2627,15 @@ def character_rest():
     
     if session.in_combat:
         return jsonify({'success': False, 'message': "Can't rest in combat!"})
+
+    blocked, block_reason = is_session_blocked(session)
+    if blocked:
+        return jsonify({
+            'success': False,
+            'message': block_reason or "You cannot rest now.",
+            'game_over': True,
+            'game_state': session.to_dict(),
+        })
     
     if session.character.current_hp >= session.character.max_hp:
         return jsonify({'success': False, 'message': "Already at full health!"})
@@ -2313,6 +2649,8 @@ def character_rest():
         old_hp = session.character.current_hp
         session.character.current_hp = session.character.max_hp
         session.combat_state['hit_dice_remaining'] = session.character.level
+        if session.party:
+            session.party.rest_all()
         return jsonify({
             'success': True,
             'rest_type': 'long',
@@ -2326,7 +2664,8 @@ def character_rest():
         return jsonify({'success': False, 'message': "No hit dice remaining!"})
     
     session.combat_state['hit_dice_remaining'] -= 1
-    heal_roll, _ = roll_dice("1d6")
+    hit_die = get_class_hit_die(session.character.char_class)
+    heal_roll, _ = roll_dice(f"1d{hit_die}")
     con_mod = session.character.get_ability_modifier('constitution')
     total_heal = max(1, heal_roll + con_mod)
     
@@ -2413,7 +2752,8 @@ def inventory_equip():
     elif item.item_type == ItemType.ARMOR:
         session.character.equipped_armor = item.name
         if item.ac_bonus:
-            session.character.armor_class = 10 + item.ac_bonus
+            dex_mod = session.character.get_ability_modifier('dexterity')
+            session.character.armor_class = 10 + dex_mod + item.ac_bonus
         return jsonify({
             'success': True,
             'message': f"🛡️ Equipped {item.name}!",
@@ -2445,7 +2785,7 @@ def shop_browse():
     for shop_item in shop.inventory:
         item = get_item(shop_item.item_id)
         if item and shop_item.is_in_stock():
-            price = calculate_buy_price(item, shop.markup, shop_item.base_markup, 1.0)
+            price = calculate_buy_price(item.value, shop.markup, shop_item.base_markup, 1.0)
             items.append({
                 'id': shop_item.item_id,
                 'name': item.name,
@@ -2468,7 +2808,7 @@ def shop_buy():
     
     data = request.get_json() or {}
     session_id = data.get('session_id')
-    item_id = data.get('item_id', '').strip()
+    item_id = (data.get('item_id') or data.get('item_name', '')).strip()
     quantity = data.get('quantity', 1)
     
     if not session_id or session_id not in game_sessions:
@@ -2478,6 +2818,9 @@ def shop_buy():
     
     if not session.character:
         return jsonify({'error': 'No character'}), 400
+    
+    if not item_id:
+        return jsonify({'error': 'item_id is required'}), 400
     
     # Validate quantity (prevents negative/invalid values)
     if not isinstance(quantity, int) or quantity <= 0:
@@ -2561,7 +2904,7 @@ def shop_sell():
     result = sell_item(
         character=session.character,
         shop=shop,
-        item_id=item.id,  # Use item.id not item_name
+        item_id=item_name,
         quantity=1,
         npc_disposition="neutral"
     )
@@ -2588,29 +2931,53 @@ def party_view():
     
     session = game_sessions[session_id]
     
-    if not session.party:
-        return jsonify({'success': True, 'members': []})
-    
+    from party import list_recruitable_npcs, get_recruitable_npc, can_attempt_recruitment
+
     members = []
-    for m in session.party.get_active_members():
-        members.append({
-            'id': m.id,
-            'name': m.name,
-            'class': m.member_class.value,
-            'hp': f"{m.current_hp}/{m.max_hp}"
-        })
+    available_recruits = []
+
+    if session.party:
+        for m in session.party.members:
+            members.append({
+                'id': m.id,
+                'name': m.name,
+                'class': m.char_class.value if hasattr(m.char_class, 'value') else str(m.char_class),
+                'hp': m.current_hp,
+                'max_hp': m.max_hp,
+            })
+
+        if not session.party.is_full and session.character:
+            for npc_key in list_recruitable_npcs():
+                template = get_recruitable_npc(npc_key)
+                if not template or session.party.get_member(template.id):
+                    continue
+                can_recruit, cond_results = can_attempt_recruitment(
+                    template, session.character, session.quest_manager
+                )
+                available_recruits.append({
+                    'npc_id': template.id,
+                    'name': template.name,
+                    'description': template.description,
+                    'can_recruit': can_recruit,
+                    'requirement': cond_results[0][0] if cond_results else '',
+                })
     
-    return jsonify({'success': True, 'members': members})
+    return jsonify({
+        'success': True,
+        'members': members,
+        'party': members,
+        'available_recruits': available_recruits,
+    })
 
 
 @app.route('/api/party/recruit', methods=['POST'])
 def party_recruit():
     """Recruit an NPC."""
-    from party import get_recruitable_npc, check_recruitment_condition, pay_recruitment_cost, Party
+    from party import get_recruitable_npc, can_attempt_recruitment, Party
     
     data = request.get_json() or {}
     session_id = data.get('session_id')
-    npc_id = data.get('npc_id', '').strip()
+    npc_id = (data.get('npc_id') or data.get('npc_name', '')).strip()
     
     if not session_id or session_id not in game_sessions:
         return jsonify({'error': 'Invalid session'}), 400
@@ -2623,31 +2990,48 @@ def party_recruit():
     if not session.party:
         session.party = Party()
     
-    if session.party.is_full:  # is_full is a property, not a method
+    if session.party.is_full:
         return jsonify({'success': False, 'message': 'Party is full!'})
     
     member = get_recruitable_npc(npc_id)
     if not member:
         return jsonify({'success': False, 'message': f"Can't recruit '{npc_id}'."})
     
-    game_state = {
-        'gold': session.character.gold,
-        'charisma_modifier': session.character.get_ability_modifier('charisma')
-    }
+    if session.party.get_member(member.id):
+        return jsonify({'success': False, 'message': f"{member.name} is already in your party."})
     
-    can_recruit, message, _ = check_recruitment_condition(member, game_state)
+    can_recruit, cond_results = can_attempt_recruitment(
+        member, session.character, session.quest_manager
+    )
     if not can_recruit:
-        return jsonify({'success': False, 'message': message})
+        hint = '; '.join(msg for _, _, msg in cond_results if msg)
+        return jsonify({'success': False, 'message': hint or 'Recruitment requirements not met.'})
     
-    pay_success, pay_message, _ = pay_recruitment_cost(member, session.character)
-    if not pay_success:
-        return jsonify({'success': False, 'message': pay_message})
-    
-    session.party.add_member(member)
+    from party import (
+        pay_recruitment_cost,
+        RecruitmentCondition,
+        check_recruitment_condition,
+    )
+
+    for cond_str in member.recruitment_conditions:
+        cond = RecruitmentCondition.parse(cond_str)
+        if not cond or cond.condition_type not in ("gold", "item"):
+            continue
+        met, _ = check_recruitment_condition(
+            cond, session.character, session.quest_manager
+        )
+        if met:
+            paid, pay_msg = pay_recruitment_cost(cond, session.character)
+            if not paid:
+                return jsonify({'success': False, 'message': pay_msg})
+
+    added, add_message = session.party.add_member(member)
+    if not added:
+        return jsonify({'success': False, 'message': add_message})
     
     return jsonify({
         'success': True,
-        'message': f"🎉 {member.name} joins your party!",
+        'message': add_message or f"🎉 {member.name} joins your party!",
         'game_state': session.to_dict()
     })
 
@@ -2699,24 +3083,34 @@ def quests_complete():
     if not session.quest_manager:
         return jsonify({'error': 'No quest system'}), 400
     
-    quest = session.quest_manager.get_quest(quest_id)
-    if not quest:
-        return jsonify({'success': False, 'message': 'Quest not found.'})
-    
-    if not quest.is_complete():
+    result = session.quest_manager.complete_quest(quest_id)
+    if not result:
+        quest = session.quest_manager.get_quest(quest_id)
+        if not quest:
+            return jsonify({'success': False, 'message': 'Quest not found.'})
         return jsonify({'success': False, 'message': 'Objectives not complete.'})
-    
-    quest.completed = True
-    
-    rewards = {'xp': 0, 'gold': 0}
-    if session.character and quest.rewards:
-        if quest.rewards.get('xp'):
-            session.character.gain_xp(quest.rewards['xp'], quest.name)
-            rewards['xp'] = quest.rewards['xp']
-        if quest.rewards.get('gold'):
-            session.character.gold += quest.rewards['gold']
-            rewards['gold'] = quest.rewards['gold']
-    
+
+    quest_rewards, completed_quest = result
+    rewards = {'xp': 0, 'gold': 0, 'items': []}
+
+    if session.character and quest_rewards:
+        if quest_rewards.get('xp'):
+            session.character.gain_xp(quest_rewards['xp'], completed_quest.name)
+            rewards['xp'] = quest_rewards['xp']
+        if quest_rewards.get('gold'):
+            session.character.gold += quest_rewards['gold']
+            rewards['gold'] = quest_rewards['gold']
+        for item_name in quest_rewards.get('items', []):
+            item = get_item(item_name)
+            if item:
+                add_item_to_inventory(session.character.inventory, item)
+                rewards['items'].append(item.name)
+
+    if session.npc_manager and completed_quest.giver_npc_id:
+        npc = session.npc_manager.get_npc(completed_quest.giver_npc_id)
+        if npc:
+            npc.modify_disposition(completed_quest.get_disposition_reward())
+
     return jsonify({
         'success': True,
         'rewards': rewards,
@@ -2846,7 +3240,7 @@ def api_info():
     """Return API info since we're not serving a frontend here."""
     return jsonify({
         'name': 'AI D&D RPG API',
-        'version': '1.0.0',
+        'version': '1.2.0',
         'status': 'running',
         'endpoints': {
             'health': '/api/health',

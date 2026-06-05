@@ -151,24 +151,28 @@ def check_code_overrides(action: str, context: str = "") -> Optional[ArbiterDeci
         )
     
     # =========================================================================
-    # SEARCHING / EXAMINING - ALWAYS REQUIRE ROLL
+    # SPECIFIC SEARCH / EXAMINATION - REQUIRE ROLL
+    # (Vague "look around" is handled by dm_scene — free survey, no roll)
     # =========================================================================
-    search_keywords = [
-        "search", "searching", "look around", "look for", "examine", "inspect",
-        "check for", "scan the", "investigate", "look closely", "peer at",
-        "what do i see", "what do i notice", "anything hidden", "look under"
+    specific_search_keywords = [
+        "search for", "look for", "examine", "inspect", "investigate",
+        "check for", "look under", "look behind", "look closely at",
+        "peer at", "peer into", "anything hidden", "hidden door",
+        "hidden trap", "secret ", "tracks", "eavesdrop", "listen in",
+        "listen closely", "study the", "scrutinize",
     ]
     
-    if any(w in action_lower for w in search_keywords):
-        # Investigation for specific object, Perception for general awareness
-        is_specific = any(w in action_lower for w in ["examine", "inspect", "investigate", "look closely"])
-        
+    if any(w in action_lower for w in specific_search_keywords):
+        is_specific = any(
+            w in action_lower
+            for w in ["examine", "inspect", "investigate", "study", "read"]
+        )
         return ArbiterDecision(
             action_type=ActionType.EXPLORATION.value,
             requires_roll=True,
             skill="Investigation" if is_specific else "Perception",
             dc=12,
-            reasoning="Searching/examining always requires a Perception or Investigation check",
+            reasoning="Specific search/examination requires a skill check",
             source="code_override"
         )
     
@@ -280,9 +284,10 @@ WHEN TO REQUIRE ROLLS:
 
 DC ADJUSTMENT FOR SOCIAL: If NPC is desperate/scared/friendly, use DC 8-10. Otherwise DC 12-15.
 
-🔍 EXPLORATION (ALWAYS roll):
-- Searching, looking around, examining → Perception or Investigation
-- Looking for hidden things, traps, secrets → Perception DC 12-15
+🔍 EXPLORATION:
+- Vague "look around" / get bearings at a NEW scene → NO ROLL (free description)
+- Repeat vague looking at same scene → NO ROLL (redirect to interact)
+- Specific search (look FOR, examine X, hidden, tracks, eavesdrop) → Perception or Investigation DC 12-15
 
 🥷 STEALTH (ALWAYS roll):
 - Sneaking, hiding, moving silently → Stealth
@@ -326,7 +331,7 @@ def get_arbiter_ai_decision(
     genai.configure(api_key=api_key)
     
     # Use a fast model for classification
-    model_name = os.getenv("GEMINI_ARBITER_MODEL", "gemini-2.0-flash-lite")
+    model_name = os.getenv("GEMINI_ARBITER_MODEL", os.getenv("GEMINI_MODEL", "gemini-2.0-flash"))
     
     try:
         model = genai.GenerativeModel(
@@ -436,18 +441,6 @@ def get_fallback_decision(action: str) -> ArbiterDecision:
             source="fallback"
         )
     
-    # Passive looking (just looking around, not searching) - context dependent
-    passive_look = ["what do i see", "look around", "take a look"]
-    if any(w in action_lower for w in passive_look):
-        return ArbiterDecision(
-            action_type=ActionType.EXPLORATION.value,
-            requires_roll=True,
-            skill="Perception",
-            dc=10,  # Low DC for casual observation
-            reasoning="Fallback: General observation",
-            source="fallback"
-        )
-    
     # Default: no roll needed (be less aggressive)
     return ArbiterDecision(
         action_type=ActionType.OTHER.value,
@@ -462,9 +455,10 @@ def get_fallback_decision(action: str) -> ArbiterDecision:
 # =============================================================================
 
 def get_arbiter_decision(
-    action: str, 
+    action: str,
     context: str = "",
-    use_ai: bool = True
+    use_ai: bool = True,
+    scene_context: str = "",
 ) -> ArbiterDecision:
     """
     Main entry point: Determine if a player action requires a skill check.
@@ -482,15 +476,22 @@ def get_arbiter_decision(
     Returns:
         ArbiterDecision with skill check requirements
     """
+    full_context = context
+    if scene_context:
+        full_context = f"{context}\n{scene_context}" if context else scene_context
+
     # Layer 1: Code overrides
-    override = check_code_overrides(action, context)
+    override = check_code_overrides(action, full_context)
     if override:
-        print(f"🎯 Arbiter (code override): {override.skill} DC {override.dc}")
+        if override.requires_roll:
+            print(f"🎯 Arbiter (code override): {override.skill} DC {override.dc}")
+        else:
+            print(f"🎯 Arbiter (code override): No roll — {override.reasoning}")
         return override
-    
+
     # Layer 2: AI arbiter
     if use_ai:
-        ai_decision = get_arbiter_ai_decision(action, context)
+        ai_decision = get_arbiter_ai_decision(action, full_context)
         if ai_decision:
             decision = ArbiterDecision(
                 action_type=ai_decision.get("action_type", "other"),

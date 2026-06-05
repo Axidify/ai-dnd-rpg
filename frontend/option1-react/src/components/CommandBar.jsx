@@ -15,6 +15,7 @@ const CommandBar = forwardRef(function CommandBar(
     onSuggestion,
     isLoading,
     inCombat,
+    gameOver,
     combatStatus,
     onAttack,
     onDefend,
@@ -64,6 +65,10 @@ const CommandBar = forwardRef(function CommandBar(
               </button>
             </div>
           </div>
+        ) : gameOver ? (
+          <p className="text-center text-sm text-[var(--ink-3)] font-ui mb-3">
+            Your adventure has ended.
+          </p>
         ) : (
           !input.trim() && (
             <div className="flex flex-wrap gap-2 mb-3 justify-center">
@@ -86,6 +91,7 @@ const CommandBar = forwardRef(function CommandBar(
           )
         )}
 
+        {!inCombat && !gameOver && (
         <form onSubmit={onSubmit}>
           <div className="group flex items-end gap-3 border-b border-[var(--line-strong)] focus-within:border-[var(--gold)] transition-colors pb-2">
             <label htmlFor="player-action" className="sr-only">
@@ -97,7 +103,7 @@ const CommandBar = forwardRef(function CommandBar(
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={inCombat ? 'Or describe your move…' : 'What do you do?'}
+              placeholder="What do you do?"
               className="field flex-1 text-[1.05rem] py-1.5 font-read"
               disabled={isLoading}
               autoComplete="off"
@@ -117,6 +123,7 @@ const CommandBar = forwardRef(function CommandBar(
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   )

@@ -818,7 +818,8 @@ class SaveManager:
         slot: Optional[int] = None,
         description: str = "",
         game_stats: Optional[Dict[str, Any]] = None,
-        party=None
+        party=None,
+        session_state: Optional[Dict[str, Any]] = None,
     ) -> Tuple[str, str]:
         """
         Save the current game state to a JSON file for full continuity.
@@ -832,6 +833,7 @@ class SaveManager:
             description: Optional description for the save
             game_stats: Optional game statistics (enemies_defeated, etc.)
             party: Optional Party object with companions (Phase 3.3.7)
+            session_state: Optional API session extras (combat, game_over, etc.)
             
         Returns:
             Tuple of (filepath: str, message: str)
@@ -899,6 +901,7 @@ class SaveManager:
                     'skill_checks_passed': 0,
                     'skill_checks_failed': 0,
                 },
+                'session_state': session_state,
             }
             
             # Generate filename and paths
@@ -997,6 +1000,7 @@ class SaveManager:
                 'scenario_manager': None,
                 'party': None,
                 'chat_history': [],
+                'session_state': save_data.get('session_state'),
                 'description': save_data.get('description', ''),
                 'timestamp': save_data.get('timestamp', ''),
                 'game_stats': save_data.get('game_stats', {

@@ -708,10 +708,24 @@ RECRUITABLE_NPCS = {
     "shade_rogue": create_shade_rogue,
 }
 
+# Short aliases used in DM prompts ([RECRUIT: marcus])
+RECRUITABLE_NPC_ALIASES = {
+    "marcus": "marcus_mercenary",
+    "elira": "elira_ranger",
+    "shade": "shade_rogue",
+}
+
+
+def resolve_recruit_npc_id(npc_id: str) -> str:
+    """Normalize recruit id (aliases, spacing)."""
+    key = npc_id.lower().strip().replace(' ', '_')
+    return RECRUITABLE_NPC_ALIASES.get(key, key)
+
 
 def get_recruitable_npc(npc_id: str) -> Optional[PartyMember]:
     """Get a fresh instance of a recruitable NPC."""
-    factory = RECRUITABLE_NPCS.get(npc_id.lower())
+    key = resolve_recruit_npc_id(npc_id)
+    factory = RECRUITABLE_NPCS.get(key)
     if factory:
         return factory()
     return None

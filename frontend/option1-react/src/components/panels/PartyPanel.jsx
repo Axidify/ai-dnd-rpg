@@ -45,7 +45,7 @@ export default function PartyPanel({ party = [], availableRecruits = [], isLoadi
                 </div>
                 <button
                   type="button"
-                  onClick={() => onRecruit?.(npc.name)}
+                  onClick={() => onRecruit?.(npc.npc_id || npc.id || npc.name)}
                   disabled={isLoading || !npc.can_recruit}
                   className="focus-ring shrink-0 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-[var(--line-strong)] text-[var(--ink-2)] hover:text-[var(--gold)] hover:border-[var(--gold)] transition disabled:opacity-40"
                 >
