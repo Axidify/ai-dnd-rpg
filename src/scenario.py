@@ -1671,9 +1671,46 @@ class Scenario:
     def _setup_scene_locations(self, scene: Scene):
         """Set up locations for a scene."""
         if self.location_manager and scene.location_ids:
-            self.location_manager.set_available_locations(scene.location_ids)
-            if scene.starting_location_id:
+            here = self.location_manager.current_location_id
+            # Move the player to the scene's start only if they aren't already
+            # somewhere that belongs to it (no teleporting mid-exploration)
+            if scene.starting_location_id and here not in scene.location_ids:
                 self.location_manager.set_current_location(scene.starting_location_id)
+            self.refresh_open_locations()
+
+    def open_location_ids(self) -> List[str]:
+        """
+        Places the player can travel to: the current scene's, plus the next
+        scene's once this one is complete (objectives and minimum turns met).
+        """
+        scene = self.get_current_scene()
+        if not scene:
+            return []
+        ids = list(scene.location_ids)
+        if scene.next_scene_id and self.can_transition():
+            for loc_id in self.scenes[scene.next_scene_id].location_ids:
+                if loc_id not in ids:
+                    ids.append(loc_id)
+        return ids
+
+    def refresh_open_locations(self) -> None:
+        if self.location_manager and self.get_current_scene():
+            self.location_manager.set_available_locations(self.open_location_ids())
+
+    def advance_on_arrival(self, location_id: str) -> Optional[Scene]:
+        """
+        Walking into a place that belongs only to the next scene starts that
+        scene (if the current one is complete). Returns the new scene, or None.
+        """
+        scene = self.get_current_scene()
+        if not scene or not scene.next_scene_id:
+            return None
+        next_scene = self.scenes[scene.next_scene_id]
+        if location_id in scene.location_ids or location_id not in next_scene.location_ids:
+            return None
+        if not self.can_transition():
+            return None
+        return self.transition_to_next()
     
     def start(self) -> Scene:
         """Start the scenario, return first scene."""
@@ -1697,10 +1734,11 @@ class Scenario:
         return None
     
     def record_exchange(self):
-        """Record a player exchange in the current scene."""
+        """Record a player exchange (story action or travel) in the current scene."""
         scene = self.get_current_scene()
         if scene:
             scene.exchange_count += 1
+            self.refresh_open_locations()
     
     def complete_objective(self, objective_id: str) -> tuple:
         """
@@ -1712,6 +1750,7 @@ class Scenario:
         if scene and objective_id in scene.objectives:
             if objective_id not in scene.objectives_complete:
                 scene.objectives_complete.append(objective_id)
+                self.refresh_open_locations()
                 xp = scene.objective_xp.get(objective_id, 0)
                 return True, xp
             return True, 0  # Already complete, no XP
@@ -1942,7 +1981,14 @@ class ScenarioManager:
                 "the adventure concludes", "your adventure ends"
             ]
 
-            if has_any(dm_response, transition_keywords):
+            scenario = self.active_scenario
+            here = scenario.location_manager.current_location_id if scenario.location_manager else None
+            current = scenario.get_current_scene()
+            next_scene_def = scenario.scenes.get(current.next_scene_id) if current and current.next_scene_id else None
+            # The final scene has no successor; otherwise the player must already
+            # stand somewhere in the next scene's area (no narrative teleports)
+            in_next_area = next_scene_def is None or here in next_scene_def.location_ids
+            if in_next_area and has_any(dm_response, transition_keywords):
                 next_scene = self.active_scenario.transition_to_next()
                 if next_scene:
                     return f"\n{'='*50}\n📍 {next_scene.name}\n{'='*50}\n"

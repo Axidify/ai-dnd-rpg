@@ -126,32 +126,44 @@ def apply_location_event_effects(session, events: list) -> Tuple[List[str], bool
     for event in events:
         if not getattr(event, "effect", None):
             continue
+        label = event.id.replace("_", " ")
+        avoided = False  # a passed "skill_check:" save skips the event's damage
 
         for part in event.effect.split("|"):
             part = part.strip()
             if not part:
                 continue
 
-            if part.startswith("start_combat:"):
+            if part.startswith("skill_check:"):
+                # "skill_check:<ability>:<dc>": an ability check to avoid harm
+                _, ability, dc_str = (part.split(":") + ["", ""])[:3]
+                try:
+                    dc = int(dc_str)
+                except ValueError:
+                    continue
+                mod = session.character.get_ability_modifier(ability.strip().lower())
+                roll = random.randint(1, 20)
+                avoided = roll + mod >= dc
+                messages.append(
+                    f"🎲 {ability.strip().upper()} check: [{roll}]{mod:+d} = {roll + mod} vs DC {dc}"
+                    + (" — you avoid it!" if avoided else " — too slow!")
+                )
+
+            elif part.startswith("start_combat:"):
                 enemy_str = part.split(":", 1)[1]
                 enemies = [e.strip().lower().replace(" ", "_") for e in enemy_str.split(",") if e.strip()]
                 if enemies:
-                    session.in_combat = True
-                    session.combat_state = {
-                        "enemies": enemies,
-                        "surprise": False,
-                        "round": 1,
-                    }
+                    start_structured_combat(session, enemies)
                     combat_started = True
                     messages.append(f"⚔️ Ambush! Combat: {', '.join(enemies)}")
 
             elif part.startswith("damage:"):
+                if avoided:
+                    continue
                 dice = part.split(":", 1)[1].strip()
                 total, _ = roll_dice(dice)
-                status, _defeated = apply_player_damage(session, total, event.id)
-                messages.append(f"💔 You take {total} damage from {event.id}!")
-                if status:
-                    messages.append(status)
+                status, _defeated = apply_player_damage(session, total, label)
+                messages.append(status or f"💔 You take {total} damage from the {label}!")
 
             elif part.startswith("add_item:"):
                 item_key = part.split(":", 1)[1].strip()
@@ -172,7 +184,7 @@ def apply_location_event_effects(session, events: list) -> Tuple[List[str], bool
                 obj_id = part.split(":", 1)[1].strip()
                 if session.scenario and session.scenario.active_scenario:
                     session.scenario.active_scenario.complete_objective(obj_id)
-                    messages.append(f"📜 Objective complete: {obj_id}")
+                    messages.append(f"📜 Objective complete: {obj_id.replace('_', ' ').capitalize()}")
 
     return messages, combat_started
 
@@ -354,13 +366,21 @@ def build_travel_game_state(session) -> Dict[str, Any]:
 def start_structured_combat(
     session, enemies: List[str], surprise: bool = False
 ) -> None:
-    """Enter structured combat with enemy type ids."""
+    """
+    Enter structured combat with enemy type ids. If they belong to this
+    location's fixed encounter, that encounter counts as fought (so the DM is
+    never told to start it again).
+    """
+    enemy_ids = [e.strip().lower().replace(" ", "_") for e in enemies if e.strip()]
     session.in_combat = True
     session.combat_state = {
-        "enemies": [e.strip().lower().replace(" ", "_") for e in enemies if e.strip()],
+        "enemies": enemy_ids,
         "surprise": surprise,
         "round": 1,
     }
+    here = session.location_manager.get_current_location() if session.location_manager else None
+    if here and here.encounter and set(enemy_ids) & set(here.encounter):
+        here.encounter_triggered = True
 
 
 def _consume_item_key(session, item_key: str) -> Optional[str]:
@@ -372,6 +392,27 @@ def _consume_item_key(session, item_key: str) -> Optional[str]:
         remove_item_from_inventory(session.character.inventory, item.name, 1)
         return item.name
     return None
+
+
+def blocked_path_hint(session) -> str:
+    """
+    If exits from here lead into the next scene but aren't open yet, say which
+    and what's still to do, so a closed way forward never looks like a dead end.
+    """
+    scenario = session.scenario.active_scenario if session.scenario else None
+    manager = session.location_manager
+    scene = scenario.get_current_scene() if scenario else None
+    here = manager.get_current_location() if manager else None
+    if not (scene and scene.next_scene_id and here):
+        return ""
+    next_ids = set(scenario.scenes[scene.next_scene_id].location_ids)
+    closed = [name for name, dest in here.exits.items()
+              if dest in next_ids and dest not in manager.available_location_ids]
+    if not closed:
+        return ""
+    todo = [o.replace("_", " ") for o in scene.objectives if o not in scene.objectives_complete]
+    reason = f" Still to do: {', '.join(todo)}." if todo else " Explore a little more first."
+    return f"🚪 The way onward ({', '.join(closed)}) isn't open yet.{reason}"
 
 
 def process_travel(session, destination: str) -> Dict[str, Any]:
@@ -401,6 +442,7 @@ def process_travel(session, destination: str) -> Dict[str, Any]:
         return {"success": False, "message": block_reason, "game_over": True}
 
     game_state = build_travel_game_state(session)
+    previous_id = session.location_manager.current_location_id
     skill_check_override = False
     skill_roll_text = ""
 
@@ -446,6 +488,15 @@ def process_travel(session, destination: str) -> Dict[str, Any]:
 
     session.current_location = new_location.name
     session.current_location_id = new_location.id
+    session.previous_location_id = previous_id  # where fleeing leads back to
+
+    # Exploring advances the story: travel is an exchange, and arriving in the
+    # next scene's area starts that scene
+    new_scene = None
+    scenario = session.scenario.active_scenario if session.scenario else None
+    if scenario:
+        scenario.record_exchange()
+        new_scene = scenario.advance_on_arrival(new_location.id)
 
     quest_updates: List[Dict[str, Any]] = []
     if session.quest_manager:
@@ -460,6 +511,8 @@ def process_travel(session, destination: str) -> Dict[str, Any]:
                 })
 
     travel_msg = f"📍 You travel to **{new_location.name}**.\n\n{new_location.description}"
+    if new_scene:
+        travel_msg = f"## {new_scene.name}\n\n{travel_msg}"
     if skill_roll_text:
         travel_msg = f"{skill_roll_text}\n\n{travel_msg}"
 
@@ -485,6 +538,10 @@ def process_travel(session, destination: str) -> Dict[str, Any]:
     combat_started = combat_started or event_combat
     for effect_msg in effect_msgs:
         travel_msg += f"\n\n{effect_msg}"
+
+    hint = blocked_path_hint(session)
+    if hint:
+        travel_msg += f"\n\n{hint}"
 
     is_session_blocked(session)
 
@@ -578,6 +635,23 @@ def _resolve_hostile_enemies(action: str) -> List[str]:
     return ["bandit"]
 
 
+def _matching_encounter(session, enemy_id: str):
+    """
+    The location (here, or one exit away) whose untriggered fixed encounter
+    includes ``enemy_id`` - e.g. attacking "the goblins" from the shadows
+    beside a camp of four fights all four, not one.
+    """
+    manager = session.location_manager
+    here = manager.get_current_location() if manager else None
+    if not here:
+        return None
+    candidates = [here] + [manager.locations.get(d) for d in manager.get_exits().values()]
+    for loc in candidates:
+        if loc and loc.encounter and not loc.encounter_triggered and enemy_id in loc.encounter:
+            return loc
+    return None
+
+
 def try_hostile_combat_gate(session, action: str) -> Optional[Dict[str, Any]]:
     """
     Intercept hostile player actions and start structured combat instead of
@@ -589,6 +663,11 @@ def try_hostile_combat_gate(session, action: str) -> Optional[Dict[str, Any]]:
         return None
 
     enemies = _resolve_hostile_enemies(action)
+    encounter_loc = _matching_encounter(session, enemies[0])
+    if encounter_loc:
+        # Fight the whole group that's actually there, once
+        enemies = list(encounter_loc.encounter)
+        encounter_loc.encounter_triggered = True
     start_structured_combat(session, enemies)
     names = ", ".join(enemies)
     msg = (

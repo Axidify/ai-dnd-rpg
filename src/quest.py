@@ -682,6 +682,12 @@ class QuestManager:
     def get_active_quests(self) -> List[Quest]:
         """Get all currently active quests."""
         return list(self.active_quests.values())
+
+    def get_all_quests(self) -> List[Quest]:
+        """Every known quest; an active (in-progress) copy wins over its definition."""
+        quests = dict(self.available_quests)
+        quests.update(self.active_quests)
+        return list(quests.values())
     
     def get_completed_quests(self) -> List[Dict[str, Any]]:
         """Get list of completed quest info dicts (IDs only, quests are no longer stored)."""

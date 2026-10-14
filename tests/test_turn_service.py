@@ -120,3 +120,14 @@ def test_roll_fallback_starts_a_new_paragraph(monkeypatch):
         body = c.post("/api/game/action", json={"session_id": sid, "action": "I sneak past the guard"}).get_json()
     assert body["roll_result"] is not None
     assert body["message"].startswith("You try.\n\n")
+
+
+def test_recruit_tag_adds_party_member(monkeypatch):
+    monkeypatch.setattr(api_server, "get_dm_response",
+                        lambda *a, **k: "Marcus takes your coin and falls in beside you. [RECRUIT: marcus]")
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        sid = _new_session(c)
+        body = c.post("/api/game/action", json={"session_id": sid, "action": "Marcus, join me"}).get_json()
+    assert body["success"]
+    assert [m["name"] for m in body["game_state"]["party"]] == ["Marcus"]

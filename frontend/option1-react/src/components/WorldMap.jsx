@@ -243,6 +243,9 @@ export default function WorldMap({ isOpen, onClose }) {
                   ← Back to {current.map_label || current.name}
                 </button>
               )}
+              {selected.is_current && data?.path_hint && (
+                <p className="text-sm font-read italic text-[var(--ink-2)]">{data.path_hint.replace(/^🚪\s*/u, '')}</p>
+              )}
               {selected.is_current && destinations.length > 0 && (
                 <div className="pt-2">
                   <p className="caps-muted mb-2">Paths from here</p>

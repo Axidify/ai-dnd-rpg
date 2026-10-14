@@ -33,6 +33,7 @@ from dm_scene import (
     is_weak_roll_narration,
 )
 from game_mechanics import (
+    start_structured_combat,
     apply_scenario_transition,
     is_session_blocked,
     try_hostile_combat_gate,
@@ -118,60 +119,80 @@ def detect_npc_talk(action: str, npc_manager) -> list:
     return talked_to
 
 
-def detect_quest_acceptance(player_action: str, dm_response: str, quest_manager) -> list:
-    """
-    Detect if the player accepted a quest based on their action and the DM response.
+# Extra words that tie a DM reply to a specific quest (beyond its name)
+QUEST_KEYWORDS = {
+    "rescue_lily": ["lily", "daughter", "save her"],
+    "clear_the_path": ["road", "wolves", "safer"],
+    "chiefs_treasure": ["treasure", "hoard", "grotnak"],
+    "recover_heirlooms": ["heirloom", "heirlooms", "locket", "ring"],
+}
+ACCEPT_PATTERNS = [
+    r"\byes\b", r"\baccept\b", r"\bi('ll| will) help\b", r"\bagree\b",
+    r"\bcount me in\b", r"\bi'm in\b", r"\blet's do it\b", r"\bi'll save\b",
+    r"\blet me help\b", r"\bof course\b", r"\bvery well\b", r"\bi'll do it\b",
+]
 
-    Triggers when:
-    1. Player says accept-like words (accept, yes, i'll help, agree, etc.)
-    2. DM response mentions quest-related keywords (thank you, grateful, quest, save, etc.)
+
+def detect_quest_acceptance(player_action: str, dm_response: str, quest_manager, npc_manager=None) -> list:
+    """
+    Detect which quest(s) the player just accepted.
+
+    The player must say something accept-like. The quest giver is the one
+    the player named, else the first quest giver the DM's reply mentions;
+    only that giver's quests are considered (agreeing to help Bram must not
+    also accept the barkeep's quests). Of those, quests the reply refers to
+    (by name or keywords) are accepted; failing that, the giver's first
+    available quest. Prerequisites are enforced by accept_quest().
 
     Returns:
         List of quest IDs that were accepted
     """
     if not quest_manager:
         return []
-
-    accepted_quests = []
     action_lower = player_action.lower()
     response_lower = dm_response.lower()
-
-    # Player acceptance patterns
-    accept_patterns = [
-        r"\byes\b", r"\baccept\b", r"\bi('ll| will) help\b", r"\bagree\b",
-        r"\bcount me in\b", r"\bi'm in\b", r"\blet's do it\b", r"\bi'll save\b",
-        r"\blet me help\b", r"\bof course\b", r"\bvery well\b"
-    ]
-
-    player_accepted = any(re.search(pat, action_lower) for pat in accept_patterns)
-
-    if not player_accepted:
+    if not any(re.search(pat, action_lower) for pat in ACCEPT_PATTERNS):
         return []
 
-    # Check available (not yet accepted) quests and match by NPC/context
-    for quest_id, quest in list(quest_manager.available_quests.items()):
-        # Check if DM response references the quest giver or quest content
-        giver = quest.giver_npc_id.lower() if quest.giver_npc_id else ""
+    def giver_names(giver_id):
+        names = [giver_id.replace("_", " ")]
+        npc = npc_manager.get_npc(giver_id) if npc_manager else None
+        if npc:
+            names.append(npc.name.lower())
+            names.extend(part for part in npc.name.lower().split() if len(part) > 3)
+        return names
 
-        # Match conditions (any of these trigger acceptance):
-        # 1. DM mentions quest giver name
-        # 2. DM response contains gratitude/acceptance words
-        # 3. Quest name or key words from description mentioned
-        dm_confirms = any([
-            giver and has_phrase(response_lower, giver),
-            has_any(response_lower, ["thank you", "grateful", "bless you", "knew someone"]),
-            has_phrase(response_lower, quest.name.lower()),
-            # Specific quest matching
-            quest_id == "rescue_lily" and has_any(response_lower, ["lily", "daughter", "save her"]),
-            quest_id == "clear_the_path" and has_any(response_lower, ["road", "path", "wolves", "safer"]),
-        ])
+    by_giver = {}
+    for quest_id, quest in quest_manager.available_quests.items():
+        if quest.giver_npc_id:
+            by_giver.setdefault(quest.giver_npc_id.lower(), []).append((quest_id, quest))
+    if not by_giver:
+        return []
 
-        if dm_confirms:
-            result = quest_manager.accept_quest(quest_id)
-            if result:
-                accepted_quests.append(quest_id)
+    named = [g for g in by_giver if has_any(action_lower, giver_names(g))]
+    if named:
+        givers = named
+    else:
+        positions = []
+        for g in by_giver:
+            hits = [m.start() for name in giver_names(g)
+                    for m in re.finditer(rf"\b{re.escape(name)}\b", response_lower)]
+            if hits:
+                positions.append((min(hits), g))
+        givers = [min(positions)[1]] if positions else []
 
-    return accepted_quests
+    accepted = []
+    for giver in givers:
+        quests = by_giver[giver]
+        specific = [
+            quest_id for quest_id, quest in quests
+            if has_phrase(response_lower, quest.name.lower())
+            or has_any(response_lower, QUEST_KEYWORDS.get(quest_id, []))
+        ]
+        for quest_id in specific or [quests[0][0]]:
+            if quest_manager.accept_quest(quest_id):
+                accepted.append(quest_id)
+    return accepted
 
 
 # =============================================================================
@@ -299,6 +320,105 @@ def start_turn(session, action: str) -> TurnStart:
     )
 
 
+SEARCH_SKILLS = {"perception", "investigation"}
+
+
+def _apply_search_discoveries(session, roll: Optional[dict], events: List[Dict[str, Any]], say) -> None:
+    """
+    On a successful Perception/Investigation roll, reveal what that roll beats:
+    secret exits from the current location ("skill:<skill>:<dc>" discovery
+    conditions) and hidden items here. Discovery is mechanical, so it happens
+    whatever the narrator chose to describe.
+    """
+    if not roll or not roll.get("success"):
+        return
+    if str(roll.get("skill", "")).replace("_", " ").lower() not in SEARCH_SKILLS:
+        return
+    manager = session.location_manager
+    here = manager.get_current_location() if manager else None
+    if not here:
+        return
+    total = roll.get("total", 0)
+
+    for exit_name, dest_id in here.exits.items():
+        dest = manager.locations.get(dest_id)
+        if not dest or not dest.hidden or dest_id in manager.discovered_secrets:
+            continue
+        parts = (dest.discovery_condition or "").split(":")
+        if len(parts) == 3 and parts[0] == "skill" and parts[2].isdigit() and total >= int(parts[2]):
+            if manager.discover_secret(dest_id):
+                events.append({"type": "discovery", "location_id": dest_id, "exit": exit_name})
+                say(f"\n\n🔍 You discover a hidden way: **{dest.name}** ({exit_name}).")
+
+    for hidden in list(here.get_undiscovered_hidden_items()):
+        if total < hidden.dc or not here.discover_hidden_item(hidden.item_id):
+            continue
+        item = get_item(hidden.item_id)
+        if not (item and session.character):
+            continue
+        add_item_to_inventory(session.character.inventory, item)
+        if hidden.item_id in here.items:
+            here.items.remove(hidden.item_id)
+        events.append({"type": "item", "item": hidden.item_id, "message": f"Found: {item.name}"})
+        say(f"\n\n🔍 Hidden away, you find: **{item.name}**.")
+        if session.quest_manager:
+            for quest_id, objective in session.quest_manager.on_item_acquired(hidden.item_id):
+                quest = session.quest_manager.get_quest(quest_id)
+                if quest:
+                    events.append({"type": "quest_update", "quest_id": quest_id,
+                                   "objective_id": objective.id, "quest": quest.to_dict()})
+
+
+TAKE_VERBS = ["take", "grab", "pick up", "pocket", "loot", "collect", "snatch", "gather"]
+TAKE_ALL = ["everything", "all of it", "it all", "the loot"]
+
+
+def _apply_pickups(session, action: str, roll: Optional[dict], events: List[Dict[str, Any]], say) -> set:
+    """
+    Pick up items listed at the current location that the player asked to
+    take (by name, key or main noun, or "everything"). Skipped if the action
+    called for a roll and the roll failed. Gold pouches become gold.
+    Returns the names of items picked up.
+    """
+    picked = set()
+    if roll and not roll.get("success"):
+        return picked
+    if not has_any(action, TAKE_VERBS):
+        return picked
+    manager = session.location_manager
+    here = manager.get_current_location() if manager else None
+    character = session.character
+    if not (here and character and here.items):
+        return picked
+
+    take_all = has_any(action, TAKE_ALL)
+    for key in list(here.items):
+        item = get_item(key)
+        if not item:
+            continue
+        noun = item.name.split()[-1].strip("'").lower()
+        wanted = take_all or has_any(action, [item.name.lower(), key.replace("_", " "), noun])
+        if not wanted:
+            continue
+        here.items.remove(key)
+        picked.add(item.name)
+        if key.startswith("gold_"):
+            character.gold += item.value
+            events.append({"type": "gold", "amount": item.value, "total": character.gold})
+            say(f"\n\n💰 You take the {item.name.lower()}: {item.value} gold (Total: {character.gold})")
+            continue
+        add_item_to_inventory(character.inventory, item)
+        events.append({"type": "item", "item": key, "message": f"Took: {item.name}"})
+        say(f"\n\n📦 You take: {item.name}")
+        if session.quest_manager:
+            for quest_id, objective in session.quest_manager.on_item_acquired(key):
+                quest = session.quest_manager.get_quest(quest_id)
+                if quest:
+                    events.append({"type": "quest_update", "quest_id": quest_id,
+                                   "objective_id": objective.id, "quest": quest.to_dict()})
+    return picked
+
+
 def finish_turn(
     session,
     action: str,
@@ -356,20 +476,27 @@ def finish_turn(
             }
             events.append({"type": "roll", "result": outcome.roll_result})
 
+    # A successful search can reveal secret exits and hidden items here
+    _apply_search_discoveries(session, outcome.roll_result, events, say)
+
     # [COMBAT: ...]
     enemies, surprise = parse_combat_request(narrator_text)
     if enemies:
         outcome.combat_started = True
-        session.in_combat = True
-        session.combat_state = {"enemies": enemies, "surprise": surprise, "round": 1}
+        start_structured_combat(session, enemies, surprise)
         events.append({"type": "combat", "enemies": enemies})
         say(f"\n\n⚔️ COMBAT STARTED! Enemies: {', '.join(enemies)}")
+
+    # "I take the key": pick up items lying here, whatever the narrator does
+    picked = _apply_pickups(session, action, outcome.roll_result, events, say)
 
     # [ITEM: name]
     for item_name in parse_item_rewards(narrator_text):
         item = get_item(item_name)
         if not (item and character):
             continue
+        if item.name in picked:
+            continue  # already picked up deterministically this turn
         add_item_to_inventory(character.inventory, item)
         outcome.items_gained.append(item_name)
         events.append({"type": "item", "item": item_name, "message": f"Received: {item.name}"})
@@ -426,7 +553,7 @@ def finish_turn(
         from party import get_recruitable_npc, Party
         if not session.party:
             session.party = Party()
-        if session.party.is_full():
+        if session.party.is_full:
             continue
         member = get_recruitable_npc(npc_id)
         if member:
@@ -446,7 +573,9 @@ def finish_turn(
                     say(f"\n\n📜 Quest Objective Complete: {objective.description}")
 
     # Quest acceptance
-    outcome.quests_accepted = detect_quest_acceptance(action, narrator_text, session.quest_manager)
+    outcome.quests_accepted = detect_quest_acceptance(
+        action, narrator_text, session.quest_manager, session.npc_manager
+    )
     for quest_id in outcome.quests_accepted:
         quest = session.quest_manager.get_quest(quest_id)
         if quest:

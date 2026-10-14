@@ -315,6 +315,8 @@ class GameSession:
         self.dm_model = None
         self.dm_chat = None  # Chat session for stateful conversation
         self.dm_unavailable = False  # Last narration failed: the LLM couldn't be reached
+        self.previous_location_id = None  # Last place travelled from (flee destination)
+        self.dm_notes = []  # Facts the DM must learn on its next turn (e.g. combat results)
         
         # Social check tracking (retry prevention + game over)
         self.failed_social_checks = 0  # Total failed social checks
@@ -509,6 +511,11 @@ def apply_combat_victory(session: GameSession, enemies: list, result_messages: l
 
     rewards = {'xp': 0, 'gold': 0, 'items': []}
     boss_killed = False
+    fallen = [e.name for e in enemies if e.is_dead]
+    if fallen:
+        session.dm_notes.append(
+            f"The party won a fight and killed: {', '.join(fallen)}. They are dead and stay dead."
+        )
 
     for enemy in enemies:
         if not enemy.is_dead:
@@ -555,11 +562,14 @@ def apply_combat_victory(session: GameSession, enemies: list, result_messages: l
 
 
 def run_enemy_turn(session: GameSession, living_enemies: list, result_messages: list,
-                   ac_override: int = None) -> bool:
+                   ac_override: int = None, halve_player_damage: bool = False) -> bool:
     """
-    Enemies attack the player. Returns True if player died.
+    Each enemy attacks the player or a living party member, chosen at random,
+    so companions share the danger. Returns True if the player died.
     Skips attacks when player ambushed (surprise) on round 1.
+    ``ac_override`` / ``halve_player_damage`` apply to the player (Defend).
     """
+    import random
     from combat import enemy_attack, format_enemy_attack
 
     surprise = (
@@ -571,14 +581,29 @@ def run_enemy_turn(session: GameSession, living_enemies: list, result_messages: 
         return False
 
     result_messages.append('\n--- Enemy Turn ---')
-    target_ac = ac_override if ac_override is not None else session.character.armor_class
+    player_ac = ac_override if ac_override is not None else session.character.armor_class
     for enemy in living_enemies:
-        enemy_atk, enemy_dmg = enemy_attack(enemy, target_ac)
+        allies = session.party.get_alive_members() if session.party else []
+        target = random.choice([None] + allies)  # None = the player
+        if target is not None:
+            enemy_atk, enemy_dmg = enemy_attack(enemy, target.armor_class)
+            verdict = '✅ HIT!' if enemy_atk['hit'] else '❌ MISS'
+            result_messages.append(
+                f"👹 {enemy.name} attacks {target.name}: [{enemy_atk['d20_roll']}]+{enemy_atk['attack_bonus']}"
+                f" = {enemy_atk['total']} vs AC {target.armor_class} = {verdict}"
+            )
+            if enemy_dmg:
+                result_messages.append(f"   {target.take_damage(enemy_dmg['total'])}")
+            continue
+
+        enemy_atk, enemy_dmg = enemy_attack(enemy, player_ac)
         result_messages.append(format_enemy_attack(enemy_atk, enemy_dmg))
         if enemy_dmg:
-            _, defeated = apply_player_damage(
-                session, enemy_dmg['total'], enemy.name
-            )
+            damage = enemy_dmg['total']
+            if halve_player_damage:
+                damage = max(1, damage // 2)
+                result_messages.append(f"   (Reduced to {damage} damage)")
+            _, defeated = apply_player_damage(session, damage, enemy.name)
             if defeated:
                 return True
     return False
@@ -661,6 +686,11 @@ def refresh_chat_context(session: GameSession):
 {build_character_context(session.character)}
 Current Location: {session.current_location or 'Unknown'}
 {build_scenario_context(session.scenario)}{build_location_context(session.location_manager)}{build_npc_context(session.npc_manager)}{build_quest_context(session.quest_manager)}"""
+    if session.dm_notes:
+        # Things that happened outside narration (fights resolved by the rules engine)
+        notes = "\n".join(f"- {note}" for note in session.dm_notes)
+        context_update += f"\n\n[SINCE YOUR LAST NARRATION - these are facts, narrate consistently:]\n{notes}"
+        session.dm_notes = []
     
     return context_update
 
@@ -1664,7 +1694,8 @@ def get_locations():
         # Get all locations for map display
         for loc_id, loc in session.location_manager.locations.items():
             # Secret places aren't on the map at all until found
-            if loc.map_hidden and not loc.visited:
+            discovered = loc_id in session.location_manager.discovered_secrets
+            if loc.map_hidden and not (loc.visited or discovered):
                 continue
             # Known = visited, or part of the current scene; others are unnamed dots
             known = loc.visited or loc_id in session.location_manager.available_location_ids
@@ -1704,8 +1735,10 @@ def get_locations():
                     'map_icon': dest_location.map_icon
                 })
     
+    from game_mechanics import blocked_path_hint
     return jsonify({
         'success': True,
+        'path_hint': blocked_path_hint(session),
         'current_location': current_loc_data or {
             'id': session.current_location_id,
             'name': session.current_location,
@@ -1918,7 +1951,6 @@ def combat_attack():
 @app.route('/api/combat/defend', methods=['POST'])
 def combat_defend():
     """Player takes defensive action."""
-    from combat import enemy_attack, format_enemy_attack
     
     data = request.get_json() or {}
     session_id = data.get('session_id')
@@ -1937,32 +1969,17 @@ def combat_defend():
     result_messages = ["🛡️ You take a defensive stance (+2 AC, half damage)"]
     boosted_ac = session.character.armor_class + 2
     
-    surprise = (
-        session.combat_state.get('surprise', False)
-        and session.combat_state.get('round', 1) == 1
-    )
-    if surprise:
-        result_messages.append('\n⚡ Enemies are surprised and cannot act this round!')
-    else:
-        for enemy in living_enemies:
-            enemy_atk, enemy_dmg = enemy_attack(enemy, boosted_ac)
-            result_messages.append(format_enemy_attack(enemy_atk, enemy_dmg))
-            if enemy_dmg:
-                reduced_damage = max(1, enemy_dmg['total'] // 2)
-                result_messages.append(f"   (Reduced to {reduced_damage} damage)")
-                _, defeated = apply_player_damage(
-                    session, reduced_damage, enemy.name
-                )
-                if defeated:
-                    return jsonify({
-                        'success': True,
-                        'combat_over': True,
-                        'player_died': True,
-                        'game_over': True,
-                        'message': '\n'.join(result_messages),
-                        'game_state': session.to_dict(),
-                        'combat_status': build_combat_status_payload(session),
-                    })
+    if run_enemy_turn(session, living_enemies, result_messages,
+                      ac_override=boosted_ac, halve_player_damage=True):
+        return jsonify({
+            'success': True,
+            'combat_over': True,
+            'player_died': True,
+            'game_over': True,
+            'message': '\n'.join(result_messages),
+            'game_state': session.to_dict(),
+            'combat_status': build_combat_status_payload(session),
+        })
     
     session.combat_state['round'] = session.combat_state.get('round', 1) + 1
     combat_payload = build_combat_status_payload(session)
@@ -2005,7 +2022,17 @@ def combat_flee():
     
     if success:
         session.in_combat = False
-        result_messages.append("✅ You escape!")
+        session.combat_state = None
+        # Run back the way you came, if that way is open from here
+        manager = session.location_manager
+        retreat = session.previous_location_id
+        if manager and retreat and retreat in manager.get_exits().values():
+            manager.set_current_location(retreat)
+            here = manager.get_current_location()
+            session.current_location, session.current_location_id = here.name, here.id
+            result_messages.append(f"✅ You escape back to {here.name}!")
+        else:
+            result_messages.append("✅ You break away and slip out of sight!")
         return jsonify({
             'success': True,
             'fled': True,
@@ -2178,12 +2205,25 @@ def inventory_use():
     success, message = use_item(item, session.character)
     if success:
         remove_item_from_inventory(session.character.inventory, item_name, 1)
-    
+
+    # In combat, using an item takes your turn: the enemies act
+    player_died = False
+    if success and session.in_combat and session.combat_state:
+        enemies = ensure_combat_enemies(session)
+        living_enemies = [e for e in enemies if not e.is_dead]
+        result_messages = [message]
+        player_died = run_enemy_turn(session, living_enemies, result_messages)
+        session.combat_state['round'] = session.combat_state.get('round', 1) + 1
+        message = '\n'.join(result_messages)
+
     return jsonify({
         'success': success,
         'message': message,
         'current_hp': session.character.current_hp,
-        'game_state': session.to_dict()
+        'player_died': player_died,
+        'game_over': session.game_over,
+        'game_state': session.to_dict(),
+        'combat_status': build_combat_status_payload(session) if session.in_combat else None,
     })
 
 
