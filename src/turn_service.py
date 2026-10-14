@@ -33,6 +33,7 @@ from dm_scene import (
     is_weak_roll_narration,
 )
 from game_mechanics import (
+    complete_ready_quests,
     start_structured_combat,
     apply_scenario_transition,
     is_session_blocked,
@@ -578,10 +579,22 @@ def finish_turn(
     )
     for quest_id in outcome.quests_accepted:
         quest = session.quest_manager.get_quest(quest_id)
+        if quest and character:
+            # Items you already carry count toward "find" objectives
+            from inventory import find_item_in_inventory
+            for objective in quest.objectives:
+                if objective.objective_type.name in ("FIND_ITEM", "COLLECT") and \
+                        find_item_in_inventory(character.inventory, objective.target):
+                    session.quest_manager.on_item_acquired(objective.target)
         if quest:
             events.append({"type": "quest_accepted", "quest_id": quest_id, "quest": quest.to_dict()})
             say(f"\n\n📜 Quest Accepted: {quest.name}")
             print(f"   📜 Quest accepted: {quest.name}")
+
+    # Quests whose objectives are now all done pay out
+    for quest_msg in complete_ready_quests(session):
+        say(f"\n\n{quest_msg}")
+        events.append({"type": "quest_completed", "message": quest_msg})
 
     # Scene transitions and adventure progress
     if session.scenario:

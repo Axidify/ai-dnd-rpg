@@ -394,6 +394,65 @@ def _consume_item_key(session, item_key: str) -> Optional[str]:
     return None
 
 
+def finish_quest(session, quest_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Complete a quest whose objectives are done and grant its rewards (XP,
+    gold, items, giver disposition). Returns {'quest', 'xp', 'gold', 'items'}
+    or None if the quest isn't ready.
+    """
+    if not session.quest_manager:
+        return None
+    result = session.quest_manager.complete_quest(quest_id)
+    if not result:
+        return None
+    quest_rewards, quest = result
+    rewards = {"quest": quest, "xp": 0, "gold": 0, "items": []}
+    character = session.character
+    if character:
+        # Quest items the quest asked you to find are handed over on completion
+        for objective in quest.objectives:
+            if objective.objective_type.name in ("FIND_ITEM", "COLLECT"):
+                item = find_item_in_inventory(character.inventory, objective.target)
+                if item and item.item_type.name == "QUEST":
+                    remove_item_from_inventory(character.inventory, item.name, item.quantity)
+    if character and quest_rewards:
+        if quest_rewards.get("xp"):
+            character.gain_xp(quest_rewards["xp"], quest.name)
+            rewards["xp"] = quest_rewards["xp"]
+        if quest_rewards.get("gold"):
+            character.gold += quest_rewards["gold"]
+            rewards["gold"] = quest_rewards["gold"]
+        for item_key in quest_rewards.get("items", []):
+            item = get_item(item_key)
+            if item:
+                add_item_to_inventory(character.inventory, item)
+                rewards["items"].append(item.name)
+    if session.npc_manager and quest.giver_npc_id:
+        npc = session.npc_manager.get_npc(quest.giver_npc_id)
+        if npc:
+            npc.modify_disposition(quest.get_disposition_reward())
+    return rewards
+
+
+def complete_ready_quests(session) -> List[str]:
+    """Finish every active quest whose required objectives are all done."""
+    if not session.quest_manager:
+        return []
+    messages = []
+    for quest in list(session.quest_manager.get_active_quests()):
+        if not quest.is_ready_to_complete():
+            continue
+        rewards = finish_quest(session, quest.id)
+        if not rewards:
+            continue
+        parts = [f"+{rewards['xp']} XP" if rewards["xp"] else "",
+                 f"+{rewards['gold']} gold" if rewards["gold"] else "",
+                 ", ".join(rewards["items"])]
+        gained = ", ".join(p for p in parts if p)
+        messages.append(f"🏆 Quest complete: **{quest.name}**" + (f" ({gained})" if gained else ""))
+    return messages
+
+
 def blocked_path_hint(session) -> str:
     """
     If exits from here lead into the next scene but aren't open yet, say which
@@ -510,7 +569,11 @@ def process_travel(session, destination: str) -> Dict[str, Any]:
                     "quest": quest.to_dict(),
                 })
 
+    quest_messages = complete_ready_quests(session)
+
     travel_msg = f"📍 You travel to **{new_location.name}**.\n\n{new_location.description}"
+    for quest_msg in quest_messages:
+        travel_msg += f"\n\n{quest_msg}"
     if new_scene:
         travel_msg = f"## {new_scene.name}\n\n{travel_msg}"
     if skill_roll_text:

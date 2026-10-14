@@ -491,6 +491,7 @@
   exits:
     escape: chief_tunnel
     hidden alcove: treasure_nook
+    leave cave: cave_exit
   direction_aliases:
     s: escape
     south: escape
@@ -536,9 +537,10 @@
     trigger: on_first_visit
     narration: The Goblin Chief rises from his bone throne with a thunderous roar! 'You dare enter MY
       domain?!'
-    effect: start_combat:goblin_boss
+    effect: start_combat:goblin_boss,goblin,goblin
   encounter:
   - goblin_boss
+  - goblin
   - goblin
   map_x: 0.5
   map_y: 0.98

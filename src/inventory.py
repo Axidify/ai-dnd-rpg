@@ -315,6 +315,51 @@ ITEMS = {
         rarity=Rarity.UNCOMMON,
         effect="May grant advantage on Intimidation checks against goblins"
     ),
+    # Goblin Cave treasure (secret hollow and the chief's stash)
+    "gold_coins": Item(
+        name="Gold Coins",
+        item_type=ItemType.MISC,
+        description="A scattering of old gold coins.",
+        value=20,
+        effect="Contains 20 gold pieces"
+    ),
+    "gold_pile": Item(
+        name="Gold Pile",
+        item_type=ItemType.MISC,
+        description="A heap of coins hoarded by the goblin chief.",
+        value=100,
+        effect="Contains 100 gold pieces"
+    ),
+    "ancient_amulet": Item(
+        name="Ancient Amulet",
+        item_type=ItemType.MISC,
+        description="A tarnished silver amulet left by an adventurer long ago, etched with protective runes.",
+        value=60,
+        rarity=Rarity.UNCOMMON,
+    ),
+    "enchanted_dagger": Item(
+        name="Enchanted Dagger",
+        item_type=ItemType.WEAPON,
+        description="A slim blade that hums faintly; it strikes truer than any ordinary dagger.",
+        damage_dice="1d4+1",
+        finesse=True,
+        value=80,
+        rarity=Rarity.UNCOMMON,
+    ),
+    "ruby_ring": Item(
+        name="Ruby Ring",
+        item_type=ItemType.MISC,
+        description="A gold ring set with a deep red ruby. Valuable to the right buyer.",
+        value=90,
+        rarity=Rarity.UNCOMMON,
+    ),
+    "rare_scroll": Item(
+        name="Rare Scroll",
+        item_type=ItemType.MISC,
+        description="A scroll in an old script, sealed with wax. A sage would pay well for it.",
+        value=50,
+        rarity=Rarity.UNCOMMON,
+    ),
 }
 
 

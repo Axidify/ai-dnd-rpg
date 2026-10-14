@@ -31,7 +31,8 @@ for _stream in (sys.stdout, sys.stderr):
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from character import Character, CLASSES, RACES
-from scenario import ScenarioManager, LocationManager, create_goblin_cave_quests
+from scenario import ScenarioManager, LocationManager
+from scenario_loader import register_quests
 from npc import NPCManager
 from quest import QuestManager
 from combat import (
@@ -504,6 +505,16 @@ def quest_kills_for_enemy(enemy) -> list:
     return ids
 
 
+def record_quest_kill(session: GameSession, enemy, result_messages: list) -> None:
+    """Credit a kill to quest objectives once, whoever landed the blow."""
+    if getattr(enemy, 'kill_recorded', False) or not session.quest_manager:
+        return
+    enemy.kill_recorded = True
+    for enemy_id in quest_kills_for_enemy(enemy):
+        for _quest_id, obj in session.quest_manager.on_enemy_killed(enemy_id):
+            result_messages.append(f"📜 Quest Objective Complete: {obj.description}")
+
+
 def apply_combat_victory(session: GameSession, enemies: list, result_messages: list) -> dict:
     """Grant XP, gold, loot, and boss hit-dice restore after combat victory."""
     from combat import get_enemy_loot_for_class
@@ -512,6 +523,9 @@ def apply_combat_victory(session: GameSession, enemies: list, result_messages: l
     rewards = {'xp': 0, 'gold': 0, 'items': []}
     boss_killed = False
     fallen = [e.name for e in enemies if e.is_dead]
+    for enemy in enemies:
+        if enemy.is_dead:
+            record_quest_kill(session, enemy, result_messages)  # allies' kills count too
     if fallen:
         session.dm_notes.append(
             f"The party won a fight and killed: {', '.join(fallen)}. They are dead and stay dead."
@@ -557,6 +571,9 @@ def apply_combat_victory(session: GameSession, enemies: list, result_messages: l
         scenario.complete_objective('deal_with_goblins')
         if boss_killed:
             scenario.complete_objective('defeat_chief')
+
+    from game_mechanics import complete_ready_quests
+    result_messages.extend(complete_ready_quests(session))
 
     return rewards
 
@@ -1063,12 +1080,11 @@ def start_game():
             if hasattr(scenario, 'location_manager') and scenario.location_manager:
                 session.location_manager = scenario.location_manager
             
-            # Initialize quests for the scenario
-            if scenario_id == 'goblin_cave':
-                create_goblin_cave_quests(session.quest_manager)
-                # Quests are now REGISTERED but NOT ACCEPTED
-                # They will be accepted when the player agrees to help (via [QUEST_ACCEPT:] tag or player says "accept"/"yes")
-            
+            # Initialize quests for the scenario (from data/scenarios/<id>/quests.yaml)
+            register_quests(scenario_id, session.quest_manager)
+            # Quests are now REGISTERED but NOT ACCEPTED: they're accepted when
+            # the player agrees to help (see turn_service.detect_quest_acceptance)
+
             # Initialize location manager with scenario locations (fallback for old scenarios)
             if hasattr(scenario, 'locations') and scenario.locations:
                 for loc in scenario.locations:
@@ -1564,6 +1580,10 @@ def load_game():
         session.location_manager = LocationManager()
         sync_session_from_scenario(session)
         restore_session_state(session, result.get('session_state'))
+        # Saves hold quest progress, not quest definitions: re-register them so
+        # quests not yet accepted can still be offered after loading
+        if session.scenario and session.scenario.active_scenario:
+            register_quests(session.scenario.active_scenario.id, session.quest_manager)
     
     return jsonify({
         'success': True,
@@ -1893,11 +1913,8 @@ def combat_attack():
         result_messages.append(status_msg)
         target_killed = target.is_dead
         
-        if target_killed and session.quest_manager:
-            for enemy_id in quest_kills_for_enemy(target):
-                completed = session.quest_manager.on_enemy_killed(enemy_id)
-                for quest_id, obj in completed:
-                    result_messages.append(f"📜 Quest Objective Complete: {obj.description}")
+        if target_killed:
+            record_quest_kill(session, target, result_messages)
     
     living_enemies = [e for e in enemies if not e.is_dead]
     combat_over = len(living_enemies) == 0
@@ -2656,34 +2673,15 @@ def quests_complete():
     if not session.quest_manager:
         return jsonify({'error': 'No quest system'}), 400
     
-    result = session.quest_manager.complete_quest(quest_id)
-    if not result:
+    from game_mechanics import finish_quest
+    rewards = finish_quest(session, quest_id)
+    if not rewards:
         quest = session.quest_manager.get_quest(quest_id)
         if not quest:
             return jsonify({'success': False, 'message': 'Quest not found.'})
         return jsonify({'success': False, 'message': 'Objectives not complete.'})
 
-    quest_rewards, completed_quest = result
-    rewards = {'xp': 0, 'gold': 0, 'items': []}
-
-    if session.character and quest_rewards:
-        if quest_rewards.get('xp'):
-            session.character.gain_xp(quest_rewards['xp'], completed_quest.name)
-            rewards['xp'] = quest_rewards['xp']
-        if quest_rewards.get('gold'):
-            session.character.gold += quest_rewards['gold']
-            rewards['gold'] = quest_rewards['gold']
-        for item_name in quest_rewards.get('items', []):
-            item = get_item(item_name)
-            if item:
-                add_item_to_inventory(session.character.inventory, item)
-                rewards['items'].append(item.name)
-
-    if session.npc_manager and completed_quest.giver_npc_id:
-        npc = session.npc_manager.get_npc(completed_quest.giver_npc_id)
-        if npc:
-            npc.modify_disposition(completed_quest.get_disposition_reward())
-
+    rewards.pop('quest', None)
     return jsonify({
         'success': True,
         'rewards': rewards,

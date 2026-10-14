@@ -95,3 +95,36 @@ def test_codec_round_trip_and_defaults_omitted():
 def test_codec_rejects_unknown_fields():
     with pytest.raises(ValueError, match="unknown field"):
         from_data(Outer, {"id": "x", "colour": "red"})
+
+
+def test_every_scenario_item_exists():
+    """Items placed in locations, hidden items and quest rewards must be defined."""
+    from inventory import ITEMS
+
+    scenario = load_scenario("goblin_cave")
+    missing = set()
+    for loc in scenario.location_manager.locations.values():
+        missing |= {k for k in loc.items if k not in ITEMS}
+        missing |= {h.item_id for h in loc.hidden_items if h.item_id not in ITEMS}
+    quests = QuestManager()
+    register_quests("goblin_cave", quests)
+    for quest in quests.available_quests.values():
+        missing |= {k for k in (quest.rewards or {}).get("items", []) if k not in ITEMS}
+    assert not missing, f"undefined item keys: {sorted(missing)}"
+
+
+def test_every_scene_is_reachable_on_foot():
+    """Each scene's places must be reachable by exits from where the story starts."""
+    scenario = load_scenario("goblin_cave")
+    locations = scenario.location_manager.locations
+    start = scenario.scenes[scenario.scene_order[0]].starting_location_id
+    seen, frontier = {start}, [start]
+    while frontier:
+        for dest in locations[frontier.pop()].exits.values():
+            if dest not in seen:
+                seen.add(dest)
+                frontier.append(dest)
+    for scene_id in scenario.scene_order:
+        scene = scenario.scenes[scene_id]
+        unreachable = [loc for loc in scene.location_ids if loc not in seen]
+        assert not unreachable, f"scene {scene_id}: no path to {unreachable}"
