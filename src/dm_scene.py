@@ -306,6 +306,62 @@ SKILL_OUTCOMES: Dict[str, Dict[str, List[str]]] = {
 }
 
 
+# Words showing that narration actually describes a non-search skill's
+# outcome (used by is_weak_roll_narration). Whole-word matching via
+# text_match, which also accepts -s/-ed/-ing on words of 4+ letters;
+# irregular and doubled-consonant forms are listed explicitly.
+SKILL_OUTCOME_WORDS: Dict[str, Dict[str, List[str]]] = {
+    "stealth": {
+        "success": ["slip", "slipped", "slipping", "unnoticed", "unseen", "undetected", "unheard",
+                    "shadow", "shadows", "silently", "quietly", "creep", "crept", "sneak", "snuck"],
+        "failure": ["noticed", "spotted", "creak", "creaks", "heard", "hear", "glance", "glances",
+                    "heads turn", "turns toward", "shout", "alert", "alerted", "caught", "see you", "sees you"],
+    },
+    "athletics": {
+        "success": ["climb", "haul", "hauled", "reach", "reached", "leap", "leapt", "clear", "cleared",
+                    "make it", "made it", "across", "to the top", "heave", "lift", "lifted", "swim", "swam"],
+        "failure": ["slip", "slipped", "fall", "fell", "drop", "dropped", "slide", "slid", "can't",
+                    "cannot", "fail", "falter", "too heavy", "won't budge"],
+    },
+    "acrobatics": {
+        "success": ["balance", "land", "landed", "roll", "rolled", "tumble", "flip", "flipped", "nimbly",
+                    "gracefully", "dodge", "squeeze", "squeezed"],
+        "failure": ["stumble", "fall", "fell", "lose your balance", "trip", "tripped", "wobble", "awkward",
+                    "awkwardly", "crash", "sprawl"],
+    },
+    "sleight of hand": {
+        "success": ["click", "clicks", "open", "opens", "unlock", "unlocked", "pocket", "pocketed", "palm",
+                    "palmed", "deft", "deftly", "lifted", "gives way"],
+        "failure": ["jam", "jammed", "stuck", "won't", "scrape", "snap", "snapped", "fumble", "fumbled",
+                    "caught", "clatter"],
+    },
+    "persuasion": {
+        "success": ["agree", "agrees", "nod", "nods", "nodded", "convince", "convinced", "accept",
+                    "relent", "relents", "smile", "smiles", "deal", "willing"],
+        "failure": ["refuse", "refuses", "shake", "shakes", "frown", "frowns", "won't", "scoff",
+                    "scoffs", "unconvinced", "not convinced", "unmoved"],
+    },
+    "intimidation": {
+        "success": ["flinch", "flinches", "pale", "pales", "step back", "steps back", "cower", "cowers",
+                    "swallow", "swallows", "back down", "backs down", "cooperate"],
+        "failure": ["laugh", "laughs", "scoff", "scoffs", "stubborn", "unmoved", "unimpressed", "refuse",
+                    "refuses", "doesn't flinch", "squares"],
+    },
+    "deception": {
+        "success": ["believe", "believes", "buy", "buys", "bought", "convinced", "nod", "nods",
+                    "falls for", "fell for", "accept", "accepts"],
+        "failure": ["suspicious", "narrow", "narrows", "doubt", "doubts", "see through", "sees through",
+                    "lie", "lying", "rings false", "doesn't buy"],
+    },
+    "insight": {
+        "success": ["sense", "sensed", "hiding", "nervous", "honest", "lying", "read them", "read her",
+                    "read him", "aren't saying", "not saying",
+                    "fear", "afraid", "guilt"],
+        "failure": ["unreadable", "can't tell", "cannot tell", "nothing you can trust", "gives nothing away", "impassive", "mask", "guarded"],
+    },
+}
+
+
 def _outcome_line(session, skill_key: str, success: bool) -> str:
     lines = SKILL_OUTCOMES.get(skill_key)
     if lines:
@@ -352,6 +408,13 @@ def is_weak_roll_narration(text: str, roll_result: Optional[dict]) -> bool:
         "call out", "notice you", "approach", "interrupt", "crier", "guard",
         "ask", "asks", "asked", "toward the", "instead",
     ]
+    # Non-search skills describe their outcome with different words
+    skill_words = SKILL_OUTCOME_WORDS.get(
+        str(roll_result.get("skill", "")).replace("_", " ").lower(), {}
+    )
+    payoff_words = payoff_words + skill_words.get("success", [])
+    complication_words = complication_words + skill_words.get("failure", [])
+
     if roll_result.get("success") and has_any(lower, payoff_words):
         return False
     if not roll_result.get("success") and has_any(lower, complication_words):

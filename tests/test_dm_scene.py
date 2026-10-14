@@ -152,3 +152,32 @@ def test_search_rolls_still_use_location_clues():
         session, "I search the well", {"skill": "Perception", "success": False, "is_nat_1": True}
     )
     assert crit.startswith("**Critical failure** on your perception")
+
+
+@pytest.mark.parametrize("skill, success, text", [
+    ("Stealth", True, "You slip past the guards."),
+    ("Stealth", False, "A floorboard creaks and the guard turns toward you."),
+    ("Athletics", True, "You haul yourself over the wall."),
+    ("Athletics", False, "Your fingers slip and you fall back into the mud."),
+    ("Sleight_Of_Hand", True, "The lock clicks open."),
+    ("Persuasion", False, "She folds her arms and refuses."),
+    ("Intimidation", True, "He pales and steps back."),
+    ("Deception", False, "The guard narrows his eyes."),
+])
+def test_short_skill_outcomes_are_not_weak(skill, success, text):
+    assert is_weak_roll_narration(text, {"skill": skill, "success": success}) is False
+
+
+@pytest.mark.parametrize("skill, success", [("Stealth", True), ("Athletics", False), ("Persuasion", True)])
+def test_setup_only_narration_is_still_weak(skill, success):
+    assert is_weak_roll_narration("You take a deep breath and begin.", {"skill": skill, "success": success})
+
+
+def test_canned_outcome_lines_pass_their_own_check():
+    from dm_scene import SKILL_OUTCOMES
+
+    for skill, lines in SKILL_OUTCOMES.items():
+        for outcome, texts in lines.items():
+            for text in texts:
+                roll = {"skill": skill, "success": outcome == "success"}
+                assert not is_weak_roll_narration(text, roll), (skill, outcome, text)
