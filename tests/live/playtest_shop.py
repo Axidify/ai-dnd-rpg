@@ -21,7 +21,7 @@ from typing import List, Dict, Any, Optional, Callable
 from contextlib import redirect_stdout
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from character import Character, CLASSES, RACES
 from scenario import ScenarioManager, create_goblin_cave_shops

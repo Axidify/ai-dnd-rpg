@@ -17,7 +17,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from unittest.mock import patch, MagicMock
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from character import Character
 from scenario import ScenarioManager, Location, create_goblin_cave_shops

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 from combat import roll_dice, ENEMIES
 from inventory import get_item, add_item_to_inventory, remove_item_from_inventory, find_item_in_inventory
+from text_match import has_any, has_phrase
 
 # D&D 5e class skill proficiencies (simplified — one primary skill per class)
 CLASS_SKILL_PROFICIENCIES = {
@@ -495,15 +496,28 @@ def process_travel(session, destination: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 HOSTILE_VERBS = (
-    "attack", "hit", "strike", "punch", "kick", "stab", "slash", "shoot",
-    "murder", "kill", "slay", "assault", "fight", "charge at", "swing at",
-    "throw at", "cast.*at", "fireball at", "shoot at",
+    "attack", "hit", "hits", "strike", "punch", "kick", "stab", "stabbed", "slash",
+    "shoot", "shot", "murder", "kill", "slay", "assault", "fight", "charge at",
+    "swing at", "throw at", "fireball at",
+)
+# "cast <spell> at <target>" (idioms like "cast a glance at" are removed first)
+HOSTILE_CAST_RE = re.compile(r"\bcast(?:s|ing)?\b(?:\s+[\w'-]+){1,3}\s+at\b")
+
+# Figures of speech that contain a hostile verb. Removed before matching.
+NON_HOSTILE_IDIOMS = (
+    "strike a deal", "strike a bargain", "strike up", "strike a pose",
+    "hit the road", "hit the hay", "hit the sack", "hit it off",
+    "fight the urge", "fight back tears", "kill time", "killing time",
+    "shoot a glance", "shoot a look", "shot a glance", "shoot the breeze",
+    "cast a glance", "cast a look", "cast an eye", "cast my eye", "cast my eyes",
+    "cast his eye", "cast her eye", "cast a shadow", "cast lots",
 )
 
 TARGET_ENEMY_MAP = {
     "goblin": "goblin",
     "orc": "orc",
     "wolf": "wolf",
+    "wolves": "wolf",
     "skeleton": "skeleton",
     "bandit": "bandit",
     "spider": "giant_spider",
@@ -531,20 +545,21 @@ TARGET_ENEMY_MAP = {
 
 
 def _is_hostile_action(action: str) -> bool:
-    lower = action.lower().strip()
-    for verb in HOSTILE_VERBS:
-        if re.search(rf"\b{verb}\b", lower):
-            return True
-    return False
+    lower = " ".join(action.lower().split())
+    for idiom in NON_HOSTILE_IDIOMS:
+        lower = lower.replace(idiom, " ")
+    return has_any(lower, HOSTILE_VERBS) or bool(HOSTILE_CAST_RE.search(lower))
 
 
 def _resolve_hostile_enemies(action: str) -> List[str]:
-    lower = action.lower()
-    for target, enemy_id in TARGET_ENEMY_MAP.items():
-        if target in lower and enemy_id in ENEMIES:
+    # Longest names first so "goblin chief" wins over "goblin"; whole words
+    # only so "force" isn't an orc and "shaman" isn't a man.
+    for target in sorted(TARGET_ENEMY_MAP, key=len, reverse=True):
+        enemy_id = TARGET_ENEMY_MAP[target]
+        if enemy_id in ENEMIES and has_phrase(action, target):
             return [enemy_id]
     for enemy_id in ENEMIES:
-        if enemy_id.replace("_", " ") in lower or enemy_id in lower:
+        if has_phrase(action, enemy_id.replace("_", " ")):
             return [enemy_id]
     return ["bandit"]
 

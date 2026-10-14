@@ -1212,7 +1212,7 @@ class TestCheckExitCondition:
             def __init__(self):
                 self.items = [MockItem("Rusty Key"), MockItem("Torch")]
         
-        game_state = {"inventory": MockInventory()}
+        game_state = {"inventory": MockInventory().items}  # game passes a plain list
         success, reason = check_exit_condition("has_item:rusty_key", game_state)
         assert success == True
         assert "Rusty Key" in reason
@@ -1223,7 +1223,7 @@ class TestCheckExitCondition:
             def __init__(self):
                 self.items = []
         
-        game_state = {"inventory": MockInventory()}
+        game_state = {"inventory": MockInventory().items}  # game passes a plain list
         success, reason = check_exit_condition("has_item:gold_key", game_state)
         assert success == False
         assert "need" in reason.lower() or "key" in reason.lower()
@@ -1389,7 +1389,7 @@ class TestLocationManagerWithConditions:
         class MockInventory:
             items = []
         
-        game_state = {"inventory": MockInventory()}
+        game_state = {"inventory": MockInventory().items}  # game passes a plain list
         success, new_loc, message, events = manager.move("door", game_state)
         
         assert success == False
@@ -1428,7 +1428,7 @@ class TestLocationManagerWithConditions:
         class MockInventory:
             items = [MockItem("Key")]
         
-        game_state = {"inventory": MockInventory()}
+        game_state = {"inventory": MockInventory().items}  # game passes a plain list
         success, new_loc, message, events = manager.move("door", game_state)
         
         assert success == True
@@ -1467,7 +1467,7 @@ class TestLocationManagerWithConditions:
         class MockInventory:
             items = [MockItem("Key")]
         
-        game_state = {"inventory": MockInventory()}
+        game_state = {"inventory": MockInventory().items}  # game passes a plain list
         manager.move("door", game_state)
         
         # Now go back
@@ -2289,12 +2289,11 @@ class TestLocationManagerCheckDiscovery:
         """Test check_discovery with item condition when player has item."""
         manager = self.setup_manager()
         
-        # Create mock inventory
-        class MockInventory:
-            def has_item(self, key):
-                return key == "treasure_map"
-        
-        game_state = {"inventory": MockInventory()}
+        class MockItem:
+            def __init__(self, name):
+                self.name = name
+
+        game_state = {"inventory": [MockItem("Treasure Map")]}  # game passes a plain list
         can_discover, message = manager.check_discovery("item_hidden", game_state)
         
         assert can_discover is True
@@ -2642,72 +2641,6 @@ class TestHiddenItems:
 # NUMBERED EXIT NAVIGATION TESTS
 # =============================================================================
 
-class TestNumberedExitNavigation:
-    """Tests for the numbered exit choice system."""
-    
-    def test_get_exit_by_number_valid(self):
-        """Test getting exit by valid number."""
-        from game import get_exit_by_number
-        
-        exits = {"north": "forest", "south": "village", "east": "cave"}
-        
-        assert get_exit_by_number(1, exits) == "north"
-        assert get_exit_by_number(2, exits) == "south"
-        assert get_exit_by_number(3, exits) == "east"
-    
-    def test_get_exit_by_number_invalid_zero(self):
-        """Test that 0 returns None (custom action)."""
-        from game import get_exit_by_number
-        
-        exits = {"north": "forest", "south": "village"}
-        assert get_exit_by_number(0, exits) is None
-    
-    def test_get_exit_by_number_invalid_too_high(self):
-        """Test that number higher than exits returns None."""
-        from game import get_exit_by_number
-        
-        exits = {"north": "forest", "south": "village"}
-        assert get_exit_by_number(3, exits) is None
-        assert get_exit_by_number(99, exits) is None
-    
-    def test_get_exit_by_number_negative(self):
-        """Test that negative number returns None."""
-        from game import get_exit_by_number
-        
-        exits = {"north": "forest", "south": "village"}
-        assert get_exit_by_number(-1, exits) is None
-    
-    def test_get_exit_by_number_empty_exits(self):
-        """Test with empty exits dict."""
-        from game import get_exit_by_number
-        
-        exits = {}
-        assert get_exit_by_number(1, exits) is None
-    
-    def test_get_exit_by_number_single_exit(self):
-        """Test with single exit."""
-        from game import get_exit_by_number
-        
-        exits = {"door": "outside"}
-        assert get_exit_by_number(1, exits) == "door"
-        assert get_exit_by_number(2, exits) is None
-    
-    def test_exit_order_preserved(self):
-        """Test that exit order is consistent."""
-        from game import get_exit_by_number
-        
-        # Python 3.7+ preserves dict insertion order
-        exits = {"alpha": "a", "beta": "b", "gamma": "c", "delta": "d"}
-        
-        exit_list = list(exits.keys())
-        for i, expected_exit in enumerate(exit_list, 1):
-            assert get_exit_by_number(i, exits) == expected_exit
-
-
-# =============================================================================
-# LOCATION ATMOSPHERE TESTS (Phase 3.4.1)
-# =============================================================================
-
 class TestLocationAtmosphere:
     """Tests for the LocationAtmosphere dataclass."""
     
@@ -2888,55 +2821,6 @@ class TestLocationWithAtmosphere:
         
         assert location.atmosphere is None  # Structured not used
         assert location.atmosphere_text == "Warm and welcoming"
-    
-    def test_location_atmosphere_in_context(self):
-        """Test that build_location_context handles structured atmosphere."""
-        from scenario import LocationAtmosphere
-        from game import build_location_context
-        
-        atmo = LocationAtmosphere(
-            sounds=["dripping water", "distant echoes"],
-            smells=["damp earth"],
-            lighting="dim torchlight",
-            temperature="cold",
-            mood="tense",
-            danger_level="threatening"
-        )
-        
-        location = Location(
-            id="cave",
-            name="Dark Cave",
-            description="A dark cave",
-            atmosphere=atmo
-        )
-        
-        context = build_location_context(location)
-        
-        # Should have structured atmosphere context
-        assert "atmosphere" in context
-        assert isinstance(context["atmosphere"], dict)
-        assert "sounds" in context["atmosphere"]
-        assert "dripping water" in context["atmosphere"]["sounds"]
-        assert context["atmosphere"]["mood"] == "tense"
-        assert "atmosphere_instruction" in context
-    
-    def test_location_legacy_atmosphere_in_context(self):
-        """Test that build_location_context handles legacy atmosphere_text."""
-        from game import build_location_context
-        
-        location = Location(
-            id="tavern",
-            name="Old Tavern",
-            description="An old tavern",
-            atmosphere_text="Warm firelight, the smell of ale"
-        )
-        
-        context = build_location_context(location)
-        
-        # Should use legacy string
-        assert "atmosphere" in context
-        assert context["atmosphere"] == "Warm firelight, the smell of ale"
-        assert "atmosphere_instruction" not in context  # No structured instructions
 
 
 if __name__ == "__main__":

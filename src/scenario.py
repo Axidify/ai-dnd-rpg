@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Callable, Tuple, Any
 from enum import Enum
 import json
 
+from text_match import has_any
 from npc import NPC, NPCRole, NPCManager, Personality
 from quest import (
     Quest, QuestObjective, QuestManager, QuestStatus, QuestType, ObjectiveType,
@@ -936,10 +937,10 @@ def check_exit_condition(condition: str, game_state: dict) -> Tuple[bool, str]:
         if len(parts) < 2:
             return True, ""  # Malformed, pass through
         item_key = parts[1].lower()
-        inventory = game_state.get("inventory")
+        inventory = game_state.get("inventory") or []
         if inventory:
             # Check if player has the item
-            for item in inventory.items:
+            for item in inventory:
                 if item.name.lower().replace(" ", "_") == item_key or item_key in item.name.lower():
                     return True, f"You use the {item.name}."
         return False, f"You need a key or tool to pass."
@@ -1570,8 +1571,9 @@ Atmosphere: {location.atmosphere}
             # Format: "has_item:treasure_map"
             item_key = condition.split(":")[1] if ":" in condition else ""
             if game_state and "inventory" in game_state:
-                inventory = game_state["inventory"]
-                if hasattr(inventory, "has_item") and inventory.has_item(item_key):
+                inventory = game_state["inventory"] or []
+                wanted = item_key.lower()
+                if any(item.name.lower().replace(" ", "_") == wanted for item in inventory):
                     return True, ""
             return False, f"Requires item: {item_key.replace('_', ' ')}"
         
@@ -1660,6 +1662,9 @@ class Scenario:
     # Runtime state
     current_scene_id: Optional[str] = None
     is_complete: bool = False
+    # Objectives completed by events that aren't in the current scene's
+    # objective list (e.g. "objective:rescue_lily" from a location event).
+    extra_objectives_complete: List[str] = field(default_factory=list)
     
     def __post_init__(self):
         """Initialize location manager and NPC manager if not provided."""
@@ -1715,7 +1720,17 @@ class Scenario:
                 xp = scene.objective_xp.get(objective_id, 0)
                 return True, xp
             return True, 0  # Already complete, no XP
+        if objective_id and objective_id not in self.extra_objectives_complete:
+            self.extra_objectives_complete.append(objective_id)
         return False, 0
+
+    @property
+    def completed_objectives(self) -> List[str]:
+        """Every objective completed so far, across all scenes and events."""
+        done = list(self.extra_objectives_complete)
+        for scene in self.scenes.values():
+            done.extend(o for o in scene.objectives_complete if o not in done)
+        return done
     
     def can_transition(self) -> bool:
         """Check if current scene can transition to next."""
@@ -3072,35 +3087,28 @@ class ScenarioManager:
         if not self.active_scenario:
             return None
         
-        # Simple keyword detection for objectives
+        # Keyword detection for conversational/exploration objectives (whole
+        # words only). Combat objectives (deal_with_goblins, defeat_chief) are
+        # completed by an actual combat victory — see apply_combat_victory —
+        # because prose like "rain falls" or "a small victory" proves nothing.
         scene = self.active_scenario.get_current_scene()
         if scene:
-            input_lower = player_input.lower()
-            response_lower = dm_response.lower()
-            
-            # Check for common objective triggers
-            if "accept" in input_lower or "yes" in input_lower or "help" in input_lower:
+            if has_any(player_input, ["accept", "yes", "help", "agree", "count me in", "i'm in"]):
                 if "accept_quest" in scene.objectives:
                     self.active_scenario.complete_objective("accept_quest")
-            
-            if "bram" in response_lower or "farmer" in response_lower:
+
+            if has_any(dm_response, ["bram", "farmer"]):
                 if "meet_bram" in scene.objectives:
                     self.active_scenario.complete_objective("meet_bram")
-            
-            if "examine" in input_lower or "look" in input_lower or "search" in input_lower:
+
+            if has_any(player_input, ["examine", "look", "search", "inspect", "investigate"]):
                 if "examine_entrance" in scene.objectives:
                     self.active_scenario.complete_objective("examine_entrance")
-            
-            if "lily" in response_lower or "girl" in response_lower or "daughter" in response_lower:
+
+            if has_any(dm_response, ["lily", "girl", "daughter"]):
                 if "find_lily" in scene.objectives:
                     self.active_scenario.complete_objective("find_lily")
-            
-            if any(word in response_lower for word in ["defeat", "killed", "slain", "falls", "victory"]):
-                if "deal_with_goblins" in scene.objectives:
-                    self.active_scenario.complete_objective("deal_with_goblins")
-                if "defeat_chief" in scene.objectives:
-                    self.active_scenario.complete_objective("defeat_chief")
-        
+
         # Check if we can transition
         if self.active_scenario.can_transition():
             # Look for transition signals in the AI response
@@ -3110,8 +3118,8 @@ class ScenarioManager:
                 "leads you to", "takes you to",
                 "the adventure concludes", "your adventure ends"
             ]
-            
-            if any(keyword in response_lower for keyword in transition_keywords):
+
+            if has_any(dm_response, transition_keywords):
                 next_scene = self.active_scenario.transition_to_next()
                 if next_scene:
                     return f"\n{'='*50}\n📍 {next_scene.name}\n{'='*50}\n"

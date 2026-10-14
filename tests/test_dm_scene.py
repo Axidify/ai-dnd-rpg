@@ -75,6 +75,29 @@ def test_vague_look_not_forced_roll_by_code_override():
     assert decision.requires_roll is False
 
 
+def test_basic_conversation_no_roll():
+    ctx = "Location: The Rusty Dragon. NPC Bram is present."
+    for action in [
+        "I speak up.",
+        "I ask Bram where his daughter was taken.",
+        "Tell me about the cave, barkeep.",
+        "Yes, I will help you Bram.",
+        "Hello Bram.",
+    ]:
+        decision = get_arbiter_decision(action, ctx, use_ai=False)
+        assert decision.requires_roll is False, action
+
+
+def test_negotiation_still_requires_roll():
+    decision = get_arbiter_decision(
+        "I try to convince Bram to pay me more gold.",
+        "Location: Tavern",
+        use_ai=False,
+    )
+    assert decision.requires_roll is True
+    assert decision.skill == "Persuasion"
+
+
 def test_weak_roll_narration_detects_setup_only():
     weak = (
         "You narrow your eyes and scan the square, focusing on the crowd at the well. "

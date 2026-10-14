@@ -322,15 +322,21 @@ class Character:
             intelligence=data.get('intelligence', 10),
             wisdom=data.get('wisdom', 10),
             charisma=data.get('charisma', 10),
-            max_hp=data.get('max_hp', 10),
-            current_hp=data.get('current_hp', 10),
-            armor_class=data.get('armor_class', 10),
-            weapon=data.get('weapon', 'longsword'),
             equipped_armor=data.get('equipped_armor', ''),
             inventory=inventory,
             gold=data.get('gold', 0),
             experience=data.get('experience', 0)
         )
+        # __post_init__ recalculates derived stats from scratch; restore the
+        # saved values on top so HP, AC and weapon survive a load.
+        if data.get('max_hp') is not None:
+            char.max_hp = data['max_hp']
+        if data.get('current_hp') is not None:
+            char.current_hp = min(data['current_hp'], char.max_hp)
+        if data.get('armor_class') is not None:
+            char.armor_class = data['armor_class']
+        if data.get('weapon'):
+            char.weapon = data['weapon']
         return char
     
     def _add_starting_equipment(self):

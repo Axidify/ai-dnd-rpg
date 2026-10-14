@@ -14,6 +14,8 @@ import random
 import re
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
+from text_match import has_any
+
 if TYPE_CHECKING:
     from dm_arbiter import ArbiterDecision
 
@@ -79,9 +81,9 @@ VAGUE_SURVEY_PATTERNS = [
 SPECIFIC_SEARCH_PATTERNS = [
     "search for",
     "look for",
-    "examine ",
-    "inspect ",
-    "investigate ",
+    "examine",
+    "inspect",
+    "investigate",
     "check for",
     "look under",
     "look behind",
@@ -92,7 +94,7 @@ SPECIFIC_SEARCH_PATTERNS = [
     "anything hidden",
     "hidden door",
     "hidden trap",
-    "secret ",
+    "secret",
     "tracks",
     "clue",
     "eavesdrop",
@@ -107,12 +109,12 @@ SPECIFIC_SEARCH_PATTERNS = [
 def classify_exploration_action(action: str) -> str:
     """Return 'vague_survey', 'specific_search', or 'other'."""
     lower = action.lower().strip()
-    if any(p in lower for p in SPECIFIC_SEARCH_PATTERNS):
+    if has_any(lower, SPECIFIC_SEARCH_PATTERNS):
         return "specific_search"
-    if any(p in lower for p in VAGUE_SURVEY_PATTERNS):
+    if has_any(lower, VAGUE_SURVEY_PATTERNS):
         return "vague_survey"
-    if re.match(r"^(i )?(look|scan|observe|survey)\b", lower) and not any(
-        w in lower for w in ("for", "at", "under", "behind", "into")
+    if re.match(r"^(i )?(look|scan|observe|survey)\b", lower) and not has_any(
+        lower, ("for", "at", "under", "behind", "into")
     ):
         return "vague_survey"
     return "other"
@@ -295,19 +297,22 @@ def is_weak_roll_narration(text: str, roll_result: Optional[dict]) -> bool:
         return bool(roll_result)
 
     lower = text.lower()
+    # Whole-word matching (text_match also accepts -s/-ed/-ing forms of
+    # longer words); irregular forms are listed explicitly.
     payoff_words = [
-        "notice", "spot", "find", "discover", "reveal", "catch", "see",
-        "mark", "track", "clue", "print", "sign", "overhear", "whisper",
-        "trail", "hidden", "chalk", "mud", "fragment",
+        "notice", "spot", "spotted", "find", "found", "discover", "reveal", "catch",
+        "caught", "see", "sees", "saw", "seen", "mark", "markings", "track", "clue",
+        "print", "prints", "footprints", "sign", "overhear", "overheard", "whisper",
+        "trail", "hidden", "chalk", "mud", "muddy", "fragment",
     ]
     complication_words = [
-        "but", "however", "miss", "quiet", "wary", "suspicious", "point",
+        "but", "however", "miss", "missed", "quiet", "wary", "suspicious", "point",
         "call out", "notice you", "approach", "interrupt", "crier", "guard",
-        "ask", "toward the", "instead",
+        "ask", "asks", "asked", "toward the", "instead",
     ]
-    if roll_result.get("success") and any(w in lower for w in payoff_words):
+    if roll_result.get("success") and has_any(lower, payoff_words):
         return False
-    if not roll_result.get("success") and any(w in lower for w in complication_words):
+    if not roll_result.get("success") and has_any(lower, complication_words):
         return False
     if len(text.strip()) < 100:
         return True
@@ -323,13 +328,13 @@ def is_weak_roll_narration(text: str, roll_result: Optional[dict]) -> bool:
         "you sharpen your focus",
         "tuning out",
     ]
-    has_setup = any(p in lower for p in setup_phrases)
+    has_setup = has_any(lower, setup_phrases)
 
     if roll_result.get("success"):
-        if has_setup and not any(w in lower for w in payoff_words):
+        if has_setup and not has_any(lower, payoff_words):
             return True
     else:
-        if has_setup and not any(w in lower for w in complication_words):
+        if has_setup and not has_any(lower, complication_words):
             return True
 
     return False

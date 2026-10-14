@@ -470,7 +470,20 @@ class TestBuyItem:
         # Should have 3 daggers
         dagger_count = sum(1 for item in rich_character.inventory if item.name.lower() == "dagger")
         assert dagger_count == 3
-    
+        # Each dagger is its own object, not one object listed three times
+        daggers = [item for item in rich_character.inventory if item.name.lower() == "dagger"]
+        assert len({id(d) for d in daggers}) == 3
+
+    def test_buy_multiple_stackable_gives_exact_quantity(self, rich_character, basic_shop, shop_manager):
+        """Buying 5 potions yields exactly 5 (regression: stacking onto a shared object doubled it)."""
+        shop_manager.add_shop(basic_shop)
+        result = buy_item(rich_character, basic_shop, "healing_potion", 5, shop_manager, "neutral")
+
+        assert result.success
+        potions = [item for item in rich_character.inventory if "potion" in item.name.lower()]
+        assert len(potions) == 1
+        assert potions[0].quantity == 5
+
     def test_buy_insufficient_gold(self, poor_character, basic_shop, shop_manager):
         """Test buying with insufficient gold."""
         shop_manager.add_shop(basic_shop)

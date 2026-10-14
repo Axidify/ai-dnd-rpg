@@ -483,7 +483,7 @@ def generate_save_filename(character_name: str, slot: Optional[int] = None) -> s
     """Generate a save filename."""
     safe_name = "".join(c if c.isalnum() else "_" for c in character_name.lower())
     if slot is not None:
-        return f"save_{safe_name}_slot{slot}.json"
+        return f"save_{safe_name}_slot{int(slot)}.json"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"save_{safe_name}_{timestamp}.json"
 
@@ -492,7 +492,7 @@ def generate_save_id(character_name: str, slot: Optional[int] = None) -> str:
     """Generate a save ID (without .json extension)."""
     safe_name = "".join(c if c.isalnum() else "_" for c in character_name.lower())
     if slot is not None:
-        return f"save_{safe_name}_slot{slot}"
+        return f"save_{safe_name}_slot{int(slot)}"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"save_{safe_name}_{timestamp}"
 
@@ -591,8 +591,13 @@ def dict_to_character(data: Dict[str, Any], Character) -> Any:
         max_hp = data.get('max_hp', character.max_hp)
         current_hp = data.get('current_hp', character.current_hp)
         
-        character.max_hp = max(1, int(max_hp)) if max_hp else character.max_hp
-        character.current_hp = min(character.max_hp, max(0, int(current_hp))) if current_hp else character.current_hp
+        # `is not None`, not truthiness: a saved current_hp of 0 (a downed
+        # character) must stay 0 rather than reviving at full HP.
+        character.max_hp = max(1, int(max_hp)) if max_hp is not None else character.max_hp
+        character.current_hp = (
+            min(character.max_hp, max(0, int(current_hp)))
+            if current_hp is not None else character.current_hp
+        )
         character.armor_class = max(0, int(data.get('armor_class', character.armor_class)))
         
         # Equipment
@@ -717,6 +722,7 @@ def scenario_to_dict(scenario_manager, quest_manager=None) -> Optional[Dict[str,
         'id': scenario.id,
         'current_scene_id': scenario.current_scene_id,
         'is_complete': scenario.is_complete,
+        'extra_objectives_complete': list(scenario.extra_objectives_complete),
         'scene_states': scene_states,
         'location_state': location_state,  # Phase 3.2
         'quest_state': quest_state,  # Phase 3.3.4
@@ -756,6 +762,7 @@ def restore_scenario(scenario_manager, data: Dict[str, Any], quest_manager=None)
     scenario = scenario_manager.active_scenario
     scenario.current_scene_id = data.get('current_scene_id')
     scenario.is_complete = data.get('is_complete', False)
+    scenario.extra_objectives_complete = list(data.get('extra_objectives_complete', []))
     
     # Restore individual scene states
     scene_states = data.get('scene_states', {})
@@ -1206,8 +1213,8 @@ def quick_save(character, scenario_manager=None, chat_history=None) -> Tuple[boo
         manager = SaveManager()
         filepath, message = manager.save_game(
             character,
-            scenario_manager,
-            chat_history,
+            scenario_manager=scenario_manager,
+            chat_history=chat_history,
             slot=0,
             description="Quick Save"
         )

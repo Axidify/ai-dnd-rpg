@@ -372,9 +372,9 @@ export const useGameStore = create((set, get) => ({
   loadGame: async (saveName) => {
     set({ isLoading: true, error: null })
     try {
-      const isPath = saveName?.includes?.('/') || saveName?.includes?.('\\')
-      const payload = isPath ? { filepath: saveName } : { name: saveName?.endsWith?.('.json') ? saveName.slice(0, -5) : saveName }
-      const response = await api.post('/game/load', payload)
+      // The server only accepts a bare save name, never a path
+      const name = String(saveName ?? '').split(/[\\/]/).pop().replace(/\.json$/, '')
+      const response = await api.post('/game/load', { name })
       const { session_id, game_state } = response.data
       
       set({

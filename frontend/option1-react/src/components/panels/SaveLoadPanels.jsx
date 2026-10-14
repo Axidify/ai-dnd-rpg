@@ -42,7 +42,7 @@ export function LoadPanel({ saves = [], onLoad }) {
         <button
           key={i}
           type="button"
-          onClick={() => onLoad?.(save.filepath || save.name)}
+          onClick={() => onLoad?.(save.filename || save.name)}
           className="focus-ring w-full panel-inset rounded-lg p-4 text-left hover:border-[var(--gold)]/40 hover:bg-[var(--surface-2)] transition"
         >
           <div className="font-display text-lg text-[var(--gold)] leading-tight">

@@ -924,7 +924,7 @@ if warns > 0:
     print()
 
 # Save results
-with open('tests/hostile_final_results.txt', 'w', encoding='utf-8') as f:
+with open('tests/live/hostile_final_results.txt', 'w', encoding='utf-8') as f:
     f.write("HOSTILE PLAYER TESTING - FINAL ROUND (50 TESTS)\n")
     f.write("=" * 60 + "\n\n")
     for name, status, detail in results:
@@ -934,4 +934,4 @@ with open('tests/hostile_final_results.txt', 'w', encoding='utf-8') as f:
         f.write("\n")
     f.write(f"\nSUMMARY: {passes} PASS, {fails} FAIL, {warns} WARN\n")
 
-print("Results saved to tests/hostile_final_results.txt")
+print("Results saved to tests/live/hostile_final_results.txt")

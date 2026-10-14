@@ -32,7 +32,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from character import Character
 from scenario import ScenarioManager, create_goblin_cave_shops

@@ -7,13 +7,14 @@ Also serves the Flutter web app for same-origin requests.
 import os
 import sys
 import json
+import re
 import uuid
 import threading
 import time
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import Optional
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -21,28 +22,20 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from character import Character, CLASSES, RACES
-from scenario import ScenarioManager, LocationManager, Location, create_goblin_cave_quests
+from scenario import ScenarioManager, LocationManager, create_goblin_cave_quests
 from npc import NPCManager
 from quest import QuestManager
 from combat import (
-    create_enemy, ENEMIES, Enemy,
-    roll_attack, roll_attack_with_advantage, roll_damage, enemy_attack,
-    roll_initiative, format_attack_result, format_damage_result,
-    get_enemy_xp, get_enemy_loot_for_class
+    ENEMIES
 )
-from inventory import ITEMS, get_item, add_item_to_inventory, remove_item_from_inventory, ItemType
+from inventory import get_item, add_item_to_inventory
 from save_system import SaveManager
 from party import Party
 from dm_scene import (
-    prepare_action_turn,
     build_survey_dm_instruction,
     build_roll_outcome_instruction,
-    build_roll_outcome_narration,
-    is_weak_roll_narration,
 )
 from game_mechanics import (
-    apply_location_event_effects,
-    apply_scenario_transition,
     run_party_ally_attacks,
     serialize_session_state,
     restore_session_state,
@@ -53,19 +46,20 @@ from game_mechanics import (
     on_player_defeat,
     is_session_blocked,
     process_travel,
-    try_hostile_combat_gate,
+)
+
+from text_match import has_any
+from turn_service import (
+    start_turn,
+    finish_turn,
+    message_text,
+    detect_npc_talk,  # noqa: F401  (re-exported; tests import it from here)
+    detect_quest_acceptance,  # noqa: F401
 )
 
 # Import from shared DM engine (single source of truth)
 from dm_engine import (
-    DM_SYSTEM_PROMPT,
-    parse_roll_request, parse_combat_request,
-    parse_item_rewards, parse_gold_rewards, parse_xp_rewards, parse_buy_transactions,
-    parse_gold_costs, parse_recruit_tags,
-    roll_skill_check, format_roll_result, build_post_roll_narration_fallback,
-    build_full_dm_context, apply_rewards,
-    SKILL_ABILITIES,
-    strip_dm_tags, StreamTagFilter,
+    build_full_dm_context, StreamTagFilter,
 )
 
 
@@ -77,104 +71,13 @@ def safe_json_sse(data: dict) -> str:
         print(f"⚠️ SSE JSON encode failed: {exc}")
         minimal = {'type': data.get('type', 'error'), 'message': 'Serialization error'}
         return f"data: {json.dumps(minimal)}\n\n"
-# Import the new arbiter for two-phase skill check enforcement
-import re
+
 
 # Load .env from project root (parent of src/)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
+ENV_PATH = os.path.join(PROJECT_ROOT, '.env')
+load_dotenv(ENV_PATH)
 load_dotenv(os.path.join(PROJECT_ROOT, '.env.local'), override=True)
-
-
-def detect_npc_talk(action: str, npc_manager) -> list:
-    """
-    Detect if a player action involves talking to an NPC.
-    
-    Returns:
-        List of NPC IDs that were talked to
-    """
-    if not npc_manager:
-        return []
-    
-    talked_to = []
-    action_lower = action.lower()
-    
-    # Common talk patterns
-    talk_patterns = [
-        r"talk\s+(?:to|with)\s+(\w+)",
-        r"speak\s+(?:to|with)\s+(\w+)",
-        r"greet\s+(\w+)",
-        r"ask\s+(\w+)",
-        r"approach\s+(\w+)",
-        r"hello\s+(\w+)",
-    ]
-    
-    for pattern in talk_patterns:
-        matches = re.findall(pattern, action_lower)
-        for name in matches:
-            # Check if this name matches any NPC
-            for npc in npc_manager.get_all_npcs():
-                if name.lower() in npc.name.lower() or name.lower() == npc.id.lower():
-                    if npc.id not in talked_to:
-                        talked_to.append(npc.id)
-    
-    return talked_to
-
-
-def detect_quest_acceptance(player_action: str, dm_response: str, quest_manager) -> list:
-    """
-    Detect if the player accepted a quest based on their action and the DM response.
-    
-    Triggers when:
-    1. Player says accept-like words (accept, yes, i'll help, agree, etc.)
-    2. DM response mentions quest-related keywords (thank you, grateful, quest, save, etc.)
-    
-    Returns:
-        List of quest IDs that were accepted
-    """
-    if not quest_manager:
-        return []
-    
-    accepted_quests = []
-    action_lower = player_action.lower()
-    response_lower = dm_response.lower()
-    
-    # Player acceptance patterns
-    accept_patterns = [
-        r"\byes\b", r"\baccept\b", r"\bi('ll| will) help\b", r"\bagree\b",
-        r"\bcount me in\b", r"\bi'm in\b", r"\blet's do it\b", r"\bi'll save\b",
-        r"\blet me help\b", r"\bof course\b", r"\bvery well\b"
-    ]
-    
-    player_accepted = any(re.search(pat, action_lower) for pat in accept_patterns)
-    
-    if not player_accepted:
-        return []
-    
-    # Check available (not yet accepted) quests and match by NPC/context
-    for quest_id, quest in quest_manager.available_quests.items():
-        # Check if DM response references the quest giver or quest content
-        giver = quest.giver_npc_id.lower() if quest.giver_npc_id else ""
-        
-        # Match conditions (any of these trigger acceptance):
-        # 1. DM mentions quest giver name
-        # 2. DM response contains gratitude/acceptance words
-        # 3. Quest name or key words from description mentioned
-        dm_confirms = any([
-            giver and giver in response_lower,
-            any(word in response_lower for word in ["thank you", "grateful", "bless you", "knew someone"]),
-            quest.name.lower() in response_lower,
-            # Specific quest matching
-            quest_id == "rescue_lily" and any(w in response_lower for w in ["lily", "daughter", "save her"]),
-            quest_id == "clear_the_path" and any(w in response_lower for w in ["road", "path", "wolves", "safer"]),
-        ])
-        
-        if dm_confirms:
-            result = quest_manager.accept_quest(quest_id)
-            if result:
-                accepted_quests.append(quest_id)
-    
-    return accepted_quests
 
 
 def get_skill_hint(player_action: str) -> str:
@@ -182,8 +85,6 @@ def get_skill_hint(player_action: str) -> str:
     Add skill check hints based on player action keywords.
     Helps the AI know when to request skill checks.
     """
-    input_lower = player_action.lower()
-    
     # Specific search only — vague "look around" gets free survey (no roll hint)
     from dm_scene import classify_exploration_action
     if classify_exploration_action(player_action) == "specific_search":
@@ -195,32 +96,32 @@ def get_skill_hint(player_action: str) -> str:
     
     # Stealth triggers
     stealth_words = ["sneak", "hide", "quietly", "stealthily", "creep", "silently", "lurk"]
-    if any(word in input_lower for word in stealth_words):
+    if has_any(player_action, stealth_words):
         return "\n[HINT: This is a stealth action. Call for a Stealth check (DC 10-15) to determine success.]"
     
     # Social triggers - Persuasion
     persuade_words = ["convince", "persuade", "ask for", "request", "plead", "negotiate", "bargain", "deposit", "advance", "upfront"]
-    if any(word in input_lower for word in persuade_words):
+    if has_any(player_action, persuade_words):
         return "\n[HINT: This is a social action. Consider calling for a Persuasion check (DC 10-15).]"
     
     # Social triggers - Intimidation
     intimidate_words = ["threaten", "intimidate", "demand", "scare", "menace", "warn"]
-    if any(word in input_lower for word in intimidate_words):
+    if has_any(player_action, intimidate_words):
         return "\n[HINT: This is an intimidation attempt. Consider calling for an Intimidation check (DC 12-18).]"
     
     # Social triggers - Deception
     deception_words = ["lie", "bluff", "deceive", "trick", "fool", "pretend", "fake", "disguise"]
-    if any(word in input_lower for word in deception_words):
+    if has_any(player_action, deception_words):
         return "\n[HINT: This is a deception attempt. Consider calling for a Deception check (DC 12-18).]"
     
     # Social triggers - Insight (reading people)
     insight_words = ["read", "sense motive", "tell if", "lying", "trust", "believe", "suspicious"]
-    if any(word in input_lower for word in insight_words):
+    if has_any(player_action, insight_words):
         return "\n[HINT: The player is trying to read someone. Consider calling for an Insight check (DC 10-15).]"
     
     # Physical triggers
     physical_words = ["climb", "jump", "break", "force", "push", "lift", "swim", "run"]
-    if any(word in input_lower for word in physical_words):
+    if has_any(player_action, physical_words):
         return "\n[HINT: This is a physical action. Consider calling for an Athletics check (DC 10-15).]"
     
     return ""
@@ -228,7 +129,16 @@ def get_skill_hint(player_action: str) -> str:
 
 app = Flask(__name__)
 app.json.ensure_ascii = False  # Allow non-ASCII (emojis) in JSON
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)  # Enable CORS for all origins
+# The React dev server proxies /api (same origin), so CORS is only needed for
+# clients served from another origin. Override with a comma-separated list.
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+    if o.strip()
+]
+CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}})
+
+MAX_ACTION_LENGTH = 1000  # characters; player actions go into LLM prompts
 
 # Add request logging
 @app.before_request
@@ -558,6 +468,14 @@ def apply_combat_victory(session: GameSession, enemies: list, result_messages: l
                 session.combat_state = {}
             session.combat_state['hit_dice_remaining'] = session.character.level
             result_messages.append('🎲 Hit dice restored after boss victory!')
+
+    # Story objectives that depend on winning a fight are completed by the
+    # combat result, never by keywords in the DM's prose.
+    scenario = session.scenario.active_scenario if session.scenario else None
+    if scenario and any(enemy.is_dead for enemy in enemies):
+        scenario.complete_objective('deal_with_goblins')
+        if boss_killed:
+            scenario.complete_objective('defeat_chief')
 
     return rewards
 
@@ -1150,680 +1068,127 @@ Keep it to 2-3 paragraphs. Be immersive and atmospheric."""
     })
 
 
+def _parse_action_request():
+    """Validate an action request. Returns (session, action, error_response)."""
+    data = request.get_json(silent=True) or {}
+    session_id = data.get('session_id')
+    raw_action = data.get('action', '')
+
+    if not isinstance(raw_action, str):
+        return None, None, (jsonify({'error': 'Action must be a string'}), 400)
+    if len(raw_action) > MAX_ACTION_LENGTH:
+        return None, None, (jsonify({'error': f'Action too long (max {MAX_ACTION_LENGTH} characters)'}), 400)
+
+    action = raw_action.strip()
+    if not session_id or session_id not in game_sessions:
+        return None, None, (jsonify({'error': 'Invalid session'}), 400)
+    if not action:
+        return None, None, (jsonify({'error': 'No action provided'}), 400)
+
+    return game_sessions[session_id], action, None
+
+
+def _sse_response(events) -> Response:
+    return Response(
+        stream_with_context(events),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+        },
+    )
+
+
 @app.route('/api/game/action', methods=['POST'])
 def game_action():
     """Process a player action using two-phase AI (arbiter + narrator)."""
-    data = request.get_json() or {}
-    
-    session_id = data.get('session_id')
-    raw_action = data.get('action', '')
-    
-    # Validate action type
-    if not isinstance(raw_action, str):
-        return jsonify({'error': 'Action must be a string'}), 400
-    
-    action = raw_action.strip()
-    
-    if not session_id or session_id not in game_sessions:
-        return jsonify({'error': 'Invalid session'}), 400
-    
-    if not action:
-        return jsonify({'error': 'No action provided'}), 400
-    
-    session = game_sessions[session_id]
-    session.touch()  # Update activity timestamp
-    
-    # Record player action
-    session.messages.append({
-        'type': 'player',
-        'content': action,
-        'timestamp': datetime.now().isoformat()
-    })
-    
-    if session.in_combat:
-        combat_msg = (
-            "⚔️ **Combat is underway!** Use **Attack**, **Defend**, or **Flee** "
-            "below — narrative actions are paused until the fight ends."
-        )
-        session.messages.append({
-            'type': 'dm',
-            'content': combat_msg,
-            'timestamp': datetime.now().isoformat(),
-        })
+    session, action, error = _parse_action_request()
+    if error:
+        return error
+
+    start = start_turn(session, action)
+    if start.finished:
         return jsonify({
             'success': True,
-            'message': combat_msg,
+            'message': message_text(start.events),
+            **start.response,
             'game_state': session.to_dict(),
         })
-    
-    # =========================================================================
-    # CHECK FOR GAME OVER / DEFEAT STATE
-    # =========================================================================
-    blocked, _ = is_session_blocked(session)
-    if blocked:
-        session.game_over = True
 
-    if session.game_over:
-        game_over_response = f"🎮 **GAME OVER**\n\n{session.game_over_reason}\n\n*Start a new game to try again.*"
-        session.messages.append({
-            'type': 'dm',
-            'content': game_over_response,
-            'timestamp': datetime.now().isoformat(),
-            'game_over': True
-        })
-        return jsonify({
-            'success': True,
-            'message': game_over_response,
-            'game_over': True,
-            'game_state': session.to_dict()
-        })
-
-    # =========================================================================
-    # HOSTILE ACTION → STRUCTURED COMBAT (before narrator)
-    # =========================================================================
-    hostile = try_hostile_combat_gate(session, action)
-    if hostile:
-        session.messages.append({
-            'type': 'dm',
-            'content': hostile['message'],
-            'timestamp': datetime.now().isoformat(),
-        })
-        return jsonify({
-            'success': True,
-            'message': hostile['message'],
-            'combat_started': True,
-            'game_state': session.to_dict(),
-        })
-    
-    # =========================================================================
-    # PHASE 1: ARBITER + SCENE RULES (BEFORE narrator)
-    # =========================================================================
-    context_for_arbiter = f"Location: {session.current_location or 'Unknown'}"
-    if session.quest_manager:
-        active_quests = session.quest_manager.get_active_quests()
-        if active_quests:
-            context_for_arbiter += f"\nActive quests: {', '.join(q.name for q in active_quests)}"
-
-    turn = prepare_action_turn(session, action, context_for_arbiter)
-    arbiter_decision = turn["arbiter_decision"]
-    arbiter_roll_result = turn["arbiter_roll_result"]
-    scene_action = turn["scene_action"]
-    social_blocked = turn["social_blocked"]
-    social_block_reason = turn["social_block_reason"]
-    is_social_check = turn["is_social_check"]
-    arbiter_no_roll = turn["arbiter_no_roll"]
-
-    if arbiter_roll_result:
-        print(
-            f"   🎲 Arbiter ({arbiter_decision.source}): "
-            f"{arbiter_roll_result['skill']} DC {arbiter_roll_result['dc']} = "
-            f"{arbiter_roll_result['total']} "
-            f"({'✓' if arbiter_roll_result['success'] else '✗'})"
-        )
-    if turn.get("social_failure_info"):
-        info = turn["social_failure_info"]
-        print(f"   ⚠️ Social failure recorded ({info['failures']}/{info['max_failures']})")
-
-    if turn.get("deterministic_response"):
-        det = turn["deterministic_response"]
-        session.messages.append({
-            "type": "dm",
-            "content": det,
-            "timestamp": datetime.now().isoformat(),
-        })
-        return jsonify({
-            "success": True,
-            "message": det,
-            "game_state": session.to_dict(),
-        })
-
-    if social_blocked:
-        if social_block_reason == "same_approach":
-            block_response = "*You consider pressing the same point again, but something in the NPC's expression tells you it would be futile. They've made their position clear, and repeating yourself would only damage what rapport remains.*\n\nPerhaps try a different approach, or accept the situation as it stands."
-        elif social_block_reason == "npc_hostile":
-            block_response = "*You move to speak, but the person pointedly turns away from you. Whatever chance you had with them has passed. Their body language makes it abundantly clear: this conversation is over.*\n\nYou'll need to find another way forward."
-        else:
-            block_response = session.game_over_reason or "You cannot proceed with this action."
-        
-        session.messages.append({
-            'type': 'dm',
-            'content': block_response,
-            'timestamp': datetime.now().isoformat(),
-            'blocked': True
-        })
-        return jsonify({
-            'success': True,
-            'message': block_response,
-            'blocked': True,
-            'block_reason': social_block_reason,
-            'game_state': session.to_dict()
-        })
-    
-    # =========================================================================
-    # PHASE 2: NARRATOR - Get DM response (with pre-roll result if applicable)
-    # =========================================================================
-    dm_response = get_dm_response(
+    narrator_text = get_dm_response(
         session,
         action,
-        pre_roll_result=arbiter_roll_result,
-        scene_action=scene_action,
-        arbiter_no_roll=arbiter_no_roll,
+        pre_roll_result=start.arbiter_roll_result,
+        scene_action=start.scene_action,
+        arbiter_no_roll=start.arbiter_no_roll,
     )
-    
-    # If arbiter required a roll, use that result (don't let narrator add another)
-    roll_result = arbiter_roll_result
-    
-    if not roll_result and not arbiter_no_roll:
-        skill, dc = parse_roll_request(dm_response)
-        if skill and dc and session.character:
-            result = roll_skill_check(session.character, skill, dc)
-            roll_result = {
-                'skill': result['skill'],
-                'roll': result['roll'],
-                'modifier': result['modifier'],
-                'total': result['total'],
-                'dc': dc,
-                'success': result['success'],
-                'formatted': format_roll_result(result),
-                'source': 'narrator_ai'
-            }
-            dm_response += f"\n\n{format_roll_result(result)}"
+    outcome = finish_turn(session, action, narrator_text, start)
 
-    if roll_result and is_weak_roll_narration(strip_dm_tags(dm_response), roll_result):
-        dm_response = (
-            (dm_response.strip() + "\n\n" if dm_response.strip() else "")
-            + build_roll_outcome_narration(session, action, roll_result)
-        )
-    
-    # Check for combat request
-    enemies, surprise = parse_combat_request(dm_response)
-    combat_started = False
-    
-    if enemies:
-        combat_started = True
-        session.in_combat = True
-        session.combat_state = {
-            'enemies': enemies,
-            'surprise': surprise,
-            'round': 1
-        }
-    
-    # Parse and apply item rewards [ITEM: item_name]
-    items_gained = parse_item_rewards(dm_response)
-    for item_name in items_gained:
-        item = get_item(item_name)
-        if item and session.character:
-            add_item_to_inventory(session.character.inventory, item)
-    
-    # Parse and apply gold rewards [GOLD: amount]
-    gold_gained = parse_gold_rewards(dm_response)
-    if gold_gained > 0 and session.character:
-        session.character.gold += gold_gained
-    
-    # Parse and apply XP rewards [XP: amount | reason]
-    xp_rewards = parse_xp_rewards(dm_response)
-    leveled_up = False
-    for xp_amount, reason in xp_rewards:
-        if session.character:
-            result = session.character.gain_xp(xp_amount, reason)
-            if result.get('level_up'):
-                leveled_up = True
-    
-    # Parse and apply buy transactions [BUY: item_name, price]
-    buy_transactions = parse_buy_transactions(dm_response)
-    for item_name, price in buy_transactions:
-        if session.character and session.character.gold >= price:
-            item = get_item(item_name)
-            if item:
-                session.character.gold -= price
-                add_item_to_inventory(session.character.inventory, item)
-    
-    # Parse and apply gold costs [PAY: amount, reason] - for hiring, bribes, etc.
-    gold_costs = parse_gold_costs(dm_response)
-    gold_paid = 0
-    for cost, reason in gold_costs:
-        if session.character and session.character.gold >= cost:
-            session.character.gold -= cost
-            gold_paid += cost
-            print(f"   💸 Paid {cost} gold: {reason}")
-    
-    # Parse and apply recruitment [RECRUIT: npc_id]
-    recruited_npcs = parse_recruit_tags(dm_response)
-    for npc_id in recruited_npcs:
-        from party import get_recruitable_npc, Party
-        if not session.party:
-            session.party = Party()
-        if not session.party.is_full():
-            member = get_recruitable_npc(npc_id)
-            if member:
-                session.party.add_member(member)
-                print(f"   🎉 {member.name} joined the party!")
-    
-    # Detect quest acceptance based on player action and DM response
-    accepted_quests = detect_quest_acceptance(action, dm_response, session.quest_manager)
-    if accepted_quests:
-        print(f"   📜 Quests accepted: {accepted_quests}")
-    
-    # Scenario scene transitions and adventure progress
-    if session.scenario:
-        session.scenario.record_exchange()
-    transition = apply_scenario_transition(session, action, dm_response)
-    if transition:
-        dm_response += f"\n\n{transition}"
-    
-    # =========================================================================
-    # CHECK FOR GAME OVER (triggered by this action's failure)
-    # =========================================================================
-    if session.game_over:
-        dm_response += f"\n\n---\n\n🎮 **GAME OVER**\n\n{session.game_over_reason}"
-    
-    # Add warning if player is close to game over
-    warning = session.get_social_warning()
-    if warning and not session.game_over:
-        dm_response += f"\n\n{warning}"
-    
-    # Strip internal control tags so the player never sees raw [TAG: ...] markup
-    dm_response = strip_dm_tags(dm_response)
-    if roll_result and len(dm_response.strip()) < 100:
-        dm_response = build_post_roll_narration_fallback(roll_result)
-    elif not dm_response.strip() and roll_result:
-        dm_response = build_post_roll_narration_fallback(roll_result)
-    elif not dm_response.strip():
-        dm_response = "The Dungeon Master pauses. *What would you like to do?*"
-    
-    # Record DM response
-    session.messages.append({
-        'type': 'dm',
-        'content': dm_response,
-        'timestamp': datetime.now().isoformat(),
-        'roll_result': roll_result,
-        'combat_started': combat_started,
-        'game_over': session.game_over
-    })
-    
     return jsonify({
         'success': True,
-        'message': dm_response,
-        'roll_result': roll_result,
-        'combat_started': combat_started,
-        'items_gained': items_gained,
-        'gold_gained': gold_gained,
-        'xp_gained': sum(xp for xp, _ in xp_rewards) if xp_rewards else 0,
-        'leveled_up': leveled_up,
-        'quests_accepted': accepted_quests,
+        # finish_turn records exactly what the player sees this turn
+        'message': session.messages[-1]['content'],
+        'roll_result': outcome.roll_result,
+        'combat_started': outcome.combat_started,
+        'items_gained': outcome.items_gained,
+        'gold_gained': outcome.gold_gained,
+        'xp_gained': outcome.xp_gained,
+        'leveled_up': outcome.leveled_up,
+        'quests_accepted': outcome.quests_accepted,
         'game_over': session.game_over,
         'social_failures': session.failed_social_checks,
-        'game_state': session.to_dict()
+        'game_state': session.to_dict(),
     })
 
 
 @app.route('/api/game/action/stream', methods=['POST'])
 def game_action_stream():
     """Process a player action with streaming response (Server-Sent Events)."""
-    from flask import Response, stream_with_context
-    
-    data = request.get_json() or {}
-    
-    session_id = data.get('session_id')
-    raw_action = data.get('action', '')
-    
-    # Validate action type
-    if not isinstance(raw_action, str):
-        return jsonify({'error': 'Action must be a string'}), 400
-    
-    action = raw_action.strip()
-    
-    if not session_id or session_id not in game_sessions:
-        return jsonify({'error': 'Invalid session'}), 400
-    
-    if not action:
-        return jsonify({'error': 'No action provided'}), 400
-    
-    session = game_sessions[session_id]
-    session.touch()  # Update activity timestamp
-    
-    # Record player action
-    session.messages.append({
-        'type': 'player',
-        'content': action,
-        'timestamp': datetime.now().isoformat()
-    })
-    
-    if session.in_combat:
-        def generate_combat_block():
-            msg = (
-                "⚔️ **Combat is underway!** Use **Attack**, **Defend**, or **Flee** "
-                "below — narrative actions are paused until the fight ends."
-            )
-            yield safe_json_sse({'type': 'chunk', 'content': msg})
-            yield safe_json_sse({'type': 'done', 'game_state': session.to_dict()})
+    session, action, error = _parse_action_request()
+    if error:
+        return error
 
-        return Response(
-            stream_with_context(generate_combat_block()),
-            mimetype='text/event-stream',
-            headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
-        )
-    
-    # =========================================================================
-    # CHECK FOR GAME OVER / DEFEAT STATE
-    # =========================================================================
-    blocked, _ = is_session_blocked(session)
-    if blocked:
-        session.game_over = True
+    start = start_turn(session, action)
 
-    if session.game_over:
-        def generate_game_over():
-            game_over_response = f"🎮 **GAME OVER**\n\n{session.game_over_reason}\n\n*Start a new game to try again.*"
-            yield f"data: {json.dumps({'type': 'chunk', 'content': game_over_response}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'game_over', 'reason': session.game_over_reason}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over}, ensure_ascii=False)}\n\n"
-        
-        return Response(
-            stream_with_context(generate_game_over()),
-            mimetype='text/event-stream',
-            headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
-        )
-
-    # =========================================================================
-    # HOSTILE ACTION → STRUCTURED COMBAT (before narrator)
-    # =========================================================================
-    hostile = try_hostile_combat_gate(session, action)
-    if hostile:
-        def generate_hostile_combat():
-            session.messages.append({
-                'type': 'dm',
-                'content': hostile['message'],
-                'timestamp': datetime.now().isoformat(),
-            })
-            yield safe_json_sse({'type': 'chunk', 'content': hostile['message']})
-            yield safe_json_sse({'type': 'combat', 'enemies': hostile.get('enemies', [])})
-            yield safe_json_sse({'type': 'done', 'game_state': session.to_dict()})
-
-        return Response(
-            stream_with_context(generate_hostile_combat()),
-            mimetype='text/event-stream',
-            headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
-        )
-    
-    # =========================================================================
-    # PHASE 1: ARBITER + SCENE RULES (BEFORE narrator)
-    # =========================================================================
-    context_for_arbiter = f"Location: {session.current_location or 'Unknown'}"
-    if session.quest_manager:
-        active_quests = session.quest_manager.get_active_quests()
-        if active_quests:
-            context_for_arbiter += f"\nActive quests: {', '.join(q.name for q in active_quests)}"
-
-    turn = prepare_action_turn(session, action, context_for_arbiter)
-    arbiter_roll_result = turn["arbiter_roll_result"]
-    scene_action = turn["scene_action"]
-    arbiter_no_roll = turn["arbiter_no_roll"]
-
-    if arbiter_roll_result:
-        ad = turn["arbiter_decision"]
-        print(
-            f"   🎲 Arbiter ({ad.source}): {arbiter_roll_result['skill']} "
-            f"DC {arbiter_roll_result['dc']} = {arbiter_roll_result['total']} "
-            f"({'✓' if arbiter_roll_result['success'] else '✗'})"
-        )
-    if turn.get("social_failure_info"):
-        info = turn["social_failure_info"]
-        print(f"   ⚠️ Social failure recorded ({info['failures']}/{info['max_failures']})")
-
-    if turn.get("deterministic_response"):
-        det = turn["deterministic_response"]
-
-        def generate_deterministic():
-            session.messages.append({
-                "type": "dm",
-                "content": det,
-                "timestamp": datetime.now().isoformat(),
-            })
-            yield safe_json_sse({"type": "chunk", "content": det})
-            yield safe_json_sse({"type": "done", "game_state": session.to_dict()})
-
-        return Response(
-            stream_with_context(generate_deterministic()),
-            mimetype="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
-
-    if turn["social_blocked"]:
-        social_block_reason = turn["social_block_reason"]
-        if social_block_reason == "same_approach":
-            block_response = "*You consider pressing the same point again, but something in the NPC's expression tells you it would be futile. They've made their position clear, and repeating yourself would only damage what rapport remains.*\n\nPerhaps try a different approach, or accept the situation as it stands."
-        elif social_block_reason == "npc_hostile":
-            block_response = "*You move to speak, but the person pointedly turns away from you. Whatever chance you had with them has passed. Their body language makes it abundantly clear: this conversation is over.*\n\nYou'll need to find another way forward."
-        else:
-            block_response = "You cannot proceed with this action."
-
-        def generate_blocked():
-            yield safe_json_sse({"type": "chunk", "content": block_response})
-            yield safe_json_sse({"type": "blocked", "reason": social_block_reason})
-            yield safe_json_sse({"type": "done", "game_state": session.to_dict()})
-
-        return Response(
-            stream_with_context(generate_blocked()),
-            mimetype="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
+    def done_event():
+        return safe_json_sse({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over})
 
     def generate():
-        # raw_narration keeps the narrator's UNFILTERED text (with control tags)
-        # for mechanics parsing. display_parts is what the player actually sees
-        # (control tags removed) and is what we store in the transcript.
+        for event in start.events:
+            yield safe_json_sse(event)
+        if start.finished:
+            yield done_event()
+            return
+
+        # raw_narration keeps the narrator's unfiltered text (control tags
+        # included) for mechanics; only tag-free text is sent to the player.
         raw_narration = []
-        display_parts = []
+        shown = []
         tag_filter = StreamTagFilter()
-
         try:
-            # If arbiter required a roll, notify the client (UI renders the roll card)
-            if arbiter_roll_result:
-                yield safe_json_sse({'type': 'roll', 'result': arbiter_roll_result})
-
-            # Stream the DM response (with pre-roll result if applicable),
-            # filtering out any control tags before they reach the player.
-            for chunk in stream_dm_response(
+            for piece in stream_dm_response(
                 session,
                 action,
-                pre_roll_result=arbiter_roll_result,
-                scene_action=scene_action,
-                arbiter_no_roll=arbiter_no_roll,
+                pre_roll_result=start.arbiter_roll_result,
+                scene_action=start.scene_action,
+                arbiter_no_roll=start.arbiter_no_roll,
             ):
-                raw_narration.append(chunk)
-                visible = tag_filter.feed(chunk)
+                raw_narration.append(piece)
+                visible = tag_filter.feed(piece)
                 if visible:
-                    display_parts.append(visible)
+                    shown.append(visible)
                     yield safe_json_sse({'type': 'chunk', 'content': visible})
             tail = tag_filter.flush()
             if tail:
-                display_parts.append(tail)
+                shown.append(tail)
                 yield safe_json_sse({'type': 'chunk', 'content': tail})
 
-            # Raw narrator text (with tags) drives mechanics parsing.
-            narrator_text = ''.join(raw_narration)
-            dm_response = narrator_text
-            clean_narration = strip_dm_tags(narrator_text).strip()
-
-            # Graceful fallback: empty narration, leaked-only tag, or a tiny setup
-            # line that never describes the roll outcome (common perception-check bug).
-            needs_fallback = not clean_narration
-            if arbiter_roll_result and is_weak_roll_narration(clean_narration, arbiter_roll_result):
-                needs_fallback = True
-            if needs_fallback:
-                if arbiter_roll_result:
-                    fallback_text = build_roll_outcome_narration(
-                        session, action, arbiter_roll_result
-                    )
-                else:
-                    fallback_text = "The Dungeon Master pauses. *What would you like to do?*"
-                display_parts.append(fallback_text)
-                yield safe_json_sse({'type': 'chunk', 'content': fallback_text})
-
-            roll_result = arbiter_roll_result
-
-            if not roll_result and not arbiter_no_roll:
-                skill, dc = parse_roll_request(narrator_text)
-                if skill and dc and session.character:
-                    result = roll_skill_check(session.character, skill, dc)
-                    roll_result = {
-                        'skill': result['skill'],
-                        'roll': result['roll'],
-                        'modifier': result['modifier'],
-                        'total': result['total'],
-                        'dc': dc,
-                        'success': result['success'],
-                        'formatted': format_roll_result(result),
-                        'source': 'narrator_ai'
-                    }
-                    yield safe_json_sse({'type': 'roll', 'result': roll_result})
-
-            # Check for combat request
-            enemies, surprise = parse_combat_request(dm_response)
-            if enemies:
-                session.in_combat = True
-                session.combat_state = {'enemies': enemies, 'surprise': surprise, 'round': 1}
-                yield safe_json_sse({'type': 'combat', 'enemies': enemies})
-                combat_text = f"\n\n⚔️ COMBAT STARTED! Enemies: {', '.join(enemies)}"
-                display_parts.append(combat_text)
-                yield safe_json_sse({'type': 'chunk', 'content': combat_text})
-
-            # Parse and apply item rewards [ITEM: item_name]
-            items_gained = parse_item_rewards(dm_response)
-            for item_name in items_gained:
-                item = get_item(item_name)
-                if item and session.character:
-                    add_item_to_inventory(session.character.inventory, item)
-                    item_text = f"\n\n📦 Received: {item.name}"
-                    display_parts.append(item_text)
-                    yield safe_json_sse({'type': 'item', 'item': item_name, 'message': f'Received: {item.name}'})
-                    yield safe_json_sse({'type': 'chunk', 'content': item_text})
-
-                    # Update quest objectives for item acquisition
-                    if session.quest_manager:
-                        completed = session.quest_manager.on_item_acquired(item_name.lower().replace(' ', '_'))
-                        for quest_id, objective in completed:
-                            quest = session.quest_manager.get_quest(quest_id)
-                            if quest:
-                                yield safe_json_sse({'type': 'quest_update', 'quest_id': quest_id, 'objective_id': objective.id, 'quest': quest.to_dict()})
-
-            # Parse and apply gold rewards [GOLD: amount]
-            gold_gained = parse_gold_rewards(dm_response)
-            if gold_gained > 0 and session.character:
-                session.character.gold += gold_gained
-                gold_text = f"\n\n💰 Received {gold_gained} gold (Total: {session.character.gold})"
-                display_parts.append(gold_text)
-                yield safe_json_sse({'type': 'gold', 'amount': gold_gained, 'total': session.character.gold})
-                yield safe_json_sse({'type': 'chunk', 'content': gold_text})
-
-            # Parse and apply XP rewards [XP: amount | reason]
-            xp_rewards = parse_xp_rewards(dm_response)
-            for xp_amount, reason in xp_rewards:
-                if session.character:
-                    result = session.character.gain_xp(xp_amount, reason)
-                    leveled_up = result.get('level_up', False)
-                    xp_text = f"\n\n⭐ Gained {xp_amount} XP: {reason}" + (" 🎉 LEVEL UP!" if leveled_up else "")
-                    display_parts.append(xp_text)
-                    yield safe_json_sse({'type': 'xp', 'amount': xp_amount, 'reason': reason, 'leveled_up': leveled_up})
-                    yield safe_json_sse({'type': 'chunk', 'content': xp_text})
-
-            # Parse and apply buy transactions [BUY: item_name, price]
-            buy_transactions = parse_buy_transactions(dm_response)
-            for item_name, price in buy_transactions:
-                if session.character and session.character.gold >= price:
-                    item = get_item(item_name)
-                    if item:
-                        session.character.gold -= price
-                        add_item_to_inventory(session.character.inventory, item)
-                        buy_text = f"\n\n🛒 Purchased {item_name} for {price} gold (Gold: {session.character.gold})"
-                        display_parts.append(buy_text)
-                        yield safe_json_sse({'type': 'buy', 'item': item_name, 'price': price, 'gold_remaining': session.character.gold})
-                        yield safe_json_sse({'type': 'chunk', 'content': buy_text})
-
-            # Parse and apply gold costs [PAY: amount, reason] - for hiring, bribes, etc.
-            gold_costs = parse_gold_costs(dm_response)
-            for cost, reason in gold_costs:
-                if session.character and session.character.gold >= cost:
-                    session.character.gold -= cost
-                    pay_text = f"\n\n💸 Paid {cost} gold: {reason} (Gold: {session.character.gold})"
-                    display_parts.append(pay_text)
-                    yield safe_json_sse({'type': 'pay', 'amount': cost, 'reason': reason, 'gold_remaining': session.character.gold})
-                    yield safe_json_sse({'type': 'chunk', 'content': pay_text})
-                    print(f"   💸 Paid {cost} gold: {reason}")
-
-            # Parse and apply recruitment [RECRUIT: npc_id]
-            recruited_npcs = parse_recruit_tags(dm_response)
-            for npc_id in recruited_npcs:
-                from party import get_recruitable_npc, Party
-                if not session.party:
-                    session.party = Party()
-                if not session.party.is_full():
-                    member = get_recruitable_npc(npc_id)
-                    if member:
-                        session.party.add_member(member)
-                        recruit_text = f"\n\n🎉 {member.name} joins your party!"
-                        display_parts.append(recruit_text)
-                        yield safe_json_sse({'type': 'recruit', 'npc_id': npc_id, 'name': member.name})
-                        yield safe_json_sse({'type': 'chunk', 'content': recruit_text})
-                        print(f"   🎉 {member.name} joined the party!")
-
-            # Check for NPC talk in player action for quest objectives
-            if session.quest_manager and session.npc_manager:
-                talked_npcs = detect_npc_talk(action, session.npc_manager)
-                for npc_id in talked_npcs:
-                    completed = session.quest_manager.on_npc_talked(npc_id)
-                    for quest_id, objective in completed:
-                        quest = session.quest_manager.get_quest(quest_id)
-                        if quest:
-                            quest_text = f"\n\n📜 Quest Objective Complete: {objective.description}"
-                            display_parts.append(quest_text)
-                            yield safe_json_sse({'type': 'quest_update', 'quest_id': quest_id, 'objective_id': objective.id, 'quest': quest.to_dict()})
-                            yield safe_json_sse({'type': 'chunk', 'content': quest_text})
-
-            # Detect quest acceptance based on player action and DM response
-            accepted_quests = detect_quest_acceptance(action, dm_response, session.quest_manager)
-            for quest_id in accepted_quests:
-                quest = session.quest_manager.get_quest(quest_id)
-                if quest:
-                    quest_text = f"\n\n📜 Quest Accepted: {quest.name}"
-                    display_parts.append(quest_text)
-                    yield safe_json_sse({'type': 'quest_accepted', 'quest_id': quest_id, 'quest': quest.to_dict()})
-                    yield safe_json_sse({'type': 'chunk', 'content': quest_text})
-                    print(f"   📜 Quest accepted: {quest.name}")
-
-            if session.scenario:
-                session.scenario.record_exchange()
-            transition = apply_scenario_transition(session, action, dm_response)
-            if transition:
-                transition_text = f"\n\n{transition}"
-                display_parts.append(transition_text)
-                yield safe_json_sse({'type': 'chunk', 'content': transition_text})
-                yield safe_json_sse({'type': 'transition', 'message': transition})
-
-            # Record the player-facing transcript (control tags already stripped)
-            session.messages.append({
-                'type': 'dm',
-                'content': ''.join(display_parts).strip(),
-                'timestamp': datetime.now().isoformat(),
-                'roll_result': roll_result,
-                'combat_started': bool(enemies),
-                'game_over': session.game_over
-            })
-
-            # Check for game over triggered by this action
-            if session.game_over:
-                game_over_text = f"\n\n---\n\n🎮 **GAME OVER**\n\n{session.game_over_reason}"
-                yield safe_json_sse({'type': 'chunk', 'content': game_over_text})
-                yield safe_json_sse({'type': 'game_over', 'reason': session.game_over_reason})
-
-            # Add warning if close to game over
-            warning = session.get_social_warning()
-            if warning and not session.game_over:
-                yield safe_json_sse({'type': 'chunk', 'content': f"\n\n{warning}"})
-                yield safe_json_sse({'type': 'warning', 'message': warning})
-
-            # Send completion signal
-            yield safe_json_sse({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over})
+            outcome = finish_turn(session, action, ''.join(raw_narration), start,
+                                  shown_narration=''.join(shown))
+            for event in outcome.events:
+                yield safe_json_sse(event)
+            yield done_event()
 
         except Exception as e:
             # Never let a mid-stream error silently truncate the turn. Always
@@ -1833,19 +1198,11 @@ def game_action_stream():
             traceback.print_exc()
             yield safe_json_sse({'type': 'chunk', 'content': "\n\n*The threads of fate tangle for a moment. (Try your action again.)*"})
             try:
-                yield safe_json_sse({'type': 'done', 'game_state': session.to_dict(), 'game_over': session.game_over})
+                yield done_event()
             except Exception:
                 yield safe_json_sse({'type': 'done', 'game_state': None, 'game_over': False})
 
-    return Response(
-        stream_with_context(generate()),
-        mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no'
-        }
-    )
+    return _sse_response(generate())
 
 
 @app.route('/api/game/state', methods=['GET'])
@@ -1974,6 +1331,10 @@ def save_game():
         return jsonify({'error': 'No character to save'}), 400
     
     slot_num = data.get('slot')
+    if slot_num is not None:
+        # Slot ends up in the filename, so it must be a small integer.
+        if isinstance(slot_num, bool) or not isinstance(slot_num, int) or not 0 <= slot_num <= 99:
+            return jsonify({'error': 'Slot must be an integer between 0 and 99'}), 400
     if slot_num is None and save_name.startswith('slot_'):
         try:
             slot_num = int(save_name.replace('slot_', ''))
@@ -2006,20 +1367,28 @@ def save_game():
     })
 
 
-def _resolve_save_path(saves_dir: str, save_name: str) -> str:
-    """Resolve save name or filepath to an absolute path."""
-    if os.path.isabs(save_name) and os.path.exists(save_name):
-        return save_name
-    if save_name.endswith('.json'):
-        if os.path.dirname(save_name):
-            return save_name
-        save_name = save_name[:-5]
-    path = os.path.join(saves_dir, f"{save_name}.json")
+SAVE_NAME_RE = re.compile(r'^[A-Za-z0-9_\- ]{1,100}$')
+
+
+def _resolve_save_path(saves_dir: str, save_name: str) -> Optional[str]:
+    """
+    Resolve a save name to a file inside ``saves_dir``.
+
+    Only a bare save name is honoured; any directory component the client
+    sends (including a full path returned by an older /saves listing) is
+    discarded, so a request can never reach a file outside ``saves_dir``.
+    Returns None if the name is not a valid save name.
+    """
+    name = os.path.basename(str(save_name).replace('\\', '/'))
+    if name.endswith('.json'):
+        name = name[:-5]
+    if not SAVE_NAME_RE.match(name):
+        return None
+    path = os.path.join(saves_dir, f"{name}.json")
     if os.path.exists(path):
         return path
-    import re
-    slot_match = re.match(r'slot_(\d+)$', save_name)
-    if slot_match:
+    slot_match = re.match(r'slot_(\d+)$', name)
+    if slot_match and os.path.isdir(saves_dir):
         slot_suffix = f"_slot{slot_match.group(1)}.json"
         for filename in os.listdir(saves_dir):
             if filename.endswith(slot_suffix):
@@ -2038,7 +1407,7 @@ def load_game():
     saves_dir = os.path.join(os.path.dirname(__file__), '..', 'saves')
     save_path = _resolve_save_path(saves_dir, save_name)
     
-    if not os.path.exists(save_path):
+    if not save_path or not os.path.exists(save_path):
         return jsonify({'error': 'Save not found'}), 404
     
     with open(save_path, 'r', encoding='utf-8') as f:
@@ -2508,7 +1877,6 @@ def combat_defend():
 @app.route('/api/combat/flee', methods=['POST'])
 def combat_flee():
     """Attempt to flee from combat."""
-    from combat import enemy_attack, format_enemy_attack, create_enemy
     import random
     
     data = request.get_json() or {}
@@ -3297,9 +2665,12 @@ def end_game():
 
 if __name__ == '__main__':
     port = int(os.getenv('API_PORT', 5000))
-    debug = os.getenv('DEBUG', 'true').lower() == 'true'
+    # Local-only and non-debug by default: the Werkzeug debugger allows code
+    # execution, and the API has no auth. Opt in explicitly via .env.
+    host = os.getenv('API_HOST', '127.0.0.1')
+    debug = os.getenv('DEBUG', 'false').lower() == 'true'
     
-    print(f"🎲 AI RPG API Server starting on http://localhost:{port}")
+    print(f"🎲 AI RPG API Server starting on http://{host}:{port}")
     print(f"   Debug mode: {debug}")
     from llm_client import get_llm_provider, get_active_model_name, is_llm_configured
     print(f"   LLM provider: {get_llm_provider()}")
@@ -3308,4 +2679,4 @@ if __name__ == '__main__':
     print(f"\n   📡 API endpoints available at http://localhost:{port}/api/*")
     print(f"   🌐 React frontend runs separately at http://localhost:3000")
     
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    app.run(host=host, port=port, debug=debug)

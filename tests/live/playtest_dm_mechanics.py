@@ -17,7 +17,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -549,7 +549,7 @@ def main():
         print(report)
         
         # Save log
-        log_path = os.path.join(os.path.dirname(__file__), '..', 'DM_Mechanics_Test.log')
+        log_path = os.path.join(os.path.dirname(__file__), '..', '..', 'DM_Mechanics_Test.log')
         with open(log_path, 'w', encoding='utf-8') as f:
             f.write(f"DM MECHANICS TEST LOG\n")
             f.write(f"Generated: {datetime.now().isoformat()}\n")

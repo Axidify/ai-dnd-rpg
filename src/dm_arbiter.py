@@ -9,20 +9,12 @@ The arbiter is separate from the narrator to prevent "narrative temptation" -
 the tendency for AI to skip mechanics for storytelling purposes.
 """
 
-import os
-import re
 import json
 from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-# Try to import Gemini
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
-
+from text_match import has_any
 
 # =============================================================================
 # ENUMS AND DATA CLASSES
@@ -78,176 +70,151 @@ class ArbiterDecision:
 # CODE OVERRIDES (100% RELIABLE - AI CANNOT BYPASS)
 # =============================================================================
 
+def _roll(action_type: ActionType, skill: str, dc: int, reasoning: str) -> ArbiterDecision:
+    return ArbiterDecision(
+        action_type=action_type.value,
+        requires_roll=True,
+        skill=skill,
+        dc=dc,
+        reasoning=reasoning,
+        source="code_override",
+    )
+
+
+def _no_roll(reasoning: str) -> ArbiterDecision:
+    return ArbiterDecision(
+        action_type=ActionType.SOCIAL.value,
+        requires_roll=False,
+        reasoning=reasoning,
+        source="code_override",
+    )
+
+
+# Keyword tables. All matching is whole-word (see text_match), so "bow"
+# does not fire on "crossbow" and "now" does not fire on "know".
+MONEY_KEYWORDS = ["gold", "coin", "coins", "pay", "price", "cost", "silver", "copper", "gp", "sp", "cp"]
+NEGOTIATION_KEYWORDS = [
+    "more", "less", "discount", "upfront", "advance", "deposit", "downpayment",
+    "down payment", "negotiate", "bargain", "deal", "counter", "counteroffer", "haggle",
+    "take it or leave it", "final offer", "best price", "lower", "higher", "half",
+    "double", "triple", "extra", "bonus", "installment",
+]
+INTIMIDATION_SIGNALS = ["take it or leave it", "demand", "or else", "threaten", "final", "now"]
+DECEPTION_KEYWORDS = [
+    "lie", "lies", "lied", "lying", "bluff", "deceive", "trick", "fool",
+    "pretend", "fake", "disguise", "false", "fabricate", "mislead",
+]
+THREAT_KEYWORDS = [
+    "threaten", "intimidate", "scare", "menace", "demand", "or else",
+    "i'll kill", "i will kill",
+]
+SPECIFIC_SEARCH_KEYWORDS = [
+    "search", "look for", "examine", "inspect", "investigate",
+    "check for", "look under", "look behind", "look closely at",
+    "peer at", "peer into", "anything hidden", "hidden door",
+    "hidden trap", "secret", "tracks", "eavesdrop", "listen in",
+    "listen closely", "study the", "scrutinize",
+]
+INVESTIGATION_SIGNALS = ["examine", "inspect", "investigate", "study", "read"]
+STEALTH_KEYWORDS = [
+    "sneak", "hide", "hiding", "quietly", "silently", "stealthily",
+    "creep", "tiptoe", "undetected", "unseen",
+]
+LOCKPICK_KEYWORDS = [
+    "pick the lock", "pick lock", "pick its lock", "lockpick", "pick it", "unlock",
+    "jimmy the lock", "force the lock", "open the lock",
+]
+ATHLETICS_KEYWORDS = [
+    "climb", "jump", "leap", "swim", "break down", "force open",
+    "push", "pull", "lift", "carry", "grapple",
+]
+ACROBATICS_KEYWORDS = [
+    "balance", "tumble", "flip", "dodge", "roll under", "roll over",
+    "squeeze through", "tight space",
+]
+GREETING_KEYWORDS = ["hello", "hi", "greet", "wave", "nod", "smile", "bow", "thank", "thanks"]
+ACCEPT_HELP_PATTERNS = [
+    "i accept", "accept the quest", "accept bram", "accept his offer",
+    "yes, i will help", "yes i will help", "i will help", "i'll help",
+    "ill help", "count me in", "you have my sword", "i agree to help",
+    "let's do it", "lets do it", "i'm in", "im in", "of course",
+]
+CONVINCE_KEYWORDS = [
+    "convince", "persuade", "sway", "make him agree", "make her agree",
+    "change his mind", "change her mind", "talk him into", "talk her into",
+]
+QUESTION_PATTERNS = [
+    "ask", "asks", "asked", "tell me", "what do you know",
+    "what happened", "where is", "where was", "where did", "where are",
+    "who is", "who was", "how do i get", "how far", "do you know",
+]
+
+
 def check_code_overrides(action: str, context: str = "") -> Optional[ArbiterDecision]:
     """
     Hard-coded overrides that AI cannot bypass.
     These catch the most common/obvious cases with 100% reliability.
+
+    Order matters: every rule that *requires* a roll runs before the
+    "basic social, no roll" shortcuts, so "I bow and pick the lock" still
+    rolls Sleight of Hand.
     """
-    action_lower = action.lower()
-    context_lower = context.lower() if context else ""
-    
-    # =========================================================================
-    # MONETARY NEGOTIATIONS - ALWAYS REQUIRE ROLL
-    # =========================================================================
-    money_keywords = ["gold", "coin", "pay", "price", "cost", "silver", "copper", "gp", "sp", "cp"]
-    negotiation_keywords = [
-        "more", "less", "discount", "upfront", "advance", "deposit", "downpayment",
-        "down payment", "negotiate", "bargain", "deal", "offer", "counter", "haggle",
-        "take it or leave", "final offer", "best price", "lower", "higher", "half",
-        "double", "triple", "extra", "bonus", "fee", "payment", "installment"
-    ]
-    
-    has_money = any(w in action_lower for w in money_keywords)
-    has_negotiation = any(w in action_lower for w in negotiation_keywords)
-    
-    if has_money and has_negotiation:
-        # Determine if it's more intimidation or persuasion
-        intimidation_signals = ["take it or leave", "demand", "or else", "threaten", "final", "now"]
-        is_intimidation = any(w in action_lower for w in intimidation_signals)
-        
-        return ArbiterDecision(
-            action_type=ActionType.SOCIAL.value,
-            requires_roll=True,
-            skill="Intimidation" if is_intimidation else "Persuasion",
-            dc=12,
-            reasoning="Monetary negotiation always requires a social check",
-            source="code_override"
+    # Monetary negotiation
+    if has_any(action, MONEY_KEYWORDS) and has_any(action, NEGOTIATION_KEYWORDS):
+        is_intimidation = has_any(action, INTIMIDATION_SIGNALS)
+        return _roll(
+            ActionType.SOCIAL,
+            "Intimidation" if is_intimidation else "Persuasion",
+            12,
+            "Monetary negotiation always requires a social check",
         )
-    
-    # =========================================================================
-    # LYING / DECEPTION - ALWAYS REQUIRE ROLL
-    # =========================================================================
-    deception_keywords = [
-        "lie", "lying", "bluff", "bluffing", "deceive", "trick", "fool", 
-        "pretend", "fake", "disguise", "false", "fabricate", "mislead"
-    ]
-    
-    if any(w in action_lower for w in deception_keywords):
-        return ArbiterDecision(
-            action_type=ActionType.SOCIAL.value,
-            requires_roll=True,
-            skill="Deception",
-            dc=13,
-            reasoning="Deception attempt always requires a Deception check",
-            source="code_override"
-        )
-    
-    # =========================================================================
-    # EXPLICIT THREATS - ALWAYS REQUIRE ROLL
-    # =========================================================================
-    threat_keywords = [
-        "threaten", "threatening", "intimidate", "intimidating", "scare", 
-        "menace", "demand", "or else", "i'll kill", "i will kill"
-    ]
-    
-    if any(w in action_lower for w in threat_keywords):
-        return ArbiterDecision(
-            action_type=ActionType.SOCIAL.value,
-            requires_roll=True,
-            skill="Intimidation",
-            dc=13,
-            reasoning="Threat/intimidation always requires an Intimidation check",
-            source="code_override"
-        )
-    
-    # =========================================================================
-    # SPECIFIC SEARCH / EXAMINATION - REQUIRE ROLL
-    # (Vague "look around" is handled by dm_scene — free survey, no roll)
-    # =========================================================================
-    specific_search_keywords = [
-        "search for", "look for", "examine", "inspect", "investigate",
-        "check for", "look under", "look behind", "look closely at",
-        "peer at", "peer into", "anything hidden", "hidden door",
-        "hidden trap", "secret ", "tracks", "eavesdrop", "listen in",
-        "listen closely", "study the", "scrutinize",
-    ]
-    
-    if any(w in action_lower for w in specific_search_keywords):
-        is_specific = any(
-            w in action_lower
-            for w in ["examine", "inspect", "investigate", "study", "read"]
-        )
-        return ArbiterDecision(
-            action_type=ActionType.EXPLORATION.value,
-            requires_roll=True,
-            skill="Investigation" if is_specific else "Perception",
-            dc=12,
-            reasoning="Specific search/examination requires a skill check",
-            source="code_override"
-        )
-    
-    # =========================================================================
-    # STEALTH - ALWAYS REQUIRE ROLL
-    # =========================================================================
-    stealth_keywords = [
-        "sneak", "sneaking", "hide", "hiding", "quietly", "silently", 
-        "stealthily", "creep", "creeping", "tiptoe", "undetected", "unseen"
-    ]
-    
-    if any(w in action_lower for w in stealth_keywords):
-        return ArbiterDecision(
-            action_type=ActionType.STEALTH.value,
-            requires_roll=True,
-            skill="Stealth",
-            dc=12,
-            reasoning="Stealth attempt always requires a Stealth check",
-            source="code_override"
-        )
-    
-    # =========================================================================
-    # LOCK PICKING - ALWAYS REQUIRE ROLL
-    # =========================================================================
-    lockpick_keywords = [
-        "pick the lock", "pick lock", "lockpick", "pick it", "unlock", 
-        "jimmy the lock", "force the lock", "open the lock"
-    ]
-    
-    if any(w in action_lower for w in lockpick_keywords):
-        return ArbiterDecision(
-            action_type=ActionType.PHYSICAL.value,
-            requires_roll=True,
-            skill="Sleight_of_Hand",
-            dc=14,
-            reasoning="Lock picking always requires a Sleight of Hand check",
-            source="code_override"
-        )
-    
-    # =========================================================================
-    # PHYSICAL FEATS - ALWAYS REQUIRE ROLL
-    # =========================================================================
-    athletics_keywords = [
-        "climb", "climbing", "jump", "jumping", "leap", "swim", "swimming",
-        "break down", "force open", "push", "pull", "lift", "carry", "grapple"
-    ]
-    
-    if any(w in action_lower for w in athletics_keywords):
-        return ArbiterDecision(
-            action_type=ActionType.PHYSICAL.value,
-            requires_roll=True,
-            skill="Athletics",
-            dc=12,
-            reasoning="Physical feat always requires an Athletics check",
-            source="code_override"
-        )
-    
-    # =========================================================================
-    # ACROBATICS - ALWAYS REQUIRE ROLL
-    # =========================================================================
-    acrobatics_keywords = [
-        "balance", "balancing", "tumble", "tumbling", "flip", "dodge", 
-        "roll under", "roll over", "squeeze through", "tight space"
-    ]
-    
-    if any(w in action_lower for w in acrobatics_keywords):
-        return ArbiterDecision(
-            action_type=ActionType.PHYSICAL.value,
-            requires_roll=True,
-            skill="Acrobatics",
-            dc=12,
-            reasoning="Acrobatic feat always requires an Acrobatics check",
-            source="code_override"
-        )
-    
+
+    if has_any(action, DECEPTION_KEYWORDS):
+        return _roll(ActionType.SOCIAL, "Deception", 13,
+                     "Deception attempt always requires a Deception check")
+
+    if has_any(action, THREAT_KEYWORDS):
+        return _roll(ActionType.SOCIAL, "Intimidation", 13,
+                     "Threat/intimidation always requires an Intimidation check")
+
+    # Lock picking before search, so "pick the lock on the secret door" is
+    # Sleight of Hand rather than Perception.
+    if has_any(action, LOCKPICK_KEYWORDS):
+        return _roll(ActionType.PHYSICAL, "Sleight_of_Hand", 14,
+                     "Lock picking always requires a Sleight of Hand check")
+
+    if has_any(action, STEALTH_KEYWORDS):
+        return _roll(ActionType.STEALTH, "Stealth", 12,
+                     "Stealth attempt always requires a Stealth check")
+
+    # Specific search / examination (vague "look around" is handled by
+    # dm_scene as a free survey, no roll).
+    if has_any(action, SPECIFIC_SEARCH_KEYWORDS):
+        skill = "Investigation" if has_any(action, INVESTIGATION_SIGNALS) else "Perception"
+        return _roll(ActionType.EXPLORATION, skill, 12,
+                     "Specific search/examination requires a skill check")
+
+    if has_any(action, ATHLETICS_KEYWORDS):
+        return _roll(ActionType.PHYSICAL, "Athletics", 12,
+                     "Physical feat always requires an Athletics check")
+
+    if has_any(action, ACROBATICS_KEYWORDS):
+        return _roll(ActionType.PHYSICAL, "Acrobatics", 12,
+                     "Acrobatic feat always requires an Acrobatics check")
+
+    # Basic social: no roll
+    if has_any(action, GREETING_KEYWORDS):
+        return _no_roll("Simple greeting or thanks — no roll needed")
+
+    if action.lower().strip().rstrip(".") in ("i speak up", "speak up"):
+        return _no_roll("Vague speak action — no roll until player states intent")
+
+    if has_any(action, ACCEPT_HELP_PATTERNS):
+        return _no_roll("Accepting a quest or agreeing to help — no roll needed")
+
+    if has_any(action, QUESTION_PATTERNS) and not has_any(action, CONVINCE_KEYWORDS):
+        return _no_roll("Asking an NPC for information — no roll unless persuasion is required")
+
     # No code override - let AI arbiter decide
     return None
 
@@ -276,11 +243,16 @@ Animal_Handling, Sleight_of_Hand, Performance
 
 WHEN TO REQUIRE ROLLS:
 
-🗣️ SOCIAL (ALWAYS roll, even if NPC is desperate/friendly):
-- Convincing, negotiating, requesting favors → Persuasion
-- Threatening, demanding, asserting dominance → Intimidation  
+🗣️ SOCIAL — roll ONLY when outcome is uncertain:
+- Convincing an unwilling NPC, negotiating price, requesting a difficult favor → Persuasion
+- Threatening, demanding, asserting dominance → Intimidation
 - Lying, bluffing, hiding intentions → Deception
 - Reading motives, detecting lies → Insight
+
+NO ROLL for social:
+- Greetings, small talk, asking willing NPCs for information they would freely share
+- Accepting/declining quests or offers without haggling
+- "I speak up" or vague talk before a specific request
 
 DC ADJUSTMENT FOR SOCIAL: If NPC is desperate/scared/friendly, use DC 8-10. Otherwise DC 12-15.
 
@@ -417,11 +389,9 @@ def get_fallback_decision(action: str) -> ArbiterDecision:
     For ambiguous cases, we're now LESS aggressive to avoid false positives.
     The AI arbiter should handle nuanced cases.
     """
-    action_lower = action.lower()
     
     # Simple greetings and basic social - NO ROLL (these don't require persuasion)
-    simple_social = ["hello", "hi", "greet", "wave", "nod", "smile", "bow", "thank"]
-    if any(w in action_lower for w in simple_social):
+    if has_any(action, GREETING_KEYWORDS):
         return ArbiterDecision(
             action_type=ActionType.SOCIAL.value,
             requires_roll=False,
@@ -502,33 +472,6 @@ def get_arbiter_decision(
     else:
         print(f"⚠️ Arbiter (fallback): No roll needed")
     return fallback
-
-
-# =============================================================================
-# COMBAT DETECTION (BONUS)
-# =============================================================================
-
-def detect_combat_intent(action: str, context: str = "") -> Optional[Tuple[List[str], bool]]:
-    """
-    Detect if an action should trigger combat.
-    Returns (enemy_list, surprise) or None.
-    
-    Note: This is a simple keyword-based detection. The narrator AI
-    still handles complex combat scenarios.
-    """
-    action_lower = action.lower()
-    
-    attack_keywords = [
-        "attack", "strike", "hit", "stab", "slash", "swing at", 
-        "shoot", "cast at", "fight", "kill"
-    ]
-    
-    if any(w in action_lower for w in attack_keywords):
-        # Extract target from context
-        # This is simplified - the narrator AI handles the actual combat trigger
-        return None  # Let narrator handle combat
-    
-    return None
 
 
 # =============================================================================

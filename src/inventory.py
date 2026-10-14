@@ -3,9 +3,12 @@ Inventory System for AI D&D RPG
 Handles items, equipment, consumables, and inventory management
 """
 
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum
+
+from text_match import has_phrase
 
 
 class ItemType(Enum):
@@ -489,32 +492,54 @@ def add_item_to_inventory(inventory: list, item: Item) -> str:
                 inv_item.quantity += item.quantity
                 return f"Added {item.quantity}x {item.name} (now have {inv_item.quantity})"
     
-    inventory.append(item)
+    # Store a copy: callers often pass the same Item repeatedly (e.g. buying
+    # several in a loop), and stacking onto a shared object would multiply it.
+    inventory.append(dataclasses.replace(item))
     if item.quantity > 1:
         return f"Added {item.quantity}x {item.name} to inventory"
     return f"Added {item.name} to inventory"
 
 
+def _inventory_index(inventory: list, item_name: str) -> Optional[int]:
+    """
+    Index of the best match for ``item_name``: exact name (or item key like
+    "healing_potion"), then a whole-word partial ("potion"), then any
+    substring as a last resort.
+    """
+    wanted = item_name.lower().replace("_", " ").strip()
+    if not wanted:
+        return None
+    names = [item.name.lower() for item in inventory]
+    for i, name in enumerate(names):
+        if name == wanted:
+            return i
+    for i, name in enumerate(names):
+        if has_phrase(name, wanted):
+            return i
+    for i, name in enumerate(names):
+        if wanted in name:
+            return i
+    return None
+
+
 def remove_item_from_inventory(inventory: list, item_name: str, quantity: int = 1) -> tuple[bool, str]:
     """Remove an item from inventory. Returns (success, message)"""
-    for i, item in enumerate(inventory):
-        if item_name.lower() in item.name.lower():
-            if item.stackable and item.quantity > quantity:
-                item.quantity -= quantity
-                return True, f"Removed {quantity}x {item.name} ({item.quantity} remaining)"
-            else:
-                inventory.pop(i)
-                return True, f"Removed {item.name} from inventory"
-    
-    return False, f"You don't have {item_name}"
+    index = _inventory_index(inventory, item_name)
+    if index is None:
+        return False, f"You don't have {item_name}"
+
+    item = inventory[index]
+    if item.stackable and item.quantity > quantity:
+        item.quantity -= quantity
+        return True, f"Removed {quantity}x {item.name} ({item.quantity} remaining)"
+    inventory.pop(index)
+    return True, f"Removed {item.name} from inventory"
 
 
 def find_item_in_inventory(inventory: list, item_name: str) -> Optional[Item]:
     """Find an item in inventory by name"""
-    for item in inventory:
-        if item_name.lower() in item.name.lower():
-            return item
-    return None
+    index = _inventory_index(inventory, item_name)
+    return inventory[index] if index is not None else None
 
 
 def format_inventory(inventory: list, gold: int = 0) -> str:

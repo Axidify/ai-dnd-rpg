@@ -262,7 +262,7 @@ if warns > 0:
             print(f"  - {name}: {detail[:60]}")
 
 # Write results to file for documentation
-with open('tests/hostile_round4_results.txt', 'w') as f:
+with open('tests/live/hostile_round4_results.txt', 'w') as f:
     f.write("HOSTILE PLAYER TESTING - ROUND 4 RESULTS\n")
     f.write("=" * 50 + "\n\n")
     for name, status, detail in results:
@@ -272,4 +272,4 @@ with open('tests/hostile_round4_results.txt', 'w') as f:
         f.write("\n")
     f.write(f"\nSUMMARY: {passes} PASS, {fails} FAIL, {warns} WARN\n")
 
-print("\nResults saved to tests/hostile_round4_results.txt")
+print("\nResults saved to tests/live/hostile_round4_results.txt")
