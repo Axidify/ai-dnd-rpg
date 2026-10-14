@@ -38,7 +38,7 @@ export default function GameScreen({ onLeaveGame }) {
 
   const {
     character, messages, sendActionStreaming, isLoading, currentLocation, inCombat, quests,
-    gameOver, gameOverReason,
+    gameOver, gameOverReason, dmUnavailable, lastAction, retryLastAction,
     saveGame, loadGame, listSaves,
     combatStatus, getCombatStatus, combatAttack, combatDefend, combatFlee,
     levelUp, rest, useItem, equipItem,
@@ -166,6 +166,24 @@ export default function GameScreen({ onLeaveGame }) {
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-bounce" style={{ animationDelay: '0ms' }} />
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-bounce" style={{ animationDelay: '150ms' }} />
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              )}
+              {dmUnavailable && !isLoading && !gameOver && (
+                <div
+                  className="panel-inset rounded-xl px-4 py-3 border border-[var(--line-strong)] flex items-center justify-between gap-4"
+                  role="status"
+                >
+                  <p className="font-ui text-sm text-[var(--ink-2)]">
+                    The Dungeon Master can't be reached right now.
+                    {lastAction ? ' Your action can be sent again.' : ' Your tale is ready when they are.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => (lastAction ? retryLastAction() : send('I take in my surroundings.'))}
+                    className="btn btn-ghost focus-ring px-3 py-1.5 text-sm shrink-0"
+                  >
+                    {lastAction ? 'Try again' : 'Begin'}
+                  </button>
                 </div>
               )}
               <div ref={messagesEndRef} />

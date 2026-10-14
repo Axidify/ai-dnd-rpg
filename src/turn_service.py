@@ -332,10 +332,12 @@ def finish_turn(
     if arbiter_roll_result and is_weak_roll_narration(clean_narration, arbiter_roll_result):
         needs_fallback = True
     if needs_fallback:
-        if arbiter_roll_result:
-            say(build_roll_outcome_narration(session, action, arbiter_roll_result))
-        else:
-            say(EMPTY_NARRATION_FALLBACK)
+        text = (
+            build_roll_outcome_narration(session, action, arbiter_roll_result)
+            if arbiter_roll_result else EMPTY_NARRATION_FALLBACK
+        )
+        # Start a new paragraph after whatever thin narration was shown
+        say(f"\n\n{text}" if clean_narration else text)
 
     # The narrator may request a roll only if the arbiter didn't already decide
     if not arbiter_roll_result and not start.arbiter_no_roll:

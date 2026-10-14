@@ -29,9 +29,11 @@ export default function CharacterCreation({ onBack }) {
   const [name, setName] = useState('')
   const [selectedClass, setSelectedClass] = useState(null)
   const [selectedRace, setSelectedRace] = useState('Human')
-  const [selectedScenario, setSelectedScenario] = useState(null)
+  // undefined = not chosen yet (defaults to the first adventure); null = open road
+  const [chosenScenario, setSelectedScenario] = useState(undefined)
 
   const { createCharacter, fetchScenarios, scenarios, isLoading, error } = useGameStore()
+  const selectedScenario = chosenScenario === undefined ? scenarios[0] ?? null : chosenScenario
 
   useEffect(() => {
     fetchScenarios()
@@ -160,19 +162,6 @@ export default function CharacterCreation({ onBack }) {
 
               {step === 3 && (
                 <div className="space-y-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedScenario(null)}
-                    aria-pressed={!selectedScenario}
-                    className={`focus-ring w-full p-4 rounded-xl border text-left transition ${
-                      !selectedScenario
-                        ? 'border-[var(--gold)] bg-[var(--gold-soft)]'
-                        : 'border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]'
-                    }`}
-                  >
-                    <div className="font-display text-lg text-[var(--ink)]">An open road</div>
-                    <div className="text-sm text-[var(--ink-3)] font-read mt-0.5">Wander freely and forge your own path.</div>
-                  </button>
                   {scenarios.map((scenario) => {
                     const active = selectedScenario?.id === scenario.id
                     return (
@@ -197,6 +186,21 @@ export default function CharacterCreation({ onBack }) {
                       </button>
                     )
                   })}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScenario(null)}
+                    aria-pressed={!selectedScenario}
+                    className={`focus-ring w-full p-4 rounded-xl border text-left transition ${
+                      !selectedScenario
+                        ? 'border-[var(--gold)] bg-[var(--gold-soft)]'
+                        : 'border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]'
+                    }`}
+                  >
+                    <div className="font-display text-lg text-[var(--ink)]">An open road</div>
+                    <div className="text-sm text-[var(--ink-3)] font-read mt-0.5">
+                      Freeform: no map, quests or set story. The Dungeon Master improvises everything.
+                    </div>
+                  </button>
                 </div>
               )}
             </motion.div>

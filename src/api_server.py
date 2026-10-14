@@ -214,6 +214,7 @@ class GameSession:
         self.last_activity = datetime.now()  # Track last activity for session cleanup
         self.dm_model = None
         self.dm_chat = None  # Chat session for stateful conversation
+        self.dm_unavailable = False  # Last narration failed: the LLM couldn't be reached
         
         # Social check tracking (retry prevention + game over)
         self.failed_social_checks = 0  # Total failed social checks
@@ -338,6 +339,7 @@ class GameSession:
             'party': party_members,
             'game_over': self.game_over,
             'game_over_reason': self.game_over_reason,
+            'dm_unavailable': self.dm_unavailable,
         }
     
     def _get_quest_log(self):
@@ -620,6 +622,7 @@ def get_dm_response(
     """
     import time
     
+    session.dm_unavailable = False
     chat = init_dm_chat(session)
     
     if not chat:
@@ -728,6 +731,7 @@ def stream_dm_response(
     """
     import time
     
+    session.dm_unavailable = False
     chat = init_dm_chat(session)
     
     if not chat:
@@ -831,6 +835,7 @@ NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome o
             session.dm_chat = None  # Reset chat for next attempt
             
             if "response.text" in error_msg or "finish_reason" in error_msg:
+                session.dm_unavailable = True
                 yield ("*The Dungeon Master's response was interrupted.*\n\n"
                        "Please try your action again, or try a different approach.")
             else:
@@ -854,28 +859,28 @@ def build_dm_context(session: GameSession, player_action: str) -> str:
 
 
 def get_fallback_response(session: GameSession, action: str, is_opening: bool = False) -> str:
-    """Fallback responses when AI is not available - returns error message."""
+    """
+    Player-facing narration when the LLM can't be reached.
+
+    The configuration checklist goes to the server log, not the story; the
+    session is flagged so the UI can offer to retry the action.
+    """
     from llm_client import get_llm_provider
 
+    session.dm_unavailable = True
     if get_llm_provider() == "vllm":
         config_help = (
-            "1. VLLM_BASE_URL is set and reachable\n"
-            "2. VLLM_MODEL matches the model served by vLLM\n"
-            "3. The vLLM server is running"
+            "VLLM_BASE_URL is set and reachable; VLLM_MODEL matches the served model; "
+            "the vLLM server is running"
         )
     else:
-        config_help = (
-            "1. GOOGLE_API_KEY is set in .env file\n"
-            "2. The API key is valid\n"
-            "3. The GEMINI_MODEL setting is correct"
-        )
+        config_help = "GOOGLE_API_KEY is set and valid; GEMINI_MODEL is correct"
+    print(f"   ⚠️ DM unavailable ({get_llm_provider()}): check {config_help}")
 
-    return (
-        "⚠️ **AI Dungeon Master Unavailable**\n\n"
-        "The AI model could not be initialized. Please check:\n"
-        f"{config_help}\n\n"
-        "You can still type actions, but responses will be limited until the AI is available."
-    )
+    # Atmosphere only: the UI shows the plain explanation and a retry button
+    if is_opening:
+        return "*The lamplight gutters, and the storyteller has not yet taken their seat.*"
+    return "*The lamplight gutters, and the Dungeon Master falls silent.*"
 
 
 # =============================================================================

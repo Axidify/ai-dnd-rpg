@@ -20,6 +20,7 @@ function syncFromGameState(gameState, prev = {}) {
     party: gameState.party ?? prev.party,
     gameOver: gameState.game_over ?? prev.gameOver,
     gameOverReason: gameState.game_over_reason ?? prev.gameOverReason,
+    dmUnavailable: gameState.dm_unavailable ?? prev.dmUnavailable ?? false,
   }
 }
 
@@ -50,7 +51,9 @@ export const useGameStore = create((set, get) => ({
   party: [],
   gameOver: false,
   gameOverReason: null,
-  
+  dmUnavailable: false,  // last narration failed (LLM unreachable / stream error)
+  lastAction: null,      // for "Try again"
+
   // Fetch available scenarios
   fetchScenarios: async () => {
     try {
@@ -158,6 +161,8 @@ export const useGameStore = create((set, get) => ({
       ],
       isLoading: true,
       error: null,
+      dmUnavailable: false,
+      lastAction: action,
     })
 
     const controller = new AbortController()
@@ -322,12 +327,18 @@ export const useGameStore = create((set, get) => ({
             isStreaming: false,
           }
         }
-        return { messages: newMessages, error: msg, isLoading: false }
+        return { messages: newMessages, error: msg, isLoading: false, dmUnavailable: true }
       })
     } finally {
       clearTimeout(timeoutId)
       set({ isLoading: false })
     }
+  },
+
+  // Resend the last action after the DM couldn't be reached
+  retryLastAction: () => {
+    const { lastAction, isLoading } = get()
+    if (lastAction && !isLoading) get().sendActionStreaming(lastAction)
   },
   
   // Roll dice
