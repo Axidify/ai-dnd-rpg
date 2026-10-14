@@ -54,6 +54,23 @@ MILESTONE_XP = {
 }
 
 
+# Hit die size per class (shared with game_mechanics)
+CLASS_HIT_DICE = {
+    "Fighter": 10, "Paladin": 10, "Ranger": 10,
+    "Barbarian": 12,
+    "Wizard": 6, "Sorcerer": 6,
+    "Rogue": 8, "Bard": 8, "Warlock": 8, "Monk": 8, "Cleric": 8, "Druid": 8,
+}
+
+# Benefits granted on reaching each level
+LEVEL_BENEFITS = {
+    2: ["+1 to any stat (choose later)"],
+    3: ["Class ability unlocked!"],
+    4: ["+1 to any stat (choose later)"],
+    5: ["+1 proficiency bonus", "Class ability unlocked!"],
+}
+
+
 @dataclass
 class Character:
     """Represents a player character with D&D stats."""
@@ -98,13 +115,7 @@ class Character:
         dex_modifier = self.get_modifier(self.dexterity)
         
         # HP based on class hit die + CON modifier
-        hit_dice = {
-            "Fighter": 10, "Paladin": 10, "Ranger": 10,
-            "Barbarian": 12,
-            "Wizard": 6, "Sorcerer": 6,
-            "Rogue": 8, "Bard": 8, "Warlock": 8, "Monk": 8, "Cleric": 8, "Druid": 8
-        }
-        hit_die = hit_dice.get(self.char_class, 8)
+        hit_die = CLASS_HIT_DICE.get(self.char_class, 8)
         self.max_hp = hit_die + con_modifier
         self.current_hp = self.max_hp
         
@@ -236,17 +247,13 @@ class Character:
         self.level = new_level
         
         # HP increase: roll hit die + CON modifier
-        hit_dice = {
-            "Fighter": 10, "Paladin": 10, "Ranger": 10,
-            "Barbarian": 12,
-            "Wizard": 6, "Sorcerer": 6,
-            "Rogue": 8, "Bard": 8, "Warlock": 8, "Monk": 8, "Cleric": 8, "Druid": 8
-        }
-        hit_die = hit_dice.get(self.char_class, 8)
+        hit_die = CLASS_HIT_DICE.get(self.char_class, 8)
         con_mod = self.get_modifier(self.constitution)
         
-        # Simplified: +2 HP per level (as per design doc)
-        hp_gain = 2
+        # HP increase per level gained: hit die average (d/2 + 1) + CON modifier, min 1
+        hp_per_level = max(1, hit_die // 2 + 1 + con_mod)
+        levels_gained = list(range(old_level + 1, new_level + 1))
+        hp_gain = hp_per_level * len(levels_gained)
         self.max_hp += hp_gain
         self.current_hp = self.max_hp  # Full heal on level up
         
@@ -259,16 +266,9 @@ class Character:
             'benefits': [],
         }
         
-        # Level-specific benefits
-        if new_level == 2:
-            result['benefits'].append("+1 to any stat (choose later)")
-        elif new_level == 3:
-            result['benefits'].append("Class ability unlocked!")
-        elif new_level == 4:
-            result['benefits'].append("+1 to any stat (choose later)")
-        elif new_level == 5:
-            result['benefits'].append("+1 proficiency bonus")
-            result['benefits'].append("Class ability unlocked!")
+        # Level-specific benefits for every level gained
+        for lvl in levels_gained:
+            result['benefits'].extend(LEVEL_BENEFITS.get(lvl, []))
         
         return result
     
@@ -341,7 +341,7 @@ class Character:
     
     def _add_starting_equipment(self):
         """Add starting equipment based on class."""
-        from inventory import get_item, add_item_to_inventory
+        from inventory import get_item, add_item_to_inventory, calculate_armor_class
         
         # All classes get basic supplies
         self.gold = random.randint(10, 25)
@@ -386,7 +386,8 @@ class Character:
                 # Auto-equip armor if it gives AC
                 if item.ac_bonus:
                     self.equipped_armor = item.name.lower()
-                    self.armor_class += item.ac_bonus
+                    self.armor_class = calculate_armor_class(
+                        self.get_modifier(self.dexterity), item)
     
     def format_modifier(self, score: int) -> str:
         """Format modifier as +X or -X."""

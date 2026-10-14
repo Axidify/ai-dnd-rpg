@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 if TYPE_CHECKING:
     from api_server import GameSession
 
+from character import CLASS_HIT_DICE
 from combat import roll_dice, ENEMIES
 from inventory import get_item, add_item_to_inventory, remove_item_from_inventory, find_item_in_inventory
 from text_match import has_any, has_phrase
@@ -33,12 +34,6 @@ CLASS_SKILL_PROFICIENCIES = {
     "Monk": ["acrobatics", "stealth"],
 }
 
-CLASS_HIT_DICE = {
-    "Fighter": 10, "Paladin": 10, "Ranger": 10,
-    "Barbarian": 12,
-    "Wizard": 6, "Sorcerer": 6,
-    "Rogue": 8, "Bard": 8, "Warlock": 8, "Monk": 8, "Cleric": 8, "Druid": 8,
-}
 
 
 def get_class_hit_die(char_class: str) -> int:
@@ -232,6 +227,18 @@ def serialize_session_state(session) -> Dict[str, Any]:
         "current_location_id": session.current_location_id,
         "session_id": session.session_id,
         "scene_state": getattr(session, "scene_state", None) or {},
+        "npc_states": {
+            npc.id: {
+                "disposition": npc.disposition,
+                "recruited": npc.recruited,
+                "location_id": npc.location_id,
+            }
+            for npc in (session.npc_manager.get_all_npcs() if session.npc_manager else [])
+        },
+        "shop_manager": (
+            session.shop_manager.to_dict()
+            if getattr(session, "shop_manager", None) else None
+        ),
     }
 
 
@@ -253,6 +260,13 @@ def restore_session_state(session, data: Optional[Dict[str, Any]]) -> None:
     session.dm_chat = None
     if data.get("scene_state") is not None:
         session.scene_state = data.get("scene_state") or {}
+    # NPC disposition etc. (scenario NPCs are rebuilt fresh on load)
+    if data.get("npc_states") and session.npc_manager:
+        session.npc_manager.update_npc_states(data["npc_states"])
+    if data.get("shop_manager"):
+        from shop import ShopManager
+        session.shop_manager = ShopManager()
+        session.shop_manager.from_dict(data["shop_manager"])
 
 
 def is_thin_legacy_save(save_data: dict) -> bool:

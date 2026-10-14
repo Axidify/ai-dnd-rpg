@@ -42,6 +42,7 @@ class Item:
     
     # Armor stats (if armor)
     ac_bonus: Optional[int] = None
+    armor_type: Optional[str] = None  # "light", "medium" or "heavy" (caps DEX bonus)
     
     # Consumable stats (if consumable)
     heal_amount: Optional[str] = None  # e.g., "2d4+2"
@@ -99,7 +100,7 @@ ITEMS = {
         item_type=ItemType.WEAPON,
         description="A powerful ranged weapon.",
         damage_dice="1d8",
-        finesse=False,
+        finesse=True,  # Ranged: attacks use DEX (matches combat.WEAPONS)
         value=50
     ),
     "shortbow": Item(
@@ -107,7 +108,7 @@ ITEMS = {
         item_type=ItemType.WEAPON,
         description="A compact bow for mobile archers.",
         damage_dice="1d6",
-        finesse=False,
+        finesse=True,  # Ranged: attacks use DEX (matches combat.WEAPONS)
         value=25
     ),
     "mace": Item(
@@ -133,6 +134,7 @@ ITEMS = {
         item_type=ItemType.ARMOR,
         description="Light armor made of cured leather.",
         ac_bonus=1,
+        armor_type="light",
         value=10
     ),
     "studded_leather": Item(
@@ -140,6 +142,7 @@ ITEMS = {
         item_type=ItemType.ARMOR,
         description="Leather reinforced with metal rivets.",
         ac_bonus=2,
+        armor_type="light",
         value=45
     ),
     "chain_shirt": Item(
@@ -147,6 +150,7 @@ ITEMS = {
         item_type=ItemType.ARMOR,
         description="A shirt of interlocking metal rings.",
         ac_bonus=3,
+        armor_type="medium",
         value=50
     ),
     "chain_mail": Item(
@@ -154,6 +158,7 @@ ITEMS = {
         item_type=ItemType.ARMOR,
         description="Full chain mail armor.",
         ac_bonus=4,
+        armor_type="heavy",
         value=75,
         rarity=Rarity.UNCOMMON
     ),
@@ -162,6 +167,7 @@ ITEMS = {
         item_type=ItemType.ARMOR,
         description="Heavy metal plates covering the whole body.",
         ac_bonus=6,
+        armor_type="heavy",
         value=200,
         rarity=Rarity.RARE
     ),
@@ -183,14 +189,6 @@ ITEMS = {
         stackable=True,
         value=150,
         rarity=Rarity.UNCOMMON
-    ),
-    "antidote": Item(
-        name="Antidote",
-        item_type=ItemType.CONSUMABLE,
-        description="Cures poison effects.",
-        effect="Cures poison",
-        stackable=True,
-        value=25
     ),
     "rations": Item(
         name="Rations",
@@ -303,6 +301,7 @@ ITEMS = {
         name="Antidote",
         item_type=ItemType.CONSUMABLE,
         description="Cures poison and grants resistance for a short time.",
+        stackable=True,
         value=50,
         effect="Cures poison status"
     ),
@@ -415,6 +414,25 @@ def parse_quality_weapon(item_name: str) -> Optional[Item]:
     return None
 
 
+# Max DEX modifier added to AC per armor type (None = no cap), per D&D 5e
+ARMOR_DEX_CAPS = {"light": None, "medium": 2, "heavy": 0}
+
+
+def calculate_armor_class(dex_mod: int, armor: Optional[Item] = None) -> int:
+    """AC = 10 + armor bonus + DEX modifier, capped by armor type (light/medium/heavy)."""
+    if not armor or not armor.ac_bonus:
+        return 10 + dex_mod
+    armor_type = armor.armor_type
+    if not armor_type:
+        # Items from older saves lack armor_type: fall back to the item database
+        known = ITEMS.get(armor.name.lower().replace(" ", "_"))
+        armor_type = known.armor_type if known else "light"
+    cap = ARMOR_DEX_CAPS.get(armor_type)
+    if cap is not None:
+        dex_mod = min(dex_mod, cap)
+    return 10 + armor.ac_bonus + dex_mod
+
+
 def get_weapon_max_damage(damage_dice: str) -> int:
     """
     Get the maximum damage from a damage dice string (e.g., "1d8" -> 8, "2d6" -> 12).
@@ -478,6 +496,7 @@ def _copy_item(item: Item) -> Item:
         damage_dice=item.damage_dice,
         finesse=item.finesse,
         ac_bonus=item.ac_bonus,
+        armor_type=item.armor_type,
         heal_amount=item.heal_amount,
         effect=item.effect
     )

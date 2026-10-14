@@ -552,6 +552,7 @@ def item_to_dict(item) -> Dict[str, Any]:
         'damage_dice': item.damage_dice,
         'finesse': item.finesse if hasattr(item, 'finesse') else False,
         'ac_bonus': item.ac_bonus,
+        'armor_type': getattr(item, 'armor_type', None),
         'heal_amount': item.heal_amount if hasattr(item, 'heal_amount') else None,
         'effect': item.effect if hasattr(item, 'effect') else None,
     }
@@ -673,6 +674,7 @@ def dict_to_item(data: Dict[str, Any]) -> Optional[Any]:
             damage_dice=data.get('damage_dice'),
             finesse=bool(data.get('finesse', False)),
             ac_bonus=data.get('ac_bonus'),
+            armor_type=data.get('armor_type') if data.get('armor_type') in ('light', 'medium', 'heavy') else None,
             heal_amount=data.get('heal_amount'),
             effect=data.get('effect'),
         )

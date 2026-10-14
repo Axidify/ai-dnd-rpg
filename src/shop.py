@@ -631,6 +631,13 @@ def sell_item(
             message=f"You don't have that item."
         )
     
+    # Quest items can't be sold (selling them would make quests impossible)
+    if item.item_type == ItemType.QUEST:
+        return TransactionResult(
+            success=False,
+            message=f"You can't sell {item.name} - it's needed for a quest."
+        )
+    
     # Check quantity (for stackable items)
     available = item.quantity if item.stackable else 1
     if available < quantity:

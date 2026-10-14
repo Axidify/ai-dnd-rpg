@@ -454,9 +454,41 @@ def roll_dice(dice_notation: str) -> Tuple[int, list]:
 # ATTACK SYSTEM
 # =============================================================================
 
-def calculate_attack_bonus(character: Character, weapon_name: str = 'longsword') -> int:
-    """Calculate character's attack bonus for a weapon."""
-    weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['unarmed'])
+QUALITY_NAME_PREFIXES = ('legendary_', 'superior_', 'fine_')
+
+
+def weapon_base_key(name: str) -> str:
+    """Normalize a weapon name ("Superior Long Sword") to its WEAPONS key."""
+    key = name.lower().strip().replace(' ', '_')
+    for prefix in QUALITY_NAME_PREFIXES:
+        if key.startswith(prefix):
+            key = key[len(prefix):]
+    return key
+
+
+def get_weapon_stats(weapon, default: str = 'unarmed') -> dict:
+    """
+    Resolve weapon stats from a WEAPONS key or an inventory Item.
+
+    Items keep their own damage dice (including quality bonuses like "1d12+3");
+    damage type and DEX usage come from the base WEAPONS entry when known.
+    """
+    if isinstance(weapon, str):
+        key = weapon.lower()
+        stats = WEAPONS.get(key, WEAPONS[default])
+        return {'name': weapon, **stats}
+    base = WEAPONS.get(weapon_base_key(weapon.name), WEAPONS[default])
+    return {
+        'name': weapon.name,
+        'damage': weapon.damage_dice or base['damage'],
+        'type': base['type'],
+        'finesse': bool(weapon.finesse or base.get('finesse', False)),
+    }
+
+
+def calculate_attack_bonus(character: Character, weapon_name='longsword') -> int:
+    """Calculate character's attack bonus for a weapon (WEAPONS key or Item)."""
+    weapon = get_weapon_stats(weapon_name)
     
     proficiency = character.get_proficiency_bonus()
     
@@ -469,9 +501,9 @@ def calculate_attack_bonus(character: Character, weapon_name: str = 'longsword')
     return proficiency + stat_mod
 
 
-def calculate_damage_bonus(character: Character, weapon_name: str = 'longsword') -> int:
-    """Calculate character's damage bonus for a weapon."""
-    weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['unarmed'])
+def calculate_damage_bonus(character: Character, weapon_name='longsword') -> int:
+    """Calculate character's damage bonus for a weapon (WEAPONS key or Item)."""
+    weapon = get_weapon_stats(weapon_name)
     
     # Use DEX for finesse weapons, STR otherwise
     if weapon.get('finesse', False):
@@ -480,12 +512,12 @@ def calculate_damage_bonus(character: Character, weapon_name: str = 'longsword')
         return character.get_ability_modifier('strength')
 
 
-def roll_attack(character: Character, target_ac: int, weapon_name: str = 'longsword') -> dict:
+def roll_attack(character: Character, target_ac: int, weapon_name='longsword') -> dict:
     """
     Roll an attack against a target AC.
     Returns dict with roll details and hit/miss.
     """
-    weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['longsword'])
+    weapon = get_weapon_stats(weapon_name, default='longsword')
     attack_bonus = calculate_attack_bonus(character, weapon_name)
     
     # Roll d20
@@ -504,7 +536,7 @@ def roll_attack(character: Character, target_ac: int, weapon_name: str = 'longsw
         hit = total >= target_ac
     
     return {
-        'weapon': weapon_name.title(),
+        'weapon': weapon['name'].title(),
         'd20_roll': d20_roll,
         'attack_bonus': attack_bonus,
         'total': total,
@@ -515,13 +547,13 @@ def roll_attack(character: Character, target_ac: int, weapon_name: str = 'longsw
     }
 
 
-def roll_attack_with_advantage(character: Character, target_ac: int, weapon_name: str = 'longsword') -> dict:
+def roll_attack_with_advantage(character: Character, target_ac: int, weapon_name='longsword') -> dict:
     """
     Roll an attack with ADVANTAGE (roll 2d20, take higher).
     Used when player has surprised enemies or other advantageous conditions.
     Returns dict with roll details and hit/miss, plus both rolls shown.
     """
-    weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['longsword'])
+    weapon = get_weapon_stats(weapon_name, default='longsword')
     attack_bonus = calculate_attack_bonus(character, weapon_name)
     
     # Roll 2d20, take higher
@@ -542,7 +574,7 @@ def roll_attack_with_advantage(character: Character, target_ac: int, weapon_name
         hit = total >= target_ac
     
     return {
-        'weapon': weapon_name.title(),
+        'weapon': weapon['name'].title(),
         'd20_roll': d20_roll,
         'd20_roll_1': roll1,
         'd20_roll_2': roll2,
@@ -556,30 +588,30 @@ def roll_attack_with_advantage(character: Character, target_ac: int, weapon_name
     }
 
 
-def roll_damage(character: Character, weapon_name: str = 'longsword', is_crit: bool = False) -> dict:
+def roll_damage(character: Character, weapon_name='longsword', is_crit: bool = False) -> dict:
     """
-    Roll damage for a weapon hit.
-    Critical hits roll damage dice twice.
+    Roll damage for a weapon hit (WEAPONS key or Item).
+    Critical hits roll damage dice twice; flat bonuses (e.g. quality "+3") apply once.
     """
-    weapon = WEAPONS.get(weapon_name.lower(), WEAPONS['longsword'])
+    weapon = get_weapon_stats(weapon_name, default='longsword')
     damage_dice = weapon['damage']
     damage_type = weapon['type']
     damage_bonus = calculate_damage_bonus(character, weapon_name)
     
-    # Roll damage
+    # Roll damage (includes any flat bonus in the dice string)
     total, rolls = roll_dice(damage_dice)
     
-    # Critical: roll again
+    # Critical: roll the dice again (without the flat bonus)
     crit_rolls = []
     if is_crit:
-        crit_total, crit_rolls = roll_dice(damage_dice)
+        crit_total, crit_rolls = roll_dice(damage_dice.split('+')[0].split('-')[0])
         total += crit_total
     
     # Add modifier
     final_damage = max(1, total + damage_bonus)  # Minimum 1 damage
     
     return {
-        'weapon': weapon_name.title(),
+        'weapon': weapon['name'].title(),
         'damage_dice': damage_dice,
         'damage_type': damage_type,
         'rolls': rolls,

@@ -193,6 +193,7 @@ class GameSession:
         self.character = None
         self.scenario = None
         self.npc_manager = None
+        self.shop_manager = None  # Shop stock / haggle state (persisted in saves)
         self.quest_manager = None
         self.location_manager = None
         self.party = None
@@ -395,26 +396,24 @@ def build_combat_status_payload(session: GameSession) -> dict:
     }
 
 
-def resolve_weapon_key(character) -> str:
-    """Map equipped / inventory weapon name to a WEAPONS table key."""
-    from combat import WEAPONS
+def resolve_equipped_weapon(character):
+    """
+    Return the weapon to attack with: the equipped inventory Item when present
+    (so quality bonuses like "1d12+3" apply), else a WEAPONS table key.
+    """
+    from combat import WEAPONS, weapon_base_key
 
     name = (character.weapon if character and character.weapon else 'longsword')
-    key = name.lower().replace(' ', '_')
-    for prefix in ('legendary_', 'superior_', 'fine_'):
-        if key.startswith(prefix):
-            key = key[len(prefix):]
+    weapons = [i for i in (character.inventory if character else []) if getattr(i, 'damage_dice', None)]
+    for item in weapons:
+        if item.name.lower() == name.lower():
+            return item
+    key = weapon_base_key(name)
     if key in WEAPONS:
         return key
-    if character and character.inventory:
-        for item in character.inventory:
-            if getattr(item, 'damage_dice', None):
-                ikey = item.name.lower().replace(' ', '_')
-                for prefix in ('legendary_', 'superior_', 'fine_'):
-                    if ikey.startswith(prefix):
-                        ikey = ikey[len(prefix):]
-                if ikey in WEAPONS:
-                    return ikey
+    for item in weapons:
+        if weapon_base_key(item.name) in WEAPONS:
+            return item
     return 'longsword'
 
 
@@ -1738,7 +1737,7 @@ def combat_attack():
         target_index = 0
     target = living_enemies[target_index]
     
-    weapon_name = resolve_weapon_key(session.character)
+    weapon_name = resolve_equipped_weapon(session.character)
     
     has_surprise = session.combat_state.get('surprise', False) and session.combat_state.get('round', 1) == 1
     if has_surprise:
@@ -2088,7 +2087,7 @@ def inventory_use():
 @app.route('/api/inventory/equip', methods=['POST'])
 def inventory_equip():
     """Equip a weapon or armor."""
-    from inventory import find_item_in_inventory, ItemType
+    from inventory import find_item_in_inventory, ItemType, calculate_armor_class
     
     data = request.get_json() or {}
     session_id = data.get('session_id')
@@ -2117,7 +2116,7 @@ def inventory_equip():
         session.character.equipped_armor = item.name
         if item.ac_bonus:
             dex_mod = session.character.get_ability_modifier('dexterity')
-            session.character.armor_class = 10 + dex_mod + item.ac_bonus
+            session.character.armor_class = calculate_armor_class(dex_mod, item)
         return jsonify({
             'success': True,
             'message': f"🛡️ Equipped {item.name}!",
@@ -2131,10 +2130,40 @@ def inventory_equip():
 # SHOP ENDPOINTS
 # =============================================================================
 
+GENERAL_SHOP_ITEMS = {
+    "healing_potion": -1,  # Unlimited
+    "torch": -1,
+    "rope": -1,
+    "rations": -1,
+    "waterskin": -1,
+    "bedroll": -1,
+}
+
+
+def get_session_shop(session):
+    """The session's general store, created once so stock and haggle state persist."""
+    from shop import ShopManager, create_general_shop
+
+    if session.shop_manager is None:
+        session.shop_manager = ShopManager()
+    shop = session.shop_manager.get_shop("general_shop")
+    if shop is None:
+        shop = create_general_shop(
+            id="general_shop",
+            name="General Store",
+            owner_npc_id="merchant",
+            location_id="village",
+            items=dict(GENERAL_SHOP_ITEMS),
+            markup=1.2
+        )
+        session.shop_manager.add_shop(shop)
+    return shop
+
+
 @app.route('/api/shop/browse', methods=['GET'])
 def shop_browse():
     """Browse shop inventory."""
-    from shop import create_general_shop, calculate_buy_price
+    from shop import calculate_buy_price
     
     session_id = request.args.get('session_id')
     
@@ -2143,13 +2172,18 @@ def shop_browse():
     
     session = game_sessions[session_id]
     
-    shop = create_general_shop("general_shop", "General Store", "merchant")
+    shop = get_session_shop(session)
+    haggle = session.shop_manager.get_haggle_state(shop.id)
     
     items = []
     for shop_item in shop.inventory:
         item = get_item(shop_item.item_id)
         if item and shop_item.is_in_stock():
-            price = calculate_buy_price(item.value, shop.markup, shop_item.base_markup, 1.0)
+            price = calculate_buy_price(
+                item.value, shop.base_markup, shop_item.base_markup, 1.0,
+                haggle_discount=haggle.get("discount", 0.0),
+                haggle_increase=haggle.get("increase", 0.0),
+            )
             items.append({
                 'id': shop_item.item_id,
                 'name': item.name,
@@ -2168,7 +2202,7 @@ def shop_browse():
 @app.route('/api/shop/buy', methods=['POST'])
 def shop_buy():
     """Buy an item."""
-    from shop import buy_item, create_general_shop
+    from shop import buy_item
     
     data = request.get_json() or {}
     session_id = data.get('session_id')
@@ -2192,29 +2226,14 @@ def shop_buy():
     if quantity > 99:
         return jsonify({'error': 'Maximum 99 items per purchase'}), 400
     
-    # Create a generic shop with common items
-    shop = create_general_shop(
-        id="general_shop",
-        name="General Store",
-        owner_npc_id="merchant",
-        location_id="village",
-        items={
-            "healing_potion": -1,  # Unlimited
-            "torch": -1,
-            "rope": -1,
-            "rations": -1,
-            "waterskin": -1,
-            "bedroll": -1
-        },
-        markup=1.2
-    )
+    shop = get_session_shop(session)
     
-    # FIX: Use correct function signature
     result = buy_item(
         character=session.character,
         shop=shop,
         item_id=item_id,
         quantity=quantity,
+        shop_manager=session.shop_manager,
         npc_disposition="neutral"
     )
     
@@ -2231,7 +2250,7 @@ def shop_buy():
 @app.route('/api/shop/sell', methods=['POST'])
 def shop_sell():
     """Sell an item."""
-    from shop import sell_item, create_general_shop
+    from shop import sell_item
     from inventory import find_item_in_inventory
     
     data = request.get_json() or {}
@@ -2254,17 +2273,8 @@ def shop_sell():
     if not item:
         return jsonify({'success': False, 'message': f"No '{item_name}' to sell."})
     
-    # Create a generic shop for selling
-    shop = create_general_shop(
-        id="general_shop",
-        name="General Store",
-        owner_npc_id="merchant",
-        location_id="village",
-        items={},  # Empty - just need a shop object for sell
-        markup=1.2
-    )
+    shop = get_session_shop(session)
     
-    # FIX: Use correct function signature
     result = sell_item(
         character=session.character,
         shop=shop,
