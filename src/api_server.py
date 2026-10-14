@@ -190,6 +190,105 @@ cleanup_thread = threading.Thread(target=cleanup_expired_sessions, daemon=True)
 cleanup_thread.start()
 
 
+ABILITIES = ("strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma")
+
+
+def serialize_character(character):
+    """Character as JSON-ready dict, plus derived stats the UI shows."""
+    if not character:
+        return None
+    from combat import calculate_attack_bonus, get_weapon_stats
+    from character import XP_THRESHOLDS
+
+    char_dict = asdict(character)
+    serialized_inventory = []
+    for item in character.inventory:
+        if isinstance(item, dict):
+            item = dict(item)
+            for key in ('item_type', 'rarity'):
+                if hasattr(item.get(key), 'value'):
+                    item[key] = item[key].value
+            serialized_inventory.append(item)
+            continue
+        serialized_inventory.append({
+            'name': item.name,
+            'item_type': item.item_type.value if hasattr(item.item_type, 'value') else str(item.item_type),
+            'description': item.description,
+            'rarity': item.rarity.value if hasattr(item.rarity, 'value') else str(item.rarity),
+            'value': item.value,
+            'stackable': item.stackable,
+            'quantity': item.quantity,
+            'damage_dice': item.damage_dice,
+            'finesse': item.finesse,
+            'ac_bonus': item.ac_bonus,
+            'heal_amount': item.heal_amount,
+            'effect': item.effect,
+        })
+    char_dict['inventory'] = serialized_inventory
+
+    weapon = resolve_equipped_weapon(character)
+    char_dict['attack_bonus'] = calculate_attack_bonus(character, weapon)
+    char_dict['weapon_damage'] = get_weapon_stats(weapon).get('damage')
+    char_dict['proficiency_bonus'] = character.get_proficiency_bonus()
+    char_dict['ability_modifiers'] = {a: character.get_ability_modifier(a) for a in ABILITIES}
+    char_dict['next_level_xp'] = XP_THRESHOLDS.get(character.level + 1)
+    return char_dict
+
+
+def roll_new_character(name: str, race: str, char_class: str) -> Character:
+    """Roll a level-1 character: 4d6-drop-lowest stats plus class gear and gold."""
+    character = Character(
+        name=name,
+        race=race,
+        char_class=char_class,
+        strength=Character.roll_stat(),
+        dexterity=Character.roll_stat(),
+        constitution=Character.roll_stat(),
+        intelligence=Character.roll_stat(),
+        wisdom=Character.roll_stat(),
+        charisma=Character.roll_stat(),
+    )
+    character._add_starting_equipment()
+    return character
+
+
+def validate_character_request(char_data):
+    """Returns (name, race, char_class, error_response)."""
+    if not isinstance(char_data, dict):
+        char_data = {}
+    name = char_data.get('name', '')
+    race = char_data.get('race', 'Human')
+    char_class = char_data.get('class', 'Fighter')
+    if not isinstance(name, str) or not name.strip():
+        return None, None, None, (jsonify({'error': 'Character name is required'}), 400)
+    name = name.strip()
+    MAX_NAME_LENGTH = 50
+    if len(name) > MAX_NAME_LENGTH:
+        return None, None, None, (jsonify({'error': f'Character name too long (max {MAX_NAME_LENGTH} characters)'}), 400)
+    if race not in RACES:
+        race = 'Human'
+    if char_class not in CLASSES:
+        char_class = 'Fighter'
+    return name, race, char_class, None
+
+
+# Characters rolled by /api/character/preview, waiting for /api/game/start.
+# Keyed by an unguessable token so the stats shown are the stats played.
+PREVIEW_TTL_SECONDS = 30 * 60
+MAX_PENDING_PREVIEWS = 1000
+pending_previews = {}  # token -> (Character, created_at)
+pending_previews_lock = threading.Lock()
+
+
+def _prune_previews(now: float) -> None:
+    expired = [t for t, (_, created) in pending_previews.items() if now - created > PREVIEW_TTL_SECONDS]
+    for token in expired:
+        del pending_previews[token]
+    while len(pending_previews) >= MAX_PENDING_PREVIEWS:
+        oldest = min(pending_previews, key=lambda t: pending_previews[t][1])
+        del pending_previews[oldest]
+
+
 class GameSession:
     """Represents an active game session."""
     
@@ -279,43 +378,8 @@ class GameSession:
         return None
     
     def _serialize_character(self):
-        """Serialize character with proper enum handling for inventory items."""
-        if not self.character:
-            return None
-        
-        char_dict = asdict(self.character)
-        
-        # Convert inventory items - handle enums
-        serialized_inventory = []
-        for item in char_dict.get('inventory', []):
-            if isinstance(item, dict):
-                # Convert enum values to strings
-                if 'item_type' in item and hasattr(item['item_type'], 'value'):
-                    item['item_type'] = item['item_type'].value
-                if 'rarity' in item and hasattr(item['rarity'], 'value'):
-                    item['rarity'] = item['rarity'].value
-                serialized_inventory.append(item)
-            else:
-                # Item object - convert to dict with string enums
-                item_dict = {
-                    'name': item.name,
-                    'item_type': item.item_type.value if hasattr(item.item_type, 'value') else str(item.item_type),
-                    'description': item.description,
-                    'rarity': item.rarity.value if hasattr(item.rarity, 'value') else str(item.rarity),
-                    'value': item.value,
-                    'stackable': item.stackable,
-                    'quantity': item.quantity,
-                    'damage_dice': item.damage_dice,
-                    'finesse': item.finesse,
-                    'ac_bonus': item.ac_bonus,
-                    'heal_amount': item.heal_amount,
-                    'effect': item.effect,
-                }
-                serialized_inventory.append(item_dict)
-        
-        char_dict['inventory'] = serialized_inventory
-        return char_dict
-        
+        return serialize_character(self.character)
+
     def to_dict(self):
         """Convert session to dictionary for JSON response."""
         party_members = []
@@ -897,6 +961,28 @@ def health_check():
     })
 
 
+@app.route('/api/character/preview', methods=['POST'])
+def preview_character():
+    """Roll a character for review before the game starts (see /api/game/start)."""
+    data = request.get_json(silent=True) or {}
+    name, race, char_class, error = validate_character_request(data.get('character', {}))
+    if error:
+        return error
+
+    character = roll_new_character(name, race, char_class)
+    token = uuid.uuid4().hex
+    now = time.time()
+    with pending_previews_lock:
+        _prune_previews(now)
+        pending_previews[token] = (character, now)
+
+    return jsonify({
+        'success': True,
+        'preview_token': token,
+        'character': serialize_character(character),
+    })
+
+
 @app.route('/api/game/start', methods=['POST'])
 def start_game():
     """Start a new game session."""
@@ -905,43 +991,21 @@ def start_game():
     session_id = data.get('session_id')
     session = get_or_create_session(session_id)
     
-    # Create character
-    char_data = data.get('character', {})
-    
-    # Use provided data or defaults
-    name = char_data.get('name', '')
-    race = char_data.get('race', 'Human')
-    char_class = char_data.get('class', 'Fighter')
-    
-    # Validate character name
-    MAX_NAME_LENGTH = 50
-    if not name or not name.strip():
-        return jsonify({'error': 'Character name is required'}), 400
-    name = name.strip()
-    if len(name) > MAX_NAME_LENGTH:
-        return jsonify({'error': f'Character name too long (max {MAX_NAME_LENGTH} characters)'}), 400
-    
-    # Validate race and class
-    if race not in RACES:
-        race = 'Human'
-    if char_class not in CLASSES:
-        char_class = 'Fighter'
-    
-    # Roll stats using 4d6 drop lowest (like terminal version)
-    session.character = Character(
-        name=name,
-        race=race,
-        char_class=char_class,
-        strength=Character.roll_stat(),
-        dexterity=Character.roll_stat(),
-        constitution=Character.roll_stat(),
-        intelligence=Character.roll_stat(),
-        wisdom=Character.roll_stat(),
-        charisma=Character.roll_stat(),
-    )
-    
-    # Add starting equipment and gold (like terminal version)
-    session.character._add_starting_equipment()
+    # Create character: reuse the previewed roll when the client confirms one
+    name, race, char_class, error = validate_character_request(data.get('character', {}))
+    if error:
+        return error
+
+    previewed = None
+    token = data.get('preview_token')
+    if isinstance(token, str):
+        with pending_previews_lock:
+            entry = pending_previews.pop(token, None)
+        if entry and time.time() - entry[1] <= PREVIEW_TTL_SECONDS:
+            candidate = entry[0]
+            if (candidate.name, candidate.race, candidate.char_class) == (name, race, char_class):
+                previewed = candidate
+    session.character = previewed or roll_new_character(name, race, char_class)
     
     # Initialize game systems
     session.scenario = ScenarioManager()

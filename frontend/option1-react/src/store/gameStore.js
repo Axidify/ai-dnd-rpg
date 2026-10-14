@@ -64,6 +64,30 @@ export const useGameStore = create((set, get) => ({
     }
   },
   
+  // Roll a character for review; /game/start reuses it via the token
+  preview: null,         // { token, key, character }
+  previewLoading: false,
+  previewCharacter: async (name, charClass, race) => {
+    const key = `${name}|${charClass}|${race}`
+    if (get().preview?.key === key) return
+    set({ previewLoading: true, error: null })
+    try {
+      const response = await api.post('/character/preview', {
+        character: { name, class: charClass, race },
+      })
+      set({
+        preview: { token: response.data.preview_token, key, character: response.data.character },
+        previewLoading: false,
+      })
+    } catch (error) {
+      set({
+        preview: null,
+        previewLoading: false,
+        error: error.response?.data?.error || 'Could not roll your hero. Please try again.',
+      })
+    }
+  },
+
   // Actions
   createCharacter: async (name, charClass, race, scenarioId = null) => {
     set({ isLoading: true, error: null })
@@ -73,6 +97,10 @@ export const useGameStore = create((set, get) => ({
       }
       if (scenarioId) {
         payload.scenario_id = scenarioId
+      }
+      const preview = get().preview
+      if (preview?.key === `${name}|${charClass}|${race}`) {
+        payload.preview_token = preview.token
       }
       
       const response = await api.post('/game/start', payload)
@@ -86,6 +114,7 @@ export const useGameStore = create((set, get) => ({
         messages: initialMessages,
         ...syncFromGameState(game_state),
         isLoading: false,
+        preview: null,  // the token is single-use
       })
     } catch (error) {
       const timedOut = error.code === 'ECONNABORTED'

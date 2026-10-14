@@ -43,27 +43,32 @@ export default function TopBar({
       <button
         type="button"
         onClick={onOpenHero}
-        className="focus-ring flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-xl hover:bg-[var(--gold-soft)] transition min-w-0"
+        className="focus-ring flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-xl hover:bg-[var(--gold-soft)] transition min-w-0 shrink-0"
         aria-label="Open character sheet"
       >
         <span className="relative w-9 h-9 rounded-full grid place-items-center bg-[var(--surface-2)] border border-[var(--line-strong)] text-[var(--gold)] shrink-0">
           <ClassIcon size={17} aria-hidden />
         </span>
-        <span className="hidden sm:flex flex-col items-start min-w-0 leading-tight">
-          <span className="font-ui text-sm text-[var(--ink)] truncate max-w-[10rem]">
+        <span className="flex flex-col items-start min-w-0 leading-tight">
+          {/* Name only where there's room; HP and level always show (HP 0 ends the run) */}
+          <span className="hidden sm:block font-ui text-sm text-[var(--ink)] truncate max-w-[10rem]">
             {character?.name || 'Adventurer'}
           </span>
-          <span className="flex items-center gap-1 text-[var(--ink-3)] text-[0.7rem]">
-            <Heart size={10} className="text-[var(--ember)]" aria-hidden />
-            <span className="tabular-nums">{hp.current}/{hp.max}</span>
+          <span
+            className={`flex items-center gap-1 text-xs sm:text-[0.7rem] ${hp.pct <= 25 ? 'text-[var(--ember)]' : 'text-[var(--ink-2)] sm:text-[var(--ink-3)]'}`}
+            aria-label={`${hp.current} of ${hp.max} hit points, level ${character?.level || 1}`}
+          >
+            <Heart size={11} className="text-[var(--ember)]" aria-hidden />
+            <span className="tabular-nums font-ui">{hp.current}/{hp.max}</span>
             <span className="opacity-50">·</span>
-            <span>Lv {character?.level || 1}</span>
+            <span className="font-ui">Lv {character?.level || 1}</span>
           </span>
         </span>
       </button>
 
       {/* Location */}
-      <div className="absolute left-1/2 -translate-x-1/2 px-2 max-w-[40%] text-center pointer-events-none">
+      {/* Phones: fills the space between hero and menu; wider: centred on the bar */}
+      <div className="flex-1 min-w-0 sm:flex-none sm:absolute sm:left-1/2 sm:-translate-x-1/2 px-2 sm:max-w-[40%] text-center pointer-events-none">
         {inCombat ? (
           <span className="caps" style={{ color: 'var(--ember)' }}>
             In battle

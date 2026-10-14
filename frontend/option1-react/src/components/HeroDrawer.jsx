@@ -1,10 +1,13 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  X, Heart, Coins, Sword, Shield, Sparkles, Moon, ArrowUpCircle, Save, FolderOpen, LogOut,
+  X, Coins, Sword, Shield, Sparkles, Moon, ArrowUpCircle, Save, FolderOpen, LogOut, Award,
 } from 'lucide-react'
 import { getClassIcon } from '../lib/classIcons'
 import { getCharacterHp, getXpProgress } from '../lib/gameConstants'
+import AbilityGrid, { formatModifier } from './AbilityGrid'
+
+const titleCase = (s) => String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
 function Meter({ value, max, color, label, valueText }) {
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0
@@ -65,7 +68,11 @@ export default function HeroDrawer({
   const hp = getCharacterHp(character)
   const xp = getXpProgress(character)
   const ac = character?.armor_class ?? character?.ac ?? '—'
-  const atk = character?.attack_bonus !== undefined ? `+${character.attack_bonus}` : '—'
+  const atk = character?.attack_bonus !== undefined
+    ? `${formatModifier(character.attack_bonus)}${character.weapon_damage ? ` · ${character.weapon_damage}` : ''}`
+    : '—'
+  const nextXp = character?.next_level_xp ?? xp.nextThreshold
+  const xpText = xp.level >= 5 ? `${xp.currentXP} xp · Max level` : `${xp.currentXP} / ${nextXp} xp`
 
   return (
     <AnimatePresence>
@@ -115,14 +122,19 @@ export default function HeroDrawer({
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
               <div className="space-y-3.5">
                 <Meter label="Vitality" value={hp.current} max={hp.max} valueText={`${hp.current} / ${hp.max}`} color="var(--ember)" />
-                <Meter label="Experience" value={xp.progress} max={100} valueText={xp.level >= 5 ? 'Max' : `${xp.currentXP} xp`} color="var(--gold)" />
+                <Meter label="Experience" value={xp.progress} max={100} valueText={xpText} color="var(--gold)" />
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <Stat icon={Shield} label="Armor" value={ac} />
                 <Stat icon={Sword} label="Attack" value={atk} />
-                <Stat icon={Heart} label="Max HP" value={hp.max} />
+                <Stat icon={Award} label="Proficiency" value={formatModifier(character?.proficiency_bonus ?? 2)} />
                 <Stat icon={Coins} label="Gold" value={character?.gold ?? 0} />
+              </div>
+
+              <div>
+                <p className="caps-muted mb-2">Abilities</p>
+                <AbilityGrid character={character} />
               </div>
 
               {(character?.weapon || character?.equipped_armor) && (
@@ -132,13 +144,13 @@ export default function HeroDrawer({
                     {character?.weapon && (
                       <div className="panel-inset rounded-lg px-3 py-2 flex items-center gap-2.5 text-sm">
                         <Sword size={15} className="text-[var(--gold)]" aria-hidden />
-                        <span className="text-[var(--ink)]">{character.weapon}</span>
+                        <span className="text-[var(--ink)]">{titleCase(character.weapon)}</span>
                       </div>
                     )}
                     {character?.equipped_armor && (
                       <div className="panel-inset rounded-lg px-3 py-2 flex items-center gap-2.5 text-sm">
                         <Shield size={15} className="text-[var(--gold)]" aria-hidden />
-                        <span className="text-[var(--ink)]">{character.equipped_armor}</span>
+                        <span className="text-[var(--ink)]">{titleCase(character.equipped_armor)}</span>
                       </div>
                     )}
                   </div>

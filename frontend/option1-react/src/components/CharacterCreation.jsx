@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sword, Sparkles, Crosshair, Cross, Target, Axe, Shield, Flame, Music, Hand, Leaf, Star,
-  Map, ChevronLeft, ChevronRight,
+  Map, ChevronLeft, ChevronRight, Heart, Coins,
 } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
+import AbilityGrid, { formatModifier } from './AbilityGrid'
 
 const classes = [
   { name: 'Fighter', icon: Sword, desc: 'Master of martial combat' },
@@ -22,7 +23,10 @@ const classes = [
 ]
 
 const races = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Half-Orc', 'Tiefling', 'Dragonborn', 'Gnome', 'Half-Elf']
-const STEPS = ['Name', 'Calling', 'Heritage', 'Beginning']
+const STEPS = ['Name', 'Calling', 'Heritage', 'Your hero', 'Beginning']
+const REVIEW_STEP = 3
+
+const titleCase = (s) => String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
 export default function CharacterCreation({ onBack }) {
   const [step, setStep] = useState(0)
@@ -32,17 +36,30 @@ export default function CharacterCreation({ onBack }) {
   // undefined = not chosen yet (defaults to the first adventure); null = open road
   const [chosenScenario, setSelectedScenario] = useState(undefined)
 
-  const { createCharacter, fetchScenarios, scenarios, isLoading, error } = useGameStore()
+  const {
+    createCharacter, fetchScenarios, scenarios, isLoading, error,
+    preview, previewLoading, previewCharacter,
+  } = useGameStore()
   const selectedScenario = chosenScenario === undefined ? scenarios[0] ?? null : chosenScenario
 
   useEffect(() => {
     fetchScenarios()
   }, [fetchScenarios])
 
+  // Roll (or re-roll after edits) when the review step opens
+  const heroKey = selectedClass ? `${name.trim()}|${selectedClass.name}|${selectedRace}` : null
+  useEffect(() => {
+    if (step === REVIEW_STEP && selectedClass) {
+      previewCharacter(name.trim(), selectedClass.name, selectedRace)
+    }
+  }, [step, heroKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const hero = preview?.key === heroKey ? preview.character : null
+
   const canNext = () => {
     if (step === 0) return name.trim().length >= 2
     if (step === 1) return !!selectedClass
     if (step === 2) return !!selectedRace
+    if (step === REVIEW_STEP) return !!hero
     return true
   }
 
@@ -160,7 +177,61 @@ export default function CharacterCreation({ onBack }) {
                 </div>
               )}
 
-              {step === 3 && (
+              {step === REVIEW_STEP && (
+                <div aria-live="polite">
+                  {!hero ? (
+                    <p className="font-read italic text-[var(--ink-2)]">
+                      {previewLoading ? 'Rolling your fate…' : 'Your hero could not be rolled.'}
+                    </p>
+                  ) : (
+                    <div className="space-y-5">
+                      <div>
+                        <p className="display text-2xl">{hero.name}</p>
+                        <p className="text-sm text-[var(--ink-3)] font-ui">
+                          Level 1 · {hero.race} {hero.char_class}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          [Heart, 'Hit points', hero.max_hp],
+                          [Shield, 'Armor', hero.armor_class],
+                          [Sword, 'Attack', `${formatModifier(hero.attack_bonus)}${hero.weapon_damage ? ` · ${hero.weapon_damage}` : ''}`],
+                          [Coins, 'Gold', hero.gold],
+                        ].map(([Icon, label, value]) => (
+                          <div key={label} className="panel-inset rounded-lg px-3 py-2.5">
+                            <div className="caps-muted leading-none mb-1.5 flex items-center gap-1.5">
+                              <Icon size={12} className="text-[var(--gold)]" aria-hidden />
+                              {label}
+                            </div>
+                            <div className="text-base text-[var(--ink)] tabular-nums font-ui">{value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div>
+                        <p className="caps-muted mb-2">Abilities <span className="normal-case tracking-normal">(4d6, drop lowest)</span></p>
+                        <AbilityGrid character={hero} />
+                      </div>
+
+                      <div>
+                        <p className="caps-muted mb-2">Starting gear</p>
+                        <p className="text-sm text-[var(--ink-2)] font-read leading-relaxed">
+                          {hero.inventory
+                            .map((item) => (item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name))
+                            .join(' · ')}
+                        </p>
+                        <p className="text-xs text-[var(--ink-3)] font-ui mt-1.5">
+                          Wielding {titleCase(hero.weapon)}
+                          {hero.equipped_armor ? `, wearing ${titleCase(hero.equipped_armor)}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {step === 4 && (
                 <div className="space-y-2.5">
                   {scenarios.map((scenario) => {
                     const active = selectedScenario?.id === scenario.id
