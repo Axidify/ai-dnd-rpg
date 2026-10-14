@@ -606,37 +606,20 @@ def get_or_create_session(session_id: str = None) -> GameSession:
 
 
 def init_dm_model(session: GameSession):
-    """Initialize the Gemini AI model for DM responses."""
+    """Initialize the AI model for DM responses (Gemini or vLLM)."""
     if session.dm_model:
         return session.dm_model
-    
+
+    from llm_client import create_dm_model, get_llm_provider, is_llm_configured
+
+    if not is_llm_configured():
+        print(f"   ❌ LLM not configured for provider: {get_llm_provider()}")
+        print(f"   📁 .env path: {ENV_PATH}")
+        print(f"   📁 .env exists: {os.path.exists(ENV_PATH)}")
+        return None
+
     try:
-        import google.generativeai as genai
-        api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-        
-        if not api_key:
-            print(f"   ❌ No API key found! Checked GEMINI_API_KEY and GOOGLE_API_KEY")
-            print(f"   📁 .env path: {ENV_PATH}")
-            print(f"   📁 .env exists: {os.path.exists(ENV_PATH)}")
-            return None
-            
-        genai.configure(api_key=api_key)
-        
-        generation_config = {
-            "temperature": 0.9,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 2048,  # Increased for richer narration
-        }
-        
-        # Read model from .env, fallback to gemini-2.0-flash
-        model_name = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
-        
-        session.dm_model = genai.GenerativeModel(
-            model_name=model_name,
-            generation_config=generation_config,
-        )
-        print(f"   ✅ Using AI model: {model_name}")
+        session.dm_model = create_dm_model()
         return session.dm_model
     except Exception as e:
         print(f"   ❌ Failed to initialize DM model: {e}")
@@ -947,12 +930,25 @@ def build_dm_context(session: GameSession, player_action: str) -> str:
 
 def get_fallback_response(session: GameSession, action: str, is_opening: bool = False) -> str:
     """Fallback responses when AI is not available - returns error message."""
+    from llm_client import get_llm_provider
+
+    if get_llm_provider() == "vllm":
+        config_help = (
+            "1. VLLM_BASE_URL is set and reachable\n"
+            "2. VLLM_MODEL matches the model served by vLLM\n"
+            "3. The vLLM server is running"
+        )
+    else:
+        config_help = (
+            "1. GOOGLE_API_KEY is set in .env file\n"
+            "2. The API key is valid\n"
+            "3. The GEMINI_MODEL setting is correct"
+        )
+
     return (
         "⚠️ **AI Dungeon Master Unavailable**\n\n"
         "The AI model could not be initialized. Please check:\n"
-        "1. GOOGLE_API_KEY is set in .env file\n"
-        "2. The API key is valid\n"
-        "3. The GEMINI_MODEL setting is correct\n\n"
+        f"{config_help}\n\n"
         "You can still type actions, but responses will be limited until the AI is available."
     )
 
@@ -3305,7 +3301,10 @@ if __name__ == '__main__':
     
     print(f"🎲 AI RPG API Server starting on http://localhost:{port}")
     print(f"   Debug mode: {debug}")
-    print(f"   API Key configured: {'Yes' if os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') else 'No'}")
+    from llm_client import get_llm_provider, get_active_model_name, is_llm_configured
+    print(f"   LLM provider: {get_llm_provider()}")
+    print(f"   LLM configured: {'Yes' if is_llm_configured() else 'No'}")
+    print(f"   LLM model: {get_active_model_name()}")
     print(f"\n   📡 API endpoints available at http://localhost:{port}/api/*")
     print(f"   🌐 React frontend runs separately at http://localhost:3000")
     

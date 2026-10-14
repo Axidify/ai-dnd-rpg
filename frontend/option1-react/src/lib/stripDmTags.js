@@ -2,12 +2,12 @@
 const CONTROL_TAG_PATTERN =
   /\[(?:ROLL|COMBAT|ITEM|GOLD|XP|BUY|PAY|RECRUIT)\b[^\]]*\]/gi
 
-export function stripDmTags(text) {
+export function stripDmTags(text, { trim = false } = {}) {
   if (!text) return ''
-  return text
+  let cleaned = text
     .replace(CONTROL_TAG_PATTERN, '')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/ +\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
-    .trim()
+  return trim ? cleaned.trim() : cleaned
 }

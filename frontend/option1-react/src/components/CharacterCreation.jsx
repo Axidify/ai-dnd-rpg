@@ -241,7 +241,7 @@ export default function CharacterCreation({ onBack }) {
               {isLoading ? (
                 <>
                   <span className="w-4 h-4 rounded-full border-2 border-[#1a1408]/40 border-t-[#1a1408] animate-spin" />
-                  Beginning…
+                  The DM is setting the scene…
                 </>
               ) : (
                 'Begin the tale'

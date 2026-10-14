@@ -2,6 +2,40 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "📦 Setup Dependencies",
+			"type": "shell",
+			"windows": {
+				"command": "powershell",
+				"args": [
+					"-NoProfile",
+					"-Command",
+					"if (-not (Test-Path '.venv\\Scripts\\python.exe')) { python -m venv .venv }; .\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt; Push-Location frontend\\option1-react; npm install; Pop-Location"
+				]
+			},
+			"linux": {
+				"command": "bash",
+				"args": [
+					"-lc",
+					"test -x .venv/bin/python || python3 -m venv .venv; .venv/bin/pip install -r requirements.txt; (cd frontend/option1-react && npm install)"
+				]
+			},
+			"osx": {
+				"command": "bash",
+				"args": [
+					"-lc",
+					"test -x .venv/bin/python || python3 -m venv .venv; .venv/bin/pip install -r requirements.txt; (cd frontend/option1-react && npm install)"
+				]
+			},
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
 			"label": "🎮 Start Backend (Flask, Mac)",
 			"type": "shell",
 			"command": "${workspaceFolder}/.venv/bin/python",
@@ -10,7 +44,8 @@
 				"cwd": "${workspaceFolder}",
 				"env": {
 					"API_PORT": "5001",
-					"DEBUG": "false"
+					"DEBUG": "false",
+					"PYTHONIOENCODING": "utf-8"
 				}
 			},
 			"isBackground": true,
@@ -39,11 +74,13 @@
 				"cwd": "${workspaceFolder}",
 				"env": {
 					"API_PORT": "5000",
-					"DEBUG": "false"
+					"DEBUG": "false",
+					"PYTHONIOENCODING": "utf-8"
 				}
 			},
 			"windows": {
-				"command": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+				"command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+				"args": ["src/api_server.py"]
 			},
 			"isBackground": true,
 			"problemMatcher": {
@@ -94,11 +131,7 @@
 				"🌐 Start Frontend (React)"
 			],
 			"dependsOrder": "parallel",
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
+			"problemMatcher": []
 		},
 		{
 			"label": "🚀 Start Full Stack",
@@ -107,7 +140,11 @@
 				"🌐 Start Frontend (React)"
 			],
 			"dependsOrder": "parallel",
-			"problemMatcher": []
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
 		},
 		{
 			"label": "🛑 Stop All Servers (Mac)",
@@ -139,8 +176,11 @@
 				"args": [
 					"-NoProfile",
 					"-Command",
-					"Get-Process -Name python,node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+					"5000,3000 | ForEach-Object { $c = Get-NetTCPConnection -LocalPort $_ -ErrorAction SilentlyContinue; if ($c) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } } }; Write-Host 'Stopped servers on ports 5000 and 3000.'"
 				]
+			},
+			"options": {
+				"cwd": "${workspaceFolder}"
 			},
 			"problemMatcher": [],
 			"presentation": {

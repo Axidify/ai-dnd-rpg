@@ -85,9 +85,12 @@ export const useGameStore = create((set, get) => ({
         isLoading: false,
       })
     } catch (error) {
-      set({ 
-        error: error.response?.data?.error || 'Failed to create character',
-        isLoading: false 
+      const timedOut = error.code === 'ECONNABORTED'
+      set({
+        error: timedOut
+          ? 'The Dungeon Master is taking too long to prepare your opening scene. Please try again.'
+          : error.response?.data?.error || 'Failed to create character',
+        isLoading: false,
       })
     }
   },
@@ -214,8 +217,8 @@ export const useGameStore = create((set, get) => ({
           }
 
           if (data.type === 'chunk' && data.content) {
-            fullContent += stripDmTags(data.content)
-            patchDm({ content: fullContent, rollResult })
+            fullContent += data.content
+            patchDm({ content: stripDmTags(fullContent), rollResult })
           } else if (data.type === 'roll' && data.result) {
             rollResult = data.result
             patchDm({ rollResult })
@@ -288,7 +291,7 @@ export const useGameStore = create((set, get) => ({
         const idx = findLastDmIndex(newMessages)
         newMessages[idx] = {
           type: 'dm',
-          content: fullContent.trim(),
+          content: stripDmTags(fullContent, { trim: true }),
           rollResult,
           combatStarted,
           isStreaming: false,

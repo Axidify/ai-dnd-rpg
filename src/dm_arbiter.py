@@ -321,31 +321,11 @@ def get_arbiter_ai_decision(
     Call the AI arbiter to classify the player action.
     Returns parsed JSON or None if all retries fail.
     """
-    if not GEMINI_AVAILABLE:
+    from llm_client import generate_text, is_llm_configured
+
+    if not is_llm_configured():
         return None
-    
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        return None
-    
-    genai.configure(api_key=api_key)
-    
-    # Use a fast model for classification
-    model_name = os.getenv("GEMINI_ARBITER_MODEL", os.getenv("GEMINI_MODEL", "gemini-2.0-flash"))
-    
-    try:
-        model = genai.GenerativeModel(
-            model_name=model_name,
-            generation_config={
-                "temperature": 0.1,  # Low temperature for consistency
-                "max_output_tokens": 200,
-                "response_mime_type": "application/json",  # Force JSON output
-            }
-        )
-    except Exception as e:
-        print(f"❌ Arbiter model init failed: {e}")
-        return None
-    
+
     prompt = f"""{ARBITER_SYSTEM_PROMPT}
 
 GAME CONTEXT:
@@ -354,17 +334,25 @@ GAME CONTEXT:
 PLAYER ACTION: {action}
 
 Respond with JSON only:"""
-    
+
     for attempt in range(max_retries):
         try:
-            response = model.generate_content(prompt)
-            
-            if not response.text:
+            # json_mode is very slow on some local models; prompt already demands JSON.
+            from llm_client import get_llm_provider
+            response_text = generate_text(
+                prompt,
+                temperature=0.1,
+                max_tokens=200,
+                json_mode=get_llm_provider() != "vllm",
+                max_retries=1,
+            )
+
+            if not response_text:
                 print(f"⚠️ Arbiter empty response (attempt {attempt + 1})")
                 continue
-            
+
             # Parse JSON
-            decision = json.loads(response.text)
+            decision = json.loads(response_text)
             
             # Validate structure
             if "action_type" not in decision:
