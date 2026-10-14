@@ -10,9 +10,8 @@ const TYPE_ICONS = {
 
 export default function InventoryPanel({ character, isLoading, onUse, onEquip }) {
   const items = character?.inventory || []
-  const equippedNames = [character?.weapon, character?.equipped_armor]
-    .filter(Boolean)
-    .map((n) => n.toLowerCase())
+  const norm = (n) => String(n || '').toLowerCase().replace(/_/g, ' ').trim()
+  const equippedNames = [character?.weapon, character?.equipped_armor].filter(Boolean).map(norm)
 
   return (
     <div>
@@ -31,14 +30,16 @@ export default function InventoryPanel({ character, isLoading, onUse, onEquip })
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {items.map((item, i) => {
             const Icon = TYPE_ICONS[item.item_type] || Package
-            const isEquipped = equippedNames.includes(item.name?.toLowerCase())
+            const isEquipped = equippedNames.includes(norm(item.name))
+            const isWeapon = item.item_type === 'weapon' || Boolean(item.damage_dice)
             const canUse = item.item_type === 'consumable' || item.heal_amount
             const canEquip =
-              item.item_type === 'weapon' || item.item_type === 'armor' || item.damage_dice || item.ac_bonus
+              !isEquipped &&
+              (item.item_type === 'weapon' || item.item_type === 'armor' || item.damage_dice || item.ac_bonus)
             return (
               <div
                 key={i}
-                className={`panel-inset rounded-lg p-3 ${isEquipped ? 'ring-1 ring-[var(--gold)]/40 border-[var(--gold)]/40' : ''}`}
+                className={`panel-inset rounded-lg p-3 ${isEquipped ? 'ring-1 ring-[var(--gold)]' : ''}`}
               >
                 <div className="flex items-start gap-3">
                   <span className="w-9 h-9 rounded-lg grid place-items-center bg-[var(--surface-2)] border border-[var(--line)] text-[var(--gold)] shrink-0">
@@ -52,7 +53,7 @@ export default function InventoryPanel({ character, isLoading, onUse, onEquip })
                       )}
                       {isEquipped && (
                         <span className="inline-flex items-center gap-0.5 text-[10px] text-[var(--gold)]">
-                          <CheckCircle2 size={11} aria-hidden /> worn
+                          <CheckCircle2 size={11} aria-hidden /> {isWeapon ? 'wielded' : 'worn'}
                         </span>
                       )}
                     </div>
@@ -72,7 +73,7 @@ export default function InventoryPanel({ character, isLoading, onUse, onEquip })
                             type="button"
                             onClick={() => onUse?.(item.name)}
                             disabled={isLoading}
-                            className="focus-ring text-xs px-2.5 py-1 rounded-md border border-[var(--sage)]/50 text-[var(--sage)] hover:bg-[var(--sage)]/10 transition disabled:opacity-50"
+                            className="focus-ring text-xs px-2.5 py-1 rounded-md border border-[color-mix(in_srgb,var(--sage)_50%,transparent)] text-[var(--sage)] hover:bg-[color-mix(in_srgb,var(--sage)_10%,transparent)] transition disabled:opacity-50"
                           >
                             Use
                           </button>

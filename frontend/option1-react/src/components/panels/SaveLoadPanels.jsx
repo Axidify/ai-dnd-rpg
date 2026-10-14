@@ -14,7 +14,7 @@ export function SavePanel({ character, error, onSaveSlot }) {
             key={slot}
             type="button"
             onClick={() => onSaveSlot?.(slot)}
-            className="focus-ring w-full panel-inset rounded-lg p-4 text-left hover:border-[var(--gold)]/40 hover:bg-[var(--surface-2)] transition"
+            className="focus-ring w-full panel-inset rounded-lg p-4 text-left hover:border-[color-mix(in_srgb,var(--gold)_40%,transparent)] hover:bg-[var(--surface-2)] transition"
           >
             <div className="font-display text-lg text-[var(--ink)] leading-tight">Slot {slot}</div>
             <div className="text-sm text-[var(--ink-3)] font-ui">
@@ -43,7 +43,7 @@ export function LoadPanel({ saves = [], onLoad }) {
           key={i}
           type="button"
           onClick={() => onLoad?.(save.filename || save.name)}
-          className="focus-ring w-full panel-inset rounded-lg p-4 text-left hover:border-[var(--gold)]/40 hover:bg-[var(--surface-2)] transition"
+          className="focus-ring w-full panel-inset rounded-lg p-4 text-left hover:border-[color-mix(in_srgb,var(--gold)_40%,transparent)] hover:bg-[var(--surface-2)] transition"
         >
           <div className="font-display text-lg text-[var(--gold)] leading-tight">
             {save.character_name || 'Unknown hero'}

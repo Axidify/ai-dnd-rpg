@@ -4,10 +4,24 @@ import { ChevronRight, Flame } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
 import { getClassIcon } from '../lib/classIcons'
 
+function savedAgo(timestamp) {
+  const t = Date.parse(timestamp)
+  if (!timestamp || Number.isNaN(t)) return null
+  const minutes = Math.round((Date.now() - t) / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours} h ago`
+  const days = Math.round(hours / 24)
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`
+  return new Date(t).toLocaleDateString()
+}
+
 export default function HomeScreen({ onNewGame, onContinue }) {
   const [saves, setSaves] = useState([])
   const [loadingSaves, setLoadingSaves] = useState(true)
-  const { listSaves, loadGame, isLoading } = useGameStore()
+  const [loadingKey, setLoadingKey] = useState(null)
+  const { listSaves, loadGame, isLoading, error } = useGameStore()
 
   useEffect(() => {
     let active = true
@@ -23,8 +37,11 @@ export default function HomeScreen({ onNewGame, onContinue }) {
     }
   }, [listSaves])
 
-  const handleLoad = async (filepath) => {
-    const result = await loadGame(filepath)
+  const handleLoad = async (save) => {
+    const key = save.filename || save.name
+    setLoadingKey(key)
+    const result = await loadGame(key)
+    setLoadingKey(null)
     if (result.success) onContinue()
   }
 
@@ -64,14 +81,15 @@ export default function HomeScreen({ onNewGame, onContinue }) {
             <ul className="space-y-2">
               {saves.slice(0, 4).map((save, idx) => {
                 const Icon = getClassIcon(save.character_class)
-                const saveKey = save.filepath || save.name || idx
+                const saveKey = save.filename || save.name || idx
+                const ago = savedAgo(save.timestamp)
                 return (
                   <li key={saveKey}>
                     <button
                       type="button"
-                      onClick={() => handleLoad(save.filepath || save.name)}
+                      onClick={() => handleLoad(save)}
                       disabled={isLoading}
-                      className="focus-ring group w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)] transition disabled:opacity-50"
+                      className="focus-ring group w-full flex items-center gap-3 p-3 text-left rounded-xl border border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)] transition disabled:opacity-50"
                     >
                       <span className="w-9 h-9 rounded-full grid place-items-center bg-[var(--surface-2)] border border-[var(--line)] text-[var(--gold)] shrink-0">
                         <Icon size={16} aria-hidden />
@@ -82,14 +100,24 @@ export default function HomeScreen({ onNewGame, onContinue }) {
                         </span>
                         <span className="block text-xs text-[var(--ink-3)] font-ui">
                           Level {save.character_level || 1} · {save.character_class || 'Adventurer'}
+                          {ago && <> · saved {ago}</>}
                         </span>
                       </span>
-                      <ChevronRight size={16} className="text-[var(--ink-3)] group-hover:text-[var(--gold)] shrink-0 transition" />
+                      {loadingKey === saveKey ? (
+                        <span className="text-xs font-ui text-[var(--gold)] shrink-0">Loading…</span>
+                      ) : (
+                        <ChevronRight size={16} className="text-[var(--ink-3)] group-hover:text-[var(--gold)] shrink-0 transition" />
+                      )}
                     </button>
                   </li>
                 )
               })}
             </ul>
+            {error && !loadingKey && (
+              <p role="alert" className="mt-3 text-sm font-ui text-center" style={{ color: 'var(--ember)' }}>
+                {error}
+              </p>
+            )}
           </div>
         )}
       </motion.div>

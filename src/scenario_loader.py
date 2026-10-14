@@ -58,9 +58,13 @@ def register_quests(scenario_id: str, quest_manager: QuestManager) -> None:
         quest_manager.register_quest(from_data(Quest, data))
 
 
+def load_shops(scenario_id: str) -> List[Shop]:
+    return [from_data(Shop, data) for data in _read(scenario_id, "shops") or []]
+
+
 def register_shops(scenario_id: str, shop_manager: ShopManager) -> None:
-    for data in _read(scenario_id, "shops") or []:
-        shop_manager.add_shop(from_data(Shop, data))
+    for shop in load_shops(scenario_id):
+        shop_manager.add_shop(shop)
 
 
 def load_scenario(scenario_id: str):

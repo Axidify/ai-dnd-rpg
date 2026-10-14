@@ -26,7 +26,7 @@ const CommandBar = forwardRef(function CommandBar(
   const enemies = combatStatus?.enemies || []
 
   return (
-    <div className="relative z-20 shrink-0 border-t border-[var(--line)] bg-[var(--bg)]/85 backdrop-blur-md">
+    <div className="relative z-20 shrink-0 border-t border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-md">
       <div className="max-w-[42rem] mx-auto px-4 py-3 md:py-4">
         {inCombat ? (
           <div className="mb-3">

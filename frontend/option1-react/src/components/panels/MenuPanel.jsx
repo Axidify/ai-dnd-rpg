@@ -1,5 +1,5 @@
 import {
-  Backpack, Scroll, Map, ShoppingBag, Users, Dices, Moon, ArrowUpCircle, Save, FolderOpen, User, LogOut,
+  Backpack, Scroll, Map, ShoppingBag, Users, Moon, ArrowUpCircle, Save, FolderOpen, User, LogOut,
 } from 'lucide-react'
 
 function Item({ icon: Icon, label, onClick, badge, accent, disabled }) {
@@ -27,7 +27,7 @@ function Item({ icon: Icon, label, onClick, badge, accent, disabled }) {
 
 export default function MenuPanel({
   questCount, canLevelUp,
-  onHero, onInventory, onQuests, onMap, onShop, onParty, onDice, onRest, onLevelUp, onSave, onLoad, onLeave,
+  onHero, onInventory, onQuests, onMap, onShop, onParty, onRest, onLevelUp, onSave, onLoad, onLeave,
 }) {
   return (
     <div>
@@ -38,7 +38,6 @@ export default function MenuPanel({
         <Item icon={Map} label="Map" onClick={onMap} />
         <Item icon={ShoppingBag} label="Shop" onClick={onShop} />
         <Item icon={Users} label="Party" onClick={onParty} />
-        <Item icon={Dices} label="Dice" onClick={onDice} />
         <Item icon={Moon} label="Rest" onClick={onRest} />
         {canLevelUp && <Item icon={ArrowUpCircle} label="Level up" onClick={onLevelUp} accent />}
         <Item icon={Save} label="Save" onClick={onSave} />
@@ -47,7 +46,7 @@ export default function MenuPanel({
       <button
         type="button"
         onClick={onLeave}
-        className="focus-ring mt-5 w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-[var(--line)] text-[var(--ink-3)] hover:text-[var(--ember)] hover:border-[var(--ember)]/40 transition text-sm font-ui"
+        className="focus-ring mt-5 w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-[var(--line)] text-[var(--ink-3)] hover:text-[var(--ember)] hover:border-[color-mix(in_srgb,var(--ember)_40%,transparent)] transition text-sm font-ui"
       >
         <LogOut size={16} aria-hidden /> Leave the adventure
       </button>

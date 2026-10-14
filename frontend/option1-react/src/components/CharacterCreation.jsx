@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sword, Sparkles, Crosshair, Cross, Target, Axe, Shield, Flame, Music, Hand, Leaf, Star,
-  Map, ChevronLeft, ChevronRight, Heart, Coins,
+  Map, ChevronLeft, ChevronRight, Heart, Coins, Check,
 } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
 import AbilityGrid, { formatModifier } from './AbilityGrid'
@@ -22,7 +22,17 @@ const classes = [
   { name: 'Sorcerer', icon: Star, desc: 'Innate magic in the blood' },
 ]
 
-const races = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Half-Orc', 'Tiefling', 'Dragonborn', 'Gnome', 'Half-Elf']
+const races = [
+  { name: 'Human', desc: 'Adaptable and ambitious; found in every corner of the realm' },
+  { name: 'Elf', desc: 'Graceful and long-lived, with keen senses and old memories' },
+  { name: 'Dwarf', desc: 'Stout and stubborn, at home in stone and forge-light' },
+  { name: 'Halfling', desc: 'Small, quick and lucky; easily underestimated' },
+  { name: 'Half-Orc', desc: 'Strong and enduring, often met with wary eyes' },
+  { name: 'Tiefling', desc: 'Touched by infernal blood; striking, and rarely trusted' },
+  { name: 'Dragonborn', desc: 'Proud, scaled kin of dragons, with a fierce sense of honour' },
+  { name: 'Gnome', desc: 'Curious tinkerers and tricksters with boundless energy' },
+  { name: 'Half-Elf', desc: 'At home in two worlds and wholly of neither' },
+]
 const STEPS = ['Name', 'Calling', 'Heritage', 'Your hero', 'Beginning']
 const REVIEW_STEP = 3
 
@@ -38,13 +48,14 @@ export default function CharacterCreation({ onBack }) {
 
   const {
     createCharacter, fetchScenarios, scenarios, isLoading, error,
-    preview, previewLoading, previewCharacter,
+    preview, previewLoading, previewCharacter, classInfo, fetchClassInfo,
   } = useGameStore()
   const selectedScenario = chosenScenario === undefined ? scenarios[0] ?? null : chosenScenario
 
   useEffect(() => {
     fetchScenarios()
-  }, [fetchScenarios])
+    fetchClassInfo()
+  }, [fetchScenarios, fetchClassInfo])
 
   // Roll (or re-roll after edits) when the review step opens
   const heroKey = selectedClass ? `${name.trim()}|${selectedClass.name}|${selectedRace}` : null
@@ -122,8 +133,10 @@ export default function CharacterCreation({ onBack }) {
                     autoFocus
                     autoComplete="off"
                   />
-                  <p className="text-sm text-[var(--ink-3)] font-read italic mt-3">
-                    This is how the Dungeon Master will know you.
+                  <p className="text-sm text-[var(--ink-3)] font-read italic mt-3" aria-live="polite">
+                    {name.trim().length === 1
+                      ? 'A little longer: at least 2 letters.'
+                      : 'This is how the Dungeon Master will know you.'}
                   </p>
                 </div>
               )}
@@ -133,21 +146,30 @@ export default function CharacterCreation({ onBack }) {
                   {classes.map((cls) => {
                     const Icon = cls.icon
                     const active = selectedClass?.name === cls.name
+                    const kit = classInfo[cls.name]
                     return (
                       <button
                         key={cls.name}
                         type="button"
                         onClick={() => setSelectedClass(cls)}
                         aria-pressed={active}
-                        className={`focus-ring p-4 rounded-xl border text-left transition ${
+                        className={`focus-ring relative p-4 rounded-xl border text-left transition flex flex-col justify-start ${
                           active
-                            ? 'border-[var(--gold)] bg-[var(--gold-soft)]'
+                            ? 'border-[var(--gold)] bg-[var(--gold-soft)] ring-1 ring-[var(--gold)]'
                             : 'border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]'
                         }`}
                       >
+                        {active && (
+                          <Check size={15} className="absolute top-3 right-3 text-[var(--gold)]" aria-hidden />
+                        )}
                         <Icon size={22} className={active ? 'text-[var(--gold)]' : 'text-[var(--ink-2)]'} aria-hidden />
-                        <div className="font-ui font-medium text-sm mt-2 text-[var(--ink)]">{cls.name}</div>
+                        <div className={`font-ui font-medium text-sm mt-2 ${active ? 'text-[var(--gold-bright)]' : 'text-[var(--ink)]'}`}>{cls.name}</div>
                         <div className="text-[11px] text-[var(--ink-3)] font-read leading-snug mt-0.5">{cls.desc}</div>
+                        {kit && (
+                          <div className="text-[10.5px] text-[var(--ink-2)] font-ui mt-2 tabular-nums">
+                            d{kit.hit_die} HP · {kit.weapon}
+                          </div>
+                        )}
                       </button>
                     )
                   })}
@@ -155,25 +177,36 @@ export default function CharacterCreation({ onBack }) {
               )}
 
               {step === 2 && (
-                <div className="flex flex-wrap gap-2.5">
-                  {races.map((race) => {
-                    const active = selectedRace === race
-                    return (
-                      <button
-                        key={race}
-                        type="button"
-                        onClick={() => setSelectedRace(race)}
-                        aria-pressed={active}
-                        className={`focus-ring px-4 py-3 rounded-xl border font-ui text-sm transition ${
-                          active
-                            ? 'border-[var(--gold)] text-[var(--gold)] bg-[var(--gold-soft)]'
-                            : 'border-[var(--line)] text-[var(--ink-2)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]'
-                        }`}
-                      >
-                        {race}
-                      </button>
-                    )
-                  })}
+                <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {races.map((race) => {
+                      const active = selectedRace === race.name
+                      return (
+                        <button
+                          key={race.name}
+                          type="button"
+                          onClick={() => setSelectedRace(race.name)}
+                          aria-pressed={active}
+                          className={`focus-ring relative px-4 py-3 rounded-xl border text-left transition flex flex-col justify-start ${
+                            active
+                              ? 'border-[var(--gold)] bg-[var(--gold-soft)] ring-1 ring-[var(--gold)]'
+                              : 'border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]'
+                          }`}
+                        >
+                          {active && (
+                            <Check size={14} className="absolute top-3 right-3 text-[var(--gold)]" aria-hidden />
+                          )}
+                          <div className={`font-ui font-medium text-sm ${active ? 'text-[var(--gold-bright)]' : 'text-[var(--ink)]'}`}>
+                            {race.name}
+                          </div>
+                          <div className="text-[11px] text-[var(--ink-3)] font-read leading-snug mt-0.5 pr-4">{race.desc}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-sm text-[var(--ink-3)] font-read italic mt-4">
+                    Heritage shapes how the world sees you and how the Dungeon Master tells your story. It doesn't change your stats.
+                  </p>
                 </div>
               )}
 

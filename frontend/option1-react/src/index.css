@@ -145,6 +145,14 @@
   .btn-primary:hover:not(:disabled) {
     background: var(--gold-bright);
   }
+  /* Disabled primary reads as "not yet", not as a dim version of "go" */
+  .btn-primary:disabled {
+    opacity: 1;
+    background: var(--surface-2);
+    color: var(--ink-3);
+    box-shadow: none;
+    border: 1px solid var(--line);
+  }
 
   .btn-ghost {
     background: transparent;

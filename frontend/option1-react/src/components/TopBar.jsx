@@ -38,7 +38,7 @@ export default function TopBar({
     typeof currentLocation === 'object' ? currentLocation?.name : currentLocation
 
   return (
-    <header className="relative z-20 shrink-0 h-14 px-2 sm:px-4 flex items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--bg)]/80 backdrop-blur-md">
+    <header className="relative z-20 shrink-0 h-14 px-2 sm:px-4 flex items-center justify-between gap-2 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_80%,transparent)] backdrop-blur-md">
       {/* Hero */}
       <button
         type="button"

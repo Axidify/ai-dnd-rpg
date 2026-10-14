@@ -5,6 +5,9 @@ import CharacterCreation from './components/CharacterCreation'
 import GameScreen from './components/GameScreen'
 import { useGameStore } from './store/gameStore'
 
+// Quick cross-fade between screens (matches modal timing)
+const SCREEN_FADE = { duration: 0.18 }
+
 function App() {
   const [screen, setScreen] = useState('home')
   const character = useGameStore((s) => s.character)
@@ -12,8 +15,11 @@ function App() {
   useEffect(() => {
     if (character) {
       setScreen('game')
+    } else if (screen === 'game') {
+      // No character (session ended or state reset): never leave a blank screen
+      setScreen('home')
     }
-  }, [character])
+  }, [character, screen])
 
   const handleLeaveGame = () => {
     useGameStore.getState().endSession()
@@ -29,6 +35,7 @@ function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={SCREEN_FADE}
           >
             <HomeScreen
               onNewGame={() => setScreen('create')}
@@ -42,6 +49,7 @@ function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={SCREEN_FADE}
           >
             <CharacterCreation onBack={() => setScreen('home')} />
           </motion.div>
@@ -52,6 +60,7 @@ function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={SCREEN_FADE}
             className="min-h-screen"
           >
             <GameScreen onLeaveGame={handleLeaveGame} />

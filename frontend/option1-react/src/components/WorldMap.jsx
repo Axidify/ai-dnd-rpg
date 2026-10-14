@@ -1,718 +1,285 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
-import { X, MapPin, Compass, Eye, EyeOff, ZoomIn, ZoomOut, Maximize2, Navigation, Footprints } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Beer, Landmark, Hammer, Trees, AlertTriangle, Skull, Gem, Sword, Crown, Sparkles, Lock,
+  Package, Sun, Eye, User, PartyPopper, Footprints, Flame, Archive, MapPin, Navigation,
+} from 'lucide-react'
+import Modal from './Modal'
 import { useGameStore } from '../store/gameStore'
 
-// Fantasy map region gradients with more visual depth
-const REGION_COLORS = {
-  default: 'from-amber-900/30 to-stone-900/30',
-  forest: 'from-green-900/50 to-emerald-950/40',
-  village: 'from-amber-700/40 to-yellow-900/30',
-  dungeon: 'from-purple-950/50 to-gray-900/60',
-  mountain: 'from-slate-600/50 to-gray-800/40',
-  water: 'from-blue-800/40 to-cyan-950/50',
-  cave: 'from-stone-900/60 to-gray-950/70',
+// Scenario data uses emoji for map icons; draw them as line icons in the house style
+const ICONS = {
+  '🍺': Beer, '🍻': Beer, '🏛️': Landmark, '🛠️': Hammer, '🌲': Trees, '🌳': Trees,
+  '⚠️': AlertTriangle, '💀': Skull, '💎': Gem, '⚔️': Sword, '👑': Crown, '🔮': Sparkles,
+  '🔒': Lock, '📦': Package, '☀️': Sun, '👁️': Eye, '👤': User, '🎉': PartyPopper,
+  '🎊': PartyPopper, '🏃': Footprints, '🕯️': Flame, '⚰️': Archive,
+}
+const iconFor = (emoji) => ICONS[emoji] || MapPin
+
+// Region bands behind the markers (alpha tints of the palette)
+const REGION_TINT = {
+  village: 'rgba(194, 168, 104, 0.07)',
+  forest: 'rgba(147, 168, 119, 0.07)',
+  cave: 'rgba(199, 107, 74, 0.06)',
+}
+const REGION_NAMES = { village: 'Village', forest: 'Forest', cave: 'Caves' }
+
+// Several scenario locations share a spot (e.g. a "return" version of a place).
+// Show one marker per spot, preferring the one that matters right now.
+function onePerSpot(locations) {
+  const rank = (l) => (l.is_current ? 4 : 0) + (l.reachable ? 2 : 0) + (l.visited ? 1 : 0) + (l.known ? 0.5 : 0)
+  const bySpot = new Map()
+  for (const loc of locations) {
+    const spot = `${Math.round(loc.map_x * 50)},${Math.round(loc.map_y * 50)}`
+    const prev = bySpot.get(spot)
+    if (!prev || rank(loc) > rank(prev)) bySpot.set(spot, loc)
+  }
+  return [...bySpot.values()]
 }
 
-// Enhanced location type icons with colors and glow effects
-const LOCATION_STYLES = {
-  '🏠': { color: 'text-amber-400', bg: 'bg-amber-900/60', glow: 'shadow-amber-500/30' },
-  '🏰': { color: 'text-yellow-400', bg: 'bg-yellow-900/60', glow: 'shadow-yellow-500/30' },
-  '🌲': { color: 'text-green-400', bg: 'bg-green-900/60', glow: 'shadow-green-500/30' },
-  '🌳': { color: 'text-emerald-400', bg: 'bg-emerald-900/60', glow: 'shadow-emerald-500/30' },
-  '⛏️': { color: 'text-slate-400', bg: 'bg-slate-700/60', glow: 'shadow-slate-500/30' },
-  '🗡️': { color: 'text-red-400', bg: 'bg-red-900/60', glow: 'shadow-red-500/30' },
-  '🏪': { color: 'text-orange-400', bg: 'bg-orange-900/60', glow: 'shadow-orange-500/30' },
-  '⛪': { color: 'text-purple-400', bg: 'bg-purple-900/60', glow: 'shadow-purple-500/30' },
-  '🍺': { color: 'text-amber-300', bg: 'bg-amber-800/60', glow: 'shadow-amber-400/30' },
-  '🍻': { color: 'text-yellow-300', bg: 'bg-yellow-800/60', glow: 'shadow-yellow-400/30' },
-  '🛠️': { color: 'text-orange-300', bg: 'bg-orange-800/60', glow: 'shadow-orange-400/30' },
-  '🏛️': { color: 'text-stone-300', bg: 'bg-stone-700/60', glow: 'shadow-stone-400/30' },
-  '⚠️': { color: 'text-yellow-500', bg: 'bg-yellow-900/60', glow: 'shadow-yellow-600/40' },
-  '🕳️': { color: 'text-gray-400', bg: 'bg-gray-800/70', glow: 'shadow-gray-500/30' },
-  '💀': { color: 'text-red-500', bg: 'bg-red-950/70', glow: 'shadow-red-600/40' },
-  '🔮': { color: 'text-purple-300', bg: 'bg-purple-900/60', glow: 'shadow-purple-400/50' },
-  '❓': { color: 'text-gray-500', bg: 'bg-gray-800/50', glow: 'shadow-gray-500/20' },
-  '📍': { color: 'text-rpg-gold', bg: 'bg-rpg-primary/40', glow: 'shadow-rpg-gold/40' },
+function regionBands(locations) {
+  const bands = {}
+  for (const loc of locations) {
+    const r = loc.map_region
+    if (!REGION_TINT[r]) continue
+    const b = bands[r] || (bands[r] = { min: 1, max: 0 })
+    b.min = Math.min(b.min, loc.map_y)
+    b.max = Math.max(b.max, loc.map_y)
+  }
+  return Object.entries(bands).map(([region, { min, max }]) => ({
+    region,
+    top: Math.max(0, min - 0.05),
+    bottom: Math.min(1, max + 0.05),
+  }))
+}
+
+// Board coordinates: keep markers off the very edge
+const pos = (v) => 6 + v * 88
+
+function Marker({ loc, selected, otherSelected, onSelect }) {
+  const Icon = iconFor(loc.map_icon)
+  const size = loc.is_current ? 34 : loc.known ? 28 : 12
+  const tone = loc.is_current
+    ? 'border-[var(--gold-bright)] bg-[var(--surface-2)] text-[var(--gold-bright)]'
+    : loc.reachable
+      ? 'border-[var(--gold)] bg-[var(--surface)] text-[var(--gold)]'
+      : loc.visited
+        ? 'border-[var(--line-strong)] bg-[var(--surface)] text-[var(--ink-2)]'
+        : loc.known
+          ? 'border-[var(--line-strong)] bg-[var(--bg-deep)] text-[var(--ink-3)]'
+          : 'border-[var(--line)] bg-[var(--line-strong)]'
+  // Only label where you are and what you picked; nearby places would collide
+  const showLabel = loc.known && (selected || (loc.is_current && !otherSelected))
+
+  return (
+    <button
+      type="button"
+      onClick={() => loc.known && onSelect(loc)}
+      disabled={!loc.known}
+      aria-label={loc.known ? `${loc.name}${loc.is_current ? ' (you are here)' : loc.reachable ? ' (reachable)' : ''}` : 'Undiscovered place'}
+      aria-pressed={selected}
+      className={`focus-ring absolute -translate-x-1/2 -translate-y-1/2 rounded-full grid place-items-center border transition
+        ${tone} ${selected ? 'ring-2 ring-[var(--gold)] ring-offset-2 ring-offset-[var(--bg)]' : ''}
+        ${loc.known ? 'hover:scale-110 cursor-pointer' : 'cursor-default'}`}
+      style={{ left: `${pos(loc.map_x)}%`, top: `${pos(loc.map_y)}%`, width: size, height: size }}
+    >
+      {loc.known && <Icon size={loc.is_current ? 16 : 13} aria-hidden />}
+      {showLabel && (
+        <span
+          className={`absolute top-full mt-1 whitespace-nowrap font-ui text-[11px] px-1.5 py-0.5 rounded
+            ${loc.map_x < 0.3 ? 'left-0' : loc.map_x > 0.7 ? 'right-0' : 'left-1/2 -translate-x-1/2'}
+            bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] ${loc.is_current ? 'text-[var(--gold-bright)]' : 'text-[var(--ink-2)]'}`}
+        >
+          {loc.map_label || loc.name}
+        </span>
+      )}
+    </button>
+  )
 }
 
 export default function WorldMap({ isOpen, onClose }) {
-  const [locations, setLocations] = useState([])
-  const [currentLocation, setCurrentLocation] = useState(null)
-  const [selectedLocation, setSelectedLocation] = useState(null)
-  const [showFog, setShowFog] = useState(true)
-  const [hoveredLocation, setHoveredLocation] = useState(null)
-  
-  // Pan and zoom state
-  const [scale, setScale] = useState(1)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  
-  const mapRef = useRef(null)
-  const containerRef = useRef(null)
-  
   const { getDestinations, travel, isLoading } = useGameStore()
-  
-  // Zoom limits
-  const MIN_ZOOM = 0.5
-  const MAX_ZOOM = 3
-  const ZOOM_STEP = 0.25
-  
-  // Load map data when opened
+  const [data, setData] = useState(null)
+  const [selectedId, setSelectedId] = useState(null)
+  const [travelError, setTravelError] = useState(null)
+
+  const load = async () => {
+    const result = await getDestinations()
+    setData(result)
+  }
+
   useEffect(() => {
-    if (isOpen) {
-      loadMapData()
-      // Reset view when opening
-      setScale(1)
-      setPosition({ x: 0, y: 0 })
-    }
-  }, [isOpen])
-  
-  const loadMapData = async () => {
-    const data = await getDestinations()
-    setLocations(data.all_locations || [])
-    setCurrentLocation(data.current_location)
-    
-    // Auto-center on current location
-    if (data.current_location) {
-      const { map_x, map_y } = data.current_location
-      // Center the view on current location (offset from center)
-      setPosition({
-        x: (0.5 - map_x) * 100,
-        y: (0.5 - map_y) * 100
-      })
-    }
-  }
-  
-  const handleLocationClick = (location) => {
-    if (location.hidden && showFog) return
-    setSelectedLocation(location)
-  }
-  
+    if (!isOpen) return
+    setSelectedId(null)
+    setTravelError(null)
+    load()
+  }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const locations = useMemo(() => onePerSpot(data?.all_locations || []), [data])
+  const bands = useMemo(() => regionBands(locations), [locations])
+  const current = locations.find((l) => l.is_current)
+  // Reachable places by name (from the full list: a shared map spot may hide one)
+  const destinations = (data?.all_locations || []).filter((l) => l.reachable && !l.is_current && l.known)
+  const selected = (data?.all_locations || []).find((l) => l.id === selectedId) || current
+  const discovered = (data?.all_locations || []).filter((l) => l.visited).length
+  const total = (data?.all_locations || []).length
+
   const handleTravel = async () => {
-    if (!selectedLocation || !selectedLocation.reachable) return
-    
-    const result = await travel(selectedLocation.id)
-    if (result.success) {
-      await loadMapData()
-      setSelectedLocation(null)
-    }
-  }
-  
-  const getLocationStyle = (icon) => {
-    return LOCATION_STYLES[icon] || LOCATION_STYLES['📍']
-  }
-  
-  // Zoom handlers
-  const handleZoomIn = () => {
-    setScale(prev => Math.min(MAX_ZOOM, prev + ZOOM_STEP))
-  }
-  
-  const handleZoomOut = () => {
-    setScale(prev => Math.max(MIN_ZOOM, prev - ZOOM_STEP))
-  }
-  
-  const handleResetView = () => {
-    setScale(1)
-    if (currentLocation) {
-      setPosition({
-        x: (0.5 - currentLocation.map_x) * 100,
-        y: (0.5 - currentLocation.map_y) * 100
-      })
+    if (!selected?.reachable) return
+    setTravelError(null)
+    const result = await travel(selected.id)
+    if (result?.success) {
+      onClose?.()  // show the arrival in the story
     } else {
-      setPosition({ x: 0, y: 0 })
+      setTravelError(result?.message || 'You can’t go that way right now.')
+      load()
     }
   }
-  
-  // Pan handlers
-  const handleMouseDown = (e) => {
-    if (e.button !== 0) return // Only left click
-    setIsDragging(true)
-    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
-  }
-  
-  const handleMouseMove = useCallback((e) => {
-    if (!isDragging) return
-    setPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    })
-  }, [isDragging, dragStart])
-  
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-  
-  // Mouse wheel zoom
-  const handleWheel = (e) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
-    setScale(prev => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, prev + delta)))
-  }
-  
-  // Touch handlers for mobile
-  const [touchStart, setTouchStart] = useState(null)
-  const [touchScale, setTouchScale] = useState(null)
-  
-  const handleTouchStart = (e) => {
-    if (e.touches.length === 1) {
-      setTouchStart({ x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y })
-    } else if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      )
-      setTouchScale({ dist, initialScale: scale })
-    }
-  }
-  
-  const handleTouchMove = (e) => {
-    if (e.touches.length === 1 && touchStart) {
-      setPosition({
-        x: e.touches[0].clientX - touchStart.x,
-        y: e.touches[0].clientY - touchStart.y
-      })
-    } else if (e.touches.length === 2 && touchScale) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      )
-      const newScale = touchScale.initialScale * (dist / touchScale.dist)
-      setScale(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale)))
-    }
-  }
-  
-  const handleTouchEnd = () => {
-    setTouchStart(null)
-    setTouchScale(null)
-  }
-  
-  // Calculate distance between two locations (for path animation)
-  const getDistance = (loc1, loc2) => {
-    return Math.sqrt(Math.pow(loc2.map_x - loc1.map_x, 2) + Math.pow(loc2.map_y - loc1.map_y, 2))
-  }
-  
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-2 md:p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="rpg-card w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden border border-rpg-border-gold shadow-paper-lg"
-            onClick={e => e.stopPropagation()}
+    <Modal open={isOpen} onClose={onClose} eyebrow={`${discovered} of ${total} places visited`} title="Map" titleId="map-title" maxWidth="max-w-4xl">
+      <div className="flex flex-col md:flex-row gap-5 md:gap-7">
+        {/* Board */}
+        <div className="flex justify-center md:flex-none">
+          <div
+            className="relative w-full max-w-[26rem] md:w-auto md:h-[min(62vh,40rem)] aspect-[3/4] rounded-xl border border-[var(--line)] bg-[var(--bg-deep)] overflow-hidden"
+            role="group"
+            aria-label="Map of the region"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-3 md:p-4 border-b border-rpg-border/60 bg-gradient-to-r from-rpg-primary/20 to-transparent">
+            {bands.map((b) => (
+              <div
+                key={b.region}
+                className="absolute inset-x-0"
+                style={{ top: `${pos(b.top)}%`, height: `${pos(b.bottom) - pos(b.top)}%`, background: REGION_TINT[b.region] }}
+              >
+                {/* Name only bands with room for it (a thin band is all markers) */}
+                {pos(b.bottom) - pos(b.top) >= 14 && (
+                  <span className="caps-muted absolute left-2.5 bottom-1.5 opacity-70">{REGION_NAMES[b.region]}</span>
+                )}
+              </div>
+            ))}
+
+            {/* Paths to reachable places */}
+            {current && (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                {locations.filter((l) => l.reachable && !l.is_current).map((l) => (
+                  <line
+                    key={l.id}
+                    x1={pos(current.map_x)} y1={pos(current.map_y)}
+                    x2={pos(l.map_x)} y2={pos(l.map_y)}
+                    stroke="var(--gold)"
+                    strokeOpacity={l.id === selected?.id ? 0.9 : 0.4}
+                    strokeWidth={l.id === selected?.id ? 2 : 1.2}
+                    strokeDasharray={l.id === selected?.id ? undefined : '3 3'}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </svg>
+            )}
+
+            {locations.map((loc) => (
+              <Marker
+                key={loc.id}
+                loc={loc}
+                selected={loc.id === selected?.id && !loc.is_current}
+                otherSelected={Boolean(selected && !selected.is_current)}
+                onSelect={(l) => { setSelectedId(l.id); setTravelError(null) }}
+              />
+            ))}
+
+            {!data && (
+              <p className="absolute inset-0 grid place-items-center font-read italic text-[var(--ink-3)]">Unrolling the map…</p>
+            )}
+            {data && total === 0 && (
+              <p className="absolute inset-0 grid place-items-center px-6 text-center font-read italic text-[var(--ink-3)]">
+                This tale has no map. Wherever you wander, the Dungeon Master will describe it.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Details */}
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
+          {selected ? (
+            <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Compass className="text-rpg-gold animate-spin-slow" size={28} />
-                  <div className="absolute inset-0 blur-sm bg-rpg-gold/30 rounded-full" />
-                </div>
-                <div>
-                  <h2 className="text-xl md:text-2xl font-display text-rpg-gold">World Map</h2>
-                  <p className="text-xs text-gray-400 hidden md:block">
-                    {locations.filter(l => l.visited).length} of {locations.length} locations discovered
+                {(() => {
+                  const Icon = iconFor(selected.map_icon)
+                  return (
+                    <span className="w-11 h-11 rounded-full grid place-items-center border border-[var(--line-strong)] bg-[var(--surface-2)] text-[var(--gold)] shrink-0">
+                      <Icon size={18} aria-hidden />
+                    </span>
+                  )
+                })()}
+                <div className="min-w-0">
+                  <h3 className="display text-xl leading-tight">{selected.name}</h3>
+                  <p className="caps-muted mt-1">
+                    {selected.is_current ? 'You are here' : selected.reachable ? 'Reachable from here' : selected.visited ? 'Visited' : 'Not reachable from here'}
                   </p>
                 </div>
               </div>
-              
-              {/* Toolbar */}
-              <div className="flex items-center gap-2">
-                {/* Zoom controls */}
-                <div className="hidden md:flex items-center gap-1 mr-2 bg-gray-800/50 rounded-lg p-1">
-                  <button
-                    onClick={handleZoomOut}
-                    className="p-1.5 hover:bg-gray-700 rounded transition text-gray-400 hover:text-white"
-                    title="Zoom out"
-                  >
-                    <ZoomOut size={16} />
-                  </button>
-                  <span className="text-xs text-gray-400 w-12 text-center">{Math.round(scale * 100)}%</span>
-                  <button
-                    onClick={handleZoomIn}
-                    className="p-1.5 hover:bg-gray-700 rounded transition text-gray-400 hover:text-white"
-                    title="Zoom in"
-                  >
-                    <ZoomIn size={16} />
-                  </button>
-                  <button
-                    onClick={handleResetView}
-                    className="p-1.5 hover:bg-gray-700 rounded transition text-gray-400 hover:text-white ml-1 border-l border-gray-600 pl-2"
-                    title="Reset view"
-                  >
-                    <Maximize2 size={16} />
-                  </button>
-                </div>
-                
-                {/* Fog toggle */}
+              {selected.description && (
+                <p className="font-read text-[var(--ink-2)] leading-relaxed">{selected.description}</p>
+              )}
+              {selected.reachable && !selected.is_current && (
                 <button
-                  onClick={() => setShowFog(!showFog)}
-                  className={`
-                    flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition
-                    ${showFog ? 'bg-gray-800 border border-gray-600 hover:bg-gray-700' : 'bg-purple-900/50 border border-purple-500/50'}
-                  `}
+                  type="button"
+                  onClick={handleTravel}
+                  disabled={isLoading}
+                  className="btn btn-primary focus-ring w-full py-3 flex items-center justify-center gap-2"
                 >
-                  {showFog ? <Eye size={16} /> : <EyeOff size={16} />}
-                  <span className="hidden md:inline">{showFog ? 'Show All' : 'Hide Unknown'}</span>
+                  <Navigation size={16} aria-hidden />
+                  {isLoading ? 'Travelling…' : `Travel to ${selected.map_label || selected.name}`}
                 </button>
-                
-                {/* Close */}
+              )}
+              {travelError && (
+                <p role="alert" className="text-sm font-ui" style={{ color: 'var(--ember)' }}>{travelError}</p>
+              )}
+              {!selected.is_current && current && (
                 <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-700 rounded-lg transition ml-2"
+                  type="button"
+                  onClick={() => { setSelectedId(null); setTravelError(null) }}
+                  className="focus-ring text-sm font-ui text-[var(--ink-3)] hover:text-[var(--gold)] transition"
                 >
-                  <X size={20} />
+                  ← Back to {current.map_label || current.name}
                 </button>
-              </div>
-            </div>
-            
-            {/* Map Container */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* Map Area */}
-              <div 
-                ref={containerRef}
-                className="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onWheel={handleWheel}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              >
-                {/* Map parchment background */}
-                <div 
-                  ref={mapRef}
-                  className="absolute transition-transform duration-75"
-                  style={{
-                    width: '200%',
-                    height: '200%',
-                    left: '-50%',
-                    top: '-50%',
-                    transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-                    transformOrigin: 'center center',
-                  }}
-                >
-                  {/* Parchment texture background */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-950/90 via-stone-900 to-amber-950/80" />
-                  
-                  {/* Noise texture overlay */}
-                  <div 
-                    className="absolute inset-0 opacity-30"
-                    style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-                    }}
-                  />
-                  
-                  {/* Region color overlays */}
-                  <div className="absolute inset-0">
-                    {/* Forest region glow */}
-                    <div 
-                      className="absolute rounded-full blur-3xl opacity-40"
-                      style={{
-                        width: '40%',
-                        height: '50%',
-                        left: '20%',
-                        top: '35%',
-                        background: 'radial-gradient(circle, rgba(34, 197, 94, 0.3) 0%, transparent 70%)'
-                      }}
-                    />
-                    {/* Village region glow */}
-                    <div 
-                      className="absolute rounded-full blur-3xl opacity-40"
-                      style={{
-                        width: '30%',
-                        height: '25%',
-                        left: '35%',
-                        top: '20%',
-                        background: 'radial-gradient(circle, rgba(251, 191, 36, 0.3) 0%, transparent 70%)'
-                      }}
-                    />
-                    {/* Cave/dungeon region glow */}
-                    <div 
-                      className="absolute rounded-full blur-3xl opacity-40"
-                      style={{
-                        width: '35%',
-                        height: '40%',
-                        left: '50%',
-                        top: '45%',
-                        background: 'radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, transparent 70%)'
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Fantasy grid lines */}
-                  <div 
-                    className="absolute inset-0 opacity-5"
-                    style={{
-                      backgroundImage: `
-                        linear-gradient(to right, rgba(212, 175, 55, 0.5) 1px, transparent 1px),
-                        linear-gradient(to bottom, rgba(212, 175, 55, 0.5) 1px, transparent 1px)
-                      `,
-                      backgroundSize: '8% 8%'
-                    }}
-                  />
-                  
-                  {/* Decorative border */}
-                  <div className="absolute inset-[15%] border-2 border-rpg-gold/10 rounded-lg" />
-                  <div className="absolute inset-[16%] border border-rpg-gold/5 rounded-lg" />
-                  
-                  {/* Compass Rose */}
-                  <div className="absolute top-[18%] right-[18%] opacity-20">
-                    <div className="relative w-24 h-24">
-                      <div className="absolute inset-0 flex items-center justify-center text-5xl">🧭</div>
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-xs text-rpg-gold font-display">N</div>
-                      <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs text-rpg-gold font-display">S</div>
-                      <div className="absolute top-1/2 -left-4 -translate-y-1/2 text-xs text-rpg-gold font-display">W</div>
-                      <div className="absolute top-1/2 -right-4 -translate-y-1/2 text-xs text-rpg-gold font-display">E</div>
-                    </div>
-                  </div>
-                  
-                  {/* Connection lines between locations */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ left: '25%', top: '25%', width: '50%', height: '50%' }}>
-                    <defs>
-                      {/* Path gradient */}
-                      <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="rgba(212, 175, 55, 0.6)" />
-                        <stop offset="50%" stopColor="rgba(212, 175, 55, 0.3)" />
-                        <stop offset="100%" stopColor="rgba(212, 175, 55, 0.6)" />
-                      </linearGradient>
-                      {/* Animated dash */}
-                      <pattern id="pathPattern" patternUnits="userSpaceOnUse" width="20" height="1">
-                        <rect width="10" height="1" fill="rgba(212, 175, 55, 0.5)">
-                          <animate attributeName="x" from="0" to="20" dur="1s" repeatCount="indefinite" />
-                        </rect>
-                      </pattern>
-                    </defs>
-                    
-                    {/* Draw paths from current location to reachable locations */}
-                    {locations.map(loc => {
-                      if (!loc.reachable || loc.id === currentLocation?.id) return null
-                      const current = currentLocation
-                      if (!current) return null
-                      
-                      const isSelected = selectedLocation?.id === loc.id
-                      const isHovered = hoveredLocation?.id === loc.id
-                      
-                      return (
-                        <g key={`path-${loc.id}`}>
-                          {/* Glow effect for selected/hovered path */}
-                          {(isSelected || isHovered) && (
-                            <line
-                              x1={`${current.map_x * 100}%`}
-                              y1={`${current.map_y * 100}%`}
-                              x2={`${loc.map_x * 100}%`}
-                              y2={`${loc.map_y * 100}%`}
-                              stroke="rgba(212, 175, 55, 0.3)"
-                              strokeWidth="8"
-                              className="blur-sm"
-                            />
-                          )}
-                          {/* Main path */}
-                          <line
-                            x1={`${current.map_x * 100}%`}
-                            y1={`${current.map_y * 100}%`}
-                            x2={`${loc.map_x * 100}%`}
-                            y2={`${loc.map_y * 100}%`}
-                            stroke={isSelected || isHovered ? "rgba(212, 175, 55, 0.8)" : "rgba(212, 175, 55, 0.3)"}
-                            strokeWidth={isSelected || isHovered ? "3" : "2"}
-                            strokeDasharray={isSelected || isHovered ? "none" : "8,4"}
-                            className="transition-all duration-300"
-                          />
-                          {/* Arrow indicator for selected */}
-                          {isSelected && (
-                            <circle
-                              cx={`${(current.map_x + loc.map_x) / 2 * 100}%`}
-                              cy={`${(current.map_y + loc.map_y) / 2 * 100}%`}
-                              r="6"
-                              fill="rgba(212, 175, 55, 0.8)"
-                              className="animate-pulse"
-                            />
-                          )}
-                        </g>
-                      )
-                    })}
-                  </svg>
-                  
-                  {/* Location markers */}
-                  <div className="absolute" style={{ left: '25%', top: '25%', width: '50%', height: '50%' }}>
-                    {locations.map(loc => {
-                      const style = getLocationStyle(loc.map_icon)
-                      const isSelected = selectedLocation?.id === loc.id
-                      const isHovered = hoveredLocation?.id === loc.id
-                      const isCurrent = loc.is_current
-                      const isHidden = loc.hidden && showFog
-                      
-                      if (isHidden && loc.map_x === 0 && loc.map_y === 0) return null
-                      
-                      return (
-                        <motion.button
-                          key={loc.id}
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ 
-                            scale: isHovered ? 1.2 : 1, 
-                            opacity: isHidden ? 0.3 : 1 
-                          }}
-                          whileHover={{ scale: 1.3 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleLocationClick(loc)}
-                          onMouseEnter={() => setHoveredLocation(loc)}
-                          onMouseLeave={() => setHoveredLocation(null)}
-                          disabled={isHidden}
-                          className={`
-                            absolute transform -translate-x-1/2 -translate-y-1/2
-                            flex flex-col items-center gap-1 group z-10
-                            ${isHidden ? 'cursor-not-allowed' : 'cursor-pointer'}
-                          `}
-                          style={{
-                            left: `${loc.map_x * 100}%`,
-                            top: `${loc.map_y * 100}%`,
-                          }}
-                        >
-                          {/* Marker glow effect */}
-                          {(isCurrent || isSelected) && (
-                            <div className={`
-                              absolute w-20 h-20 -top-4 -left-4 rounded-full blur-xl
-                              ${isCurrent ? 'bg-rpg-gold/40 animate-pulse' : 'bg-white/20'}
-                            `} />
-                          )}
-                          
-                          {/* Marker */}
-                          <div className={`
-                            relative w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-2xl md:text-3xl
-                            border-2 transition-all duration-300 shadow-lg
-                            ${isCurrent ? 'border-rpg-gold ring-4 ring-rpg-gold/50' : 'border-gray-600/80'}
-                            ${isSelected ? 'ring-2 ring-white border-white' : ''}
-                            ${loc.visited ? style.bg : 'bg-gray-800/70'}
-                            ${loc.reachable && !isCurrent ? 'border-green-500/70 hover:border-green-400' : ''}
-                            ${style.glow} shadow-xl
-                          `}>
-                            <span className={`
-                              ${isCurrent ? 'animate-bounce' : ''} 
-                              drop-shadow-lg
-                              ${loc.visited ? '' : 'grayscale opacity-70'}
-                            `}>
-                              {loc.map_icon}
-                            </span>
-                            
-                            {/* Visit indicator dot */}
-                            {loc.visited && !isCurrent && (
-                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-green-400 rounded-full" />
-                            )}
-                          </div>
-                          
-                          {/* Current location player marker */}
-                          {isCurrent && (
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-rpg-gold text-black text-xs px-2 py-0.5 rounded-full font-bold shadow-lg whitespace-nowrap">
-                              👤 You
-                            </div>
-                          )}
-                          
-                          {/* Label - always visible for current/selected, hover for others */}
-                          <motion.span 
-                            initial={{ opacity: 0, y: -5 }}
-                            animate={{ 
-                              opacity: isCurrent || isSelected || isHovered ? 1 : 0,
-                              y: isCurrent || isSelected || isHovered ? 0 : -5
-                            }}
-                            className={`
-                              text-xs md:text-sm font-display px-2 py-1 rounded bg-black/80 whitespace-nowrap
-                              border border-rpg-border/60/50 shadow-lg
-                              ${isCurrent ? 'text-rpg-gold' : loc.visited ? 'text-white' : 'text-gray-400'}
-                            `}
-                          >
-                            {loc.name}
-                            {loc.reachable && !isCurrent && (
-                              <span className="ml-1 text-green-400">→</span>
-                            )}
-                          </motion.span>
-                        </motion.button>
-                      )
-                    })}
-                  </div>
-                </div>
-                
-                {/* Empty state */}
-                {locations.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-gray-400">
-                      <MapPin size={48} className="mx-auto mb-4 opacity-50" />
-                      <p>No map data available</p>
-                      <p className="text-sm mt-2">Explore the world to discover locations!</p>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Mini-map / Overview in corner */}
-                <div className="absolute bottom-4 left-4 w-32 h-24 bg-black/60 border border-rpg-border/60 rounded-lg overflow-hidden hidden md:block">
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-950/50 to-stone-900/50">
-                    {locations.map(loc => (
-                      <div
-                        key={`mini-${loc.id}`}
-                        className={`
-                          absolute w-2 h-2 rounded-full transform -translate-x-1/2 -translate-y-1/2
-                          ${loc.is_current ? 'bg-rpg-gold animate-pulse w-3 h-3' : loc.visited ? 'bg-green-500/60' : 'bg-gray-600/40'}
-                        `}
-                        style={{
-                          left: `${loc.map_x * 100}%`,
-                          top: `${loc.map_y * 100}%`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <div className="absolute bottom-1 right-1 text-[10px] text-gray-500">Overview</div>
-                </div>
-                
-                {/* Zoom controls for mobile */}
-                <div className="absolute bottom-4 right-4 flex flex-col gap-2 md:hidden">
-                  <button
-                    onClick={handleZoomIn}
-                    className="w-10 h-10 bg-black/70 border border-gray-600 rounded-lg flex items-center justify-center text-white"
-                  >
-                    <ZoomIn size={20} />
-                  </button>
-                  <button
-                    onClick={handleZoomOut}
-                    className="w-10 h-10 bg-black/70 border border-gray-600 rounded-lg flex items-center justify-center text-white"
-                  >
-                    <ZoomOut size={20} />
-                  </button>
-                  <button
-                    onClick={handleResetView}
-                    className="w-10 h-10 bg-black/70 border border-gray-600 rounded-lg flex items-center justify-center text-white"
-                  >
-                    <Navigation size={20} />
-                  </button>
-                </div>
-              </div>
-              
-              {/* Sidebar - Location Details */}
-              <div className="w-64 md:w-80 border-l border-rpg-border/60 bg-gradient-to-b from-gray-900/95 to-black/95 flex flex-col">
-                {/* Selected Location Details */}
-                <div className="flex-1 p-4 overflow-y-auto">
-                  {selectedLocation ? (
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="space-y-4"
-                    >
-                      {/* Location header */}
-                      <div className="text-center relative">
-                        <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-rpg-gold/30 flex items-center justify-center shadow-xl">
-                          <span className="text-4xl drop-shadow-lg">{selectedLocation.map_icon}</span>
-                        </div>
-                        <h3 className="text-xl font-display text-rpg-gold">
-                          {selectedLocation.name}
-                        </h3>
-                        <div className="flex items-center justify-center gap-3 mt-2">
-                          {selectedLocation.visited && (
-                            <span className="text-xs text-green-400 flex items-center gap-1 bg-green-900/30 px-2 py-1 rounded-full">
-                              <Eye size={12} /> Visited
-                            </span>
-                          )}
-                          {selectedLocation.is_current && (
-                            <span className="text-xs text-rpg-gold flex items-center gap-1 bg-rpg-gold/20 px-2 py-1 rounded-full">
-                              📍 You are here
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Distance indicator */}
-                      {!selectedLocation.is_current && currentLocation && (
-                        <div className="text-center text-gray-400 text-sm flex items-center justify-center gap-2">
-                          <Footprints size={14} />
-                          <span>
-                            {Math.round(getDistance(currentLocation, selectedLocation) * 1000) / 10} leagues away
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Travel button */}
-                      {selectedLocation.reachable && !selectedLocation.is_current && (
+              )}
+              {selected.is_current && destinations.length > 0 && (
+                <div className="pt-2">
+                  <p className="caps-muted mb-2">Paths from here</p>
+                  <ul className="space-y-1.5">
+                    {destinations.map((d) => (
+                      <li key={d.id}>
                         <button
-                          onClick={handleTravel}
-                          disabled={isLoading}
-                          className="w-full rpg-button py-3 flex items-center justify-center gap-2 text-lg group"
+                          type="button"
+                          onClick={() => { setSelectedId(d.id); setTravelError(null) }}
+                          className="focus-ring w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-[var(--line)] hover:border-[var(--gold)] hover:bg-[var(--gold-soft)] transition text-left"
                         >
-                          <Navigation size={20} className="group-hover:translate-x-1 transition-transform" />
-                          Travel Here
+                          <span className="font-ui text-sm text-[var(--ink)] truncate">{d.map_label || d.name}</span>
+                          <span className="caps-muted shrink-0">{d.visited ? 'Visited' : 'New'}</span>
                         </button>
-                      )}
-                      
-                      {/* Cannot reach message */}
-                      {!selectedLocation.reachable && !selectedLocation.is_current && (
-                        <div className="text-center text-gray-500 text-sm py-4 bg-gray-800/30 rounded-lg border border-rpg-border/60/50">
-                          <p className="text-yellow-500/80">🚫 Cannot reach from here</p>
-                          <p className="mt-2 text-xs">Find a path to this location first</p>
-                        </div>
-                      )}
-                    </motion.div>
-                  ) : (
-                    <div className="text-center text-gray-400 py-12">
-                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800/50 flex items-center justify-center">
-                        <MapPin size={32} className="opacity-50" />
-                      </div>
-                      <p className="font-display text-lg">Select a Location</p>
-                      <p className="text-sm mt-2 text-gray-500">Click on a marker to view details</p>
-                      <p className="text-xs mt-4 text-gray-600">Tip: Use scroll to zoom, drag to pan</p>
-                    </div>
-                  )}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                
-                {/* Current Location Info */}
-                {currentLocation && (
-                  <div className="p-4 border-t border-rpg-border/60 bg-black/30">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-rpg-gold rounded-full animate-pulse" />
-                      Current Location
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-rpg-gold/20 border border-rpg-gold/50 flex items-center justify-center">
-                        <span className="text-xl">{currentLocation.map_icon || '📍'}</span>
-                      </div>
-                      <span className="font-display text-rpg-gold">{currentLocation.name}</span>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Legend */}
-                <div className="p-4 border-t border-rpg-border/60 bg-gradient-to-t from-black/50 to-transparent">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Legend</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full border-2 border-rpg-gold bg-rpg-gold/20" />
-                      <span className="text-gray-400">Current</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full border-2 border-green-500 bg-green-900/30" />
-                      <span className="text-gray-400">Reachable</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full border-2 border-gray-500 bg-gray-800/50" />
-                      <span className="text-gray-400">Visited</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full border-2 border-rpg-border/60 bg-gray-900/50 opacity-50" />
-                      <span className="text-gray-400">Unknown</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          ) : (
+            <p className="font-read italic text-[var(--ink-3)]">Choose a place on the map.</p>
+          )}
+
+          {data && total > 0 && (
+            <div className="mt-auto pt-4 border-t border-[var(--line)]">
+              <p className="caps-muted mb-2.5">Key</p>
+              <ul className="grid grid-cols-2 gap-2 text-xs font-ui text-[var(--ink-2)]">
+                <li className="flex items-center gap-2"><span className="w-3.5 h-3.5 rounded-full border border-[var(--gold-bright)] bg-[var(--surface-2)]" />You are here</li>
+                <li className="flex items-center gap-2"><span className="w-3.5 h-3.5 rounded-full border border-[var(--gold)]" />Reachable</li>
+                <li className="flex items-center gap-2"><span className="w-3.5 h-3.5 rounded-full border border-[var(--line-strong)] bg-[var(--surface)]" />Known</li>
+                <li className="flex items-center gap-2"><span className="w-2.5 h-2.5 mx-0.5 rounded-full bg-[var(--line-strong)]" />Undiscovered</li>
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
   )
 }

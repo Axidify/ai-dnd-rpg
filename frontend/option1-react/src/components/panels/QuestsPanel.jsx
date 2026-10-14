@@ -27,7 +27,7 @@ export default function QuestsPanel({ quests = [] }) {
           <div
             key={quest.id || idx}
             className={`panel-inset rounded-xl p-4 ${
-              done ? 'border-[var(--sage)]/40' : failed ? 'border-[var(--ember)]/40' : ''
+              done ? 'border-[color-mix(in_srgb,var(--sage)_40%,transparent)]' : failed ? 'border-[color-mix(in_srgb,var(--ember)_40%,transparent)]' : ''
             }`}
           >
             <div className="flex items-start gap-3">

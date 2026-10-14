@@ -64,6 +64,20 @@ export const useGameStore = create((set, get) => ({
     }
   },
   
+  // Starting kit per class, keyed by name: { hit_die, weapon, armor }
+  classInfo: {},
+  fetchClassInfo: async () => {
+    if (Object.keys(get().classInfo).length) return
+    try {
+      const response = await api.get('/classes')
+      const info = {}
+      for (const c of response.data.classes || []) info[c.name] = c
+      set({ classInfo: info })
+    } catch (error) {
+      console.error('Failed to fetch classes:', error)  // cards still work without it
+    }
+  },
+
   // Roll a character for review; /game/start reuses it via the token
   preview: null,         // { token, key, character }
   previewLoading: false,
@@ -123,46 +137,6 @@ export const useGameStore = create((set, get) => ({
           ? 'The Dungeon Master is taking too long to prepare your opening scene. Please try again.'
           : error.response?.data?.error || 'Failed to create character',
         isLoading: false,
-      })
-    }
-  },
-  
-  sendAction: async (action) => {
-    const { sessionId } = get()
-    if (!sessionId) return
-    
-    // Add player message immediately
-    set(state => ({
-      messages: [...state.messages, { type: 'player', content: action }],
-      isLoading: true,
-      error: null
-    }))
-    
-    try {
-      const response = await api.post('/game/action', {
-        session_id: sessionId,
-        action
-      })
-      
-      const { message, roll_result, combat_started, game_state } = response.data
-      
-      set(state => ({
-        messages: [...state.messages, { 
-          type: 'dm', 
-          content: message,
-          rollResult: roll_result,
-          combatStarted: combat_started
-        }],
-        character: game_state?.character || state.character,
-        currentLocation: game_state?.current_location || state.currentLocation,
-        inCombat: game_state?.in_combat || combat_started || false,
-        quests: game_state?.quest_log || state.quests,
-        isLoading: false
-      }))
-    } catch (error) {
-      set({ 
-        error: error.response?.data?.error || 'Action failed',
-        isLoading: false 
       })
     }
   },
@@ -368,24 +342,6 @@ export const useGameStore = create((set, get) => ({
   retryLastAction: () => {
     const { lastAction, isLoading } = get()
     if (lastAction && !isLoading) get().sendActionStreaming(lastAction)
-  },
-  
-  // Roll dice
-  rollDice: async (diceType = 'd20', modifier = 0) => {
-    const { sessionId } = get()
-    if (!sessionId) return null
-    
-    try {
-      const response = await api.post('/game/roll', {
-        session_id: sessionId,
-        dice: diceType,
-        modifier
-      })
-      return response.data
-    } catch (error) {
-      console.error('Roll failed:', error)
-      return null
-    }
   },
   
   // Save game
@@ -793,9 +749,8 @@ export const useGameStore = create((set, get) => ({
         quantity,
       })
       
-      applyMutation(set, response.data, {
-        messages: [...get().messages, { type: 'dm', content: response.data.message }],
-      })
+      // The shop panel shows the result; the story stays the story
+      applyMutation(set, response.data)
       // Refresh shop inventory after purchase
       get().browseShop()
       return response.data
@@ -818,9 +773,8 @@ export const useGameStore = create((set, get) => ({
         quantity
       })
       
-      applyMutation(set, response.data, {
-        messages: [...get().messages, { type: 'dm', content: response.data.message }],
-      })
+      // The shop panel shows the result; the story stays the story
+      applyMutation(set, response.data)
       // Refresh shop inventory after sale
       get().browseShop()
       return response.data

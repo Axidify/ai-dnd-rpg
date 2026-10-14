@@ -8,7 +8,6 @@ import StoryEntry from './StoryEntry'
 import HeroDrawer from './HeroDrawer'
 import Modal from './Modal'
 import WorldMap from './WorldMap'
-import DiceRoller from './DiceRoller'
 import InventoryPanel from './panels/InventoryPanel'
 import QuestsPanel from './panels/QuestsPanel'
 import ShopPanel from './panels/ShopPanel'
@@ -26,7 +25,6 @@ export default function GameScreen({ onLeaveGame }) {
   const [showShop, setShowShop] = useState(false)
   const [showParty, setShowParty] = useState(false)
   const [showRest, setShowRest] = useState(false)
-  const [showDice, setShowDice] = useState(false)
   const [showSave, setShowSave] = useState(false)
   const [showLoad, setShowLoad] = useState(false)
   const [showMap, setShowMap] = useState(false)
@@ -84,10 +82,9 @@ export default function GameScreen({ onLeaveGame }) {
   const openInventory = () => { closeAll(); setShowInventory(true) }
   const openQuests = () => { closeAll(); setShowQuests(true) }
   const openMap = () => { closeAll(); setShowMap(true) }
-  const openDice = () => { closeAll(); setShowDice(true) }
   const openRest = () => { closeAll(); setShowRest(true) }
   const openSave = () => { closeAll(); setSaveError(null); setShowSave(true) }
-  const openShop = () => { closeAll(); browseShop(); setShowShop(true) }
+  const openShop = () => { closeAll(); useGameStore.setState({ shopInventory: null }); browseShop(); setShowShop(true) }
   const openParty = () => { closeAll(); getParty(); setShowParty(true) }
   const openLoad = async () => {
     closeAll()
@@ -234,7 +231,6 @@ export default function GameScreen({ onLeaveGame }) {
           onMap={openMap}
           onShop={openShop}
           onParty={openParty}
-          onDice={openDice}
           onRest={openRest}
           onLevelUp={() => { setShowMenu(false); levelUp() }}
           onSave={openSave}
@@ -251,7 +247,7 @@ export default function GameScreen({ onLeaveGame }) {
         <QuestsPanel quests={quests} />
       </Modal>
 
-      <Modal open={showShop} onClose={() => setShowShop(false)} eyebrow="Wares & trade" title="Shop" titleId="shop-title" maxWidth="max-w-2xl">
+      <Modal open={showShop} onClose={() => setShowShop(false)} eyebrow={shopInventory?.owner_name ? `Kept by ${shopInventory.owner_name}` : 'Wares & trade'} title={shopInventory?.shop_name || 'Shop'} titleId="shop-title" maxWidth="max-w-2xl">
         <ShopPanel character={character} shopInventory={shopInventory} isLoading={isLoading} onBuy={buyItem} onSell={sellItem} />
       </Modal>
 
@@ -265,10 +261,6 @@ export default function GameScreen({ onLeaveGame }) {
           onShortRest={async () => { await rest('short'); setShowRest(false) }}
           onLongRest={async () => { await rest('long'); setShowRest(false) }}
         />
-      </Modal>
-
-      <Modal open={showDice} onClose={() => setShowDice(false)} eyebrow="Fate" title="Dice" titleId="dice-title" maxWidth="max-w-lg">
-        <DiceRoller />
       </Modal>
 
       <Modal open={showSave} onClose={() => { setShowSave(false); setSaveError(null) }} eyebrow="Remember this moment" title="Save" titleId="save-title" maxWidth="max-w-md">

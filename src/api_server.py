@@ -22,7 +22,8 @@ from dotenv import load_dotenv
 # would crash the server on the first print. Never let logging kill a request.
 for _stream in (sys.stdout, sys.stderr):
     try:
-        _stream.reconfigure(encoding="utf-8", errors="replace")
+        # line_buffering: logs show up immediately when stdout is a pipe
+        _stream.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     except (AttributeError, ValueError):
         pass
 
@@ -1578,16 +1579,29 @@ def list_saves():
             pass
     
     saves.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+    # Clients load by filename; don't expose server filesystem paths
+    for save in saves:
+        save.pop('filepath', None)
     return jsonify({'success': True, 'saves': saves})
 
 
 @app.route('/api/classes', methods=['GET'])
 def get_classes():
-    """Get available character classes."""
-    return jsonify({
-        'success': True,
-        'classes': list(CLASSES.keys())
-    })
+    """Character classes with their starting kit (hit die, weapon, armor)."""
+    from character import CLASS_HIT_DICE
+
+    classes = []
+    for name in CLASSES:
+        # Build a throwaway level-1 character to read the real starting kit
+        sample = Character(name='sample', race='Human', char_class=name)
+        sample._add_starting_equipment()
+        classes.append({
+            'name': name,
+            'hit_die': CLASS_HIT_DICE.get(name, 8),
+            'weapon': sample.weapon.replace('_', ' ').title(),
+            'armor': sample.equipped_armor.replace('_', ' ').title() if sample.equipped_armor else None,
+        })
+    return jsonify({'success': True, 'classes': classes})
 
 
 @app.route('/api/races', methods=['GET'])
@@ -1595,7 +1609,7 @@ def get_races():
     """Get available character races."""
     return jsonify({
         'success': True,
-        'races': list(RACES.keys())
+        'races': list(RACES),
     })
 
 
@@ -1632,7 +1646,10 @@ def get_locations():
     if session.location_manager:
         location = session.location_manager.get_current_location()
         exits = session.location_manager.get_exits()
-        
+        # The location manager is the source of truth (the session's copy of
+        # the id isn't set until the first travel)
+        current_id = location.id if location else session.current_location_id
+
         # Current location data
         if location:
             current_loc_data = {
@@ -1646,20 +1663,29 @@ def get_locations():
         
         # Get all locations for map display
         for loc_id, loc in session.location_manager.locations.items():
-            # Only show locations that are visited OR available OR not hidden
-            show_on_map = loc.visited or (not loc.map_hidden and loc_id in session.location_manager.available_location_ids)
-            
+            # Secret places aren't on the map at all until found
+            if loc.map_hidden and not loc.visited:
+                continue
+            # Known = visited, or part of the current scene; others are unnamed dots
+            known = loc.visited or loc_id in session.location_manager.available_location_ids
+            description = loc.description if known else ''
+
             all_locations.append({
                 'id': loc_id,
-                'name': loc.name if show_on_map else '???',
+                'name': loc.name if known else '???',
                 'map_x': loc.map_x,
                 'map_y': loc.map_y,
-                'map_icon': loc.map_icon if show_on_map else '❓',
-                'map_label': loc.map_label or loc.name,
+                'map_icon': loc.map_icon if known else '❓',
+                'map_label': (loc.map_label or loc.name) if known else '???',
                 'map_region': loc.map_region,
+                'description': (
+                    description if len(description) <= 200
+                    else description[:200].rsplit(' ', 1)[0].rstrip(',;:') + '…'
+                ),
+                'known': known,
                 'visited': loc.visited,
-                'hidden': loc.map_hidden and not loc.visited,
-                'is_current': loc_id == session.current_location_id,
+                'hidden': False,
+                'is_current': loc_id == current_id,
                 'reachable': loc_id in exits.values()
             })
         
@@ -2218,11 +2244,28 @@ GENERAL_SHOP_ITEMS = {
 
 
 def get_session_shop(session):
-    """The session's general store, created once so stock and haggle state persist."""
+    """
+    The shop the player is trading with: the scenario's shop at the current
+    location if there is one (e.g. Gavin's Forge at the blacksmith), else the
+    general store. Shops live on the session so stock and haggle state persist.
+    """
     from shop import ShopManager, create_general_shop
+    from scenario_loader import load_shops
 
     if session.shop_manager is None:
         session.shop_manager = ShopManager()
+
+    scenario = session.scenario.active_scenario if session.scenario else None
+    if scenario:
+        for shop in load_shops(scenario.id):
+            if session.shop_manager.get_shop(shop.id) is None:
+                session.shop_manager.add_shop(shop)
+        here = session.location_manager.get_current_location() if session.location_manager else None
+        if here:
+            for shop in load_shops(scenario.id):
+                if shop.location_id == here.id:
+                    return session.shop_manager.get_shop(shop.id)
+
     shop = session.shop_manager.get_shop("general_shop")
     if shop is None:
         shop = create_general_shop(
@@ -2235,6 +2278,14 @@ def get_session_shop(session):
         )
         session.shop_manager.add_shop(shop)
     return shop
+
+
+def _equipped_names(character) -> set:
+    return {
+        str(name).lower().replace('_', ' ')
+        for name in (character.weapon, character.equipped_armor)
+        if name
+    }
 
 
 @app.route('/api/shop/browse', methods=['GET'])
@@ -2261,17 +2312,43 @@ def shop_browse():
                 haggle_discount=haggle.get("discount", 0.0),
                 haggle_increase=haggle.get("increase", 0.0),
             )
+            available = shop_item.get_available()
             items.append({
                 'id': shop_item.item_id,
                 'name': item.name,
+                'description': item.description,
                 'price': price,
-                'stock': shop_item.get_available()
+                'stock': available,  # -1 = unlimited
             })
-    
+
+    # What the shop will pay for each item the player carries
+    from shop import calculate_sell_price
+    from inventory import ItemType
+    sell_offers = []
+    if session.character:
+        equipped = _equipped_names(session.character)
+        for item in session.character.inventory:
+            reason = None
+            if item.item_type == ItemType.QUEST:
+                reason = 'quest'
+            elif item.name.lower() in equipped:
+                reason = 'equipped'
+            sell_offers.append({
+                'name': item.name,
+                'quantity': item.quantity,
+                'price': calculate_sell_price(item.value),
+                'can_sell': reason is None,
+                'reason': reason,
+            })
+
+    owner = session.npc_manager.get_npc(shop.owner_npc_id) if session.npc_manager else None
     return jsonify({
         'success': True,
         'shop_name': shop.name,
+        'owner_name': owner.name if owner else None,
+        'is_local': shop.id != 'general_shop',
         'items': items,
+        'sell_offers': sell_offers,
         'player_gold': session.character.gold if session.character else 0
     })
 
@@ -2349,7 +2426,12 @@ def shop_sell():
     item = find_item_in_inventory(session.character.inventory, item_name)
     if not item:
         return jsonify({'success': False, 'message': f"No '{item_name}' to sell."})
-    
+    if item.name.lower() in _equipped_names(session.character):
+        return jsonify({
+            'success': False,
+            'message': f"You're using your {item.name}. Equip something else before selling it.",
+        })
+
     shop = get_session_shop(session)
     
     result = sell_item(
