@@ -117,3 +117,38 @@ def test_survey_count_per_location():
     assert get_survey_count(session) == 1
     session.current_location = "Tavern"
     assert get_survey_count(session) == 0
+
+
+def test_roll_outcome_text_matches_the_skill():
+    from dm_scene import build_roll_outcome_narration, SKILL_OUTCOMES, LOCATION_DATA
+
+    session = FakeSession()
+    search_lines = [
+        line
+        for loc in LOCATION_DATA.values()
+        for line in loc["success_clues"] + loc["failure_complications"]
+    ]
+
+    for success in (True, False):
+        text = build_roll_outcome_narration(
+            session, "I sneak past the guard", {"skill": "Stealth", "success": success}
+        )
+        assert any(line in text for line in SKILL_OUTCOMES["stealth"]["success" if success else "failure"])
+        assert "searching" not in text and not any(line in text for line in search_lines)
+
+    # Underscore/title-case skill names from the roller still match
+    text = build_roll_outcome_narration(session, "I pick the lock", {"skill": "Sleight_Of_Hand", "success": False})
+    assert any(line in text for line in SKILL_OUTCOMES["sleight of hand"]["failure"])
+
+
+def test_search_rolls_still_use_location_clues():
+    from dm_scene import build_roll_outcome_narration, LOCATION_DATA
+
+    session = FakeSession(location="Village Square")
+    text = build_roll_outcome_narration(session, "I search the well", {"skill": "Perception", "success": True})
+    assert any(clue in text for clue in LOCATION_DATA["village square"]["success_clues"])
+
+    crit = build_roll_outcome_narration(
+        session, "I search the well", {"skill": "Perception", "success": False, "is_nat_1": True}
+    )
+    assert crit.startswith("**Critical failure** on your perception")

@@ -261,34 +261,76 @@ def build_roll_outcome_instruction(action: str, roll_result: dict) -> str:
     return base
 
 
+# Outcome lines for skills that aren't about finding things. Search skills
+# (Perception, Investigation, Survival, ...) use the location's clues and
+# complications from LOCATION_DATA instead.
+SKILL_OUTCOMES: Dict[str, Dict[str, List[str]]] = {
+    "stealth": {
+        "success": [
+            "You move like a shadow; **no one marks your passing**.",
+            "You keep to the edges of the light and **slip by unnoticed**.",
+        ],
+        "failure": [
+            "A board creaks underfoot and **heads turn your way**. You aren't caught yet, but you've been noticed.",
+            "You misjudge the shadows. **Someone glances over**, frowning; you'll need a reason to be here.",
+        ],
+    },
+    "athletics": {
+        "success": ["You throw your strength into it and **make it with room to spare**."],
+        "failure": ["Your grip gives and you **drop back**, winded but unhurt. It's still there to try another way."],
+    },
+    "acrobatics": {
+        "success": ["You move with easy balance and **land exactly where you meant to**."],
+        "failure": ["You stumble and **catch yourself awkwardly**. Not graceful, and not quiet."],
+    },
+    "sleight of hand": {
+        "success": ["Deft fingers do the work; **it gives way without a sound**."],
+        "failure": ["It **won't give**, and the scrape of metal is louder than you'd like."],
+    },
+    "persuasion": {
+        "success": ["Your words land. They seem **willing to hear you out**."],
+        "failure": ["They aren't convinced; their expression **closes off**. A different approach might fare better."],
+    },
+    "intimidation": {
+        "success": ["Your threat lands. They **step back**, suddenly more cooperative."],
+        "failure": ["They don't flinch. If anything, they look **more stubborn** now."],
+    },
+    "deception": {
+        "success": ["They **buy it**, at least for now."],
+        "failure": ["Something in your story rings false; they **narrow their eyes**."],
+    },
+    "insight": {
+        "success": ["You read them clearly: there's **more they aren't saying**."],
+        "failure": ["Their face gives you **nothing you can trust**."],
+    },
+}
+
+
+def _outcome_line(session, skill_key: str, success: bool) -> str:
+    lines = SKILL_OUTCOMES.get(skill_key)
+    if lines:
+        return random.choice(lines["success" if success else "failure"])
+    data = _location_data(session)
+    return random.choice(data["success_clues" if success else "failure_complications"])
+
+
 def build_roll_outcome_narration(session, action: str, roll_result: dict) -> str:
     """Deterministic fail-forward / success payoff when AI narration is weak."""
-    data = _location_data(session)
-    skill = roll_result.get("skill", "check")
+    skill = str(roll_result.get("skill", "check")).replace("_", " ").lower()
+    success = bool(roll_result.get("success"))
+    line = _outcome_line(session, skill, success)
+    is_search = skill not in SKILL_OUTCOMES
 
     if roll_result.get("is_nat_20"):
-        clue = random.choice(data["success_clues"])
-        return (
-            f"**Critical success!** Your {skill.lower()} is uncanny. {clue}\n\n"
-            f"*What do you do with this lead?*"
-        )
+        follow_up = "*What do you do with this lead?*" if is_search else "*What do you do next?*"
+        return f"**Critical success!** Your {skill} is uncanny. {line}\n\n{follow_up}"
     if roll_result.get("is_nat_1"):
-        comp = random.choice(data["failure_complications"])
-        return (
-            f"**Critical failure** on your {skill.lower()} — the worst timing. {comp}\n\n"
-            f"*How do you recover?*"
-        )
-    if roll_result.get("success"):
-        clue = random.choice(data["success_clues"])
-        return (
-            f"Your {skill.lower()} pays off. {clue}\n\n"
-            f"*What do you do next?*"
-        )
-    comp = random.choice(data["failure_complications"])
-    return (
-        f"Your {skill.lower()} comes up short, but the scene doesn't freeze. {comp}\n\n"
-        f"*Try another approach?*"
-    )
+        return f"**Critical failure** on your {skill}, at the worst moment. {line}\n\n*How do you recover?*"
+    if success:
+        return f"{line}\n\n*What do you do next?*"
+    if is_search:
+        return f"Your {skill} comes up short, but the scene doesn't freeze. {line}\n\n*Try another approach?*"
+    return f"{line}\n\n*Try another approach?*"
 
 
 def is_weak_roll_narration(text: str, roll_result: Optional[dict]) -> bool:
