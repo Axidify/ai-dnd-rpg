@@ -1,0 +1,635 @@
+# Goblin Cave locations. Fields map 1:1 to scenario.Location.
+
+- id: tavern_main
+  name: The Rusty Dragon - Main Room
+  description: A cozy common room with a crackling hearth. Wooden tables are scattered about, some occupied
+    by locals nursing their drinks. A bar runs along one wall where a gruff barkeep polishes mugs.
+  exits:
+    bar: tavern_bar
+    outside: village_square
+  direction_aliases:
+    n: bar
+    north: bar
+    s: outside
+    south: outside
+  npcs:
+  - bram
+  - locals
+  - barkeep
+  items:
+  - torch
+  atmosphere:
+    sounds:
+    - crackling hearth
+    - murmured conversations
+    - clinking tankards
+    - occasional laughter
+    - creaking floorboards
+    smells:
+    - wood smoke
+    - spilled ale
+    - roasting meat
+    - pipe tobacco
+    textures:
+    - worn wooden tables
+    - sticky ale rings
+    - rough-hewn chairs
+    lighting: warm firelight casting dancing shadows
+    temperature: comfortably warm from the hearth
+    mood: welcoming with undercurrents of worry
+    danger_level: safe
+    random_details:
+    - a cat dozing by the fire
+    - a farmer's muddy boots by the door
+    - a wanted poster curling on the wall
+    - scratches on the floor from moved furniture
+  enter_text: You push through the tavern door, warmth washing over you.
+  map_x: 0.15
+  map_y: 0.08
+  map_icon: 🍺
+  map_region: village
+- id: tavern_bar
+  name: The Rusty Dragon - Bar
+  description: A worn wooden bar with a gruff but friendly barkeep polishing mugs. Bottles line the shelves
+    behind.
+  exits:
+    main room: tavern_main
+  direction_aliases:
+    s: main room
+    south: main room
+  npcs:
+  - barkeep
+  atmosphere_text: Clinking glasses, the barkeep's watchful eye
+  enter_text: You approach the bar. The barkeep nods in greeting.
+  map_x: 0.15
+  map_y: 0.02
+  map_icon: 🍻
+  map_region: village
+- id: village_square
+  name: Village Square
+  description: A small village square with a well at the center. Most shops are closed for the evening,
+    but warm light and the clang of a hammer spill from the blacksmith's forge to the west.
+  exits:
+    tavern: tavern_main
+    east road: forest_path
+    forge: blacksmith_shop
+  direction_aliases:
+    n: tavern
+    north: tavern
+    e: east road
+    east: east road
+    w: forge
+    west: forge
+    blacksmith: forge
+    in: forge
+    inside: forge
+    enter: forge
+  atmosphere_text: Quiet evening, the rhythmic clang of a hammer from the forge, distant sounds of village
+    life
+  enter_text: You step out into the cool evening air of the village square. The blacksmith's forge glows
+    nearby to the west.
+  map_x: 0.5
+  map_y: 0.08
+  map_icon: 🏛️
+  map_region: village
+- id: blacksmith_shop
+  name: Blacksmith's Forge
+  description: A warm, smoky forge with an anvil at the center. Weapons and armor hang on the walls, and
+    the heat from the furnace fills the small shop.
+  exits:
+    outside: village_square
+    square: village_square
+  direction_aliases:
+    e: outside
+    east: outside
+  npcs:
+  - gavin
+  atmosphere_text: Heat from the forge, the smell of hot metal and coal, rhythmic hammering
+  enter_text: You step into the warmth of the forge.
+  map_x: 0.85
+  map_y: 0.08
+  map_icon: 🛠️
+  map_region: village
+- id: forest_path
+  name: Forest Path
+  description: A winding dirt path through an ancient forest. Autumn leaves crunch underfoot.
+  exits:
+    village: village_square
+    deeper: forest_clearing
+    east: forest_clearing
+  direction_aliases:
+    w: village
+    west: village
+    e: deeper
+    east: deeper
+  atmosphere_text: Dappled sunlight, bird calls, rustling leaves
+  enter_text: The village fades behind as you enter the forest.
+  random_encounters:
+  - id: wolf_ambush
+    enemies:
+    - wolf
+    max_triggers: 2
+    cooldown: 3
+    narration: A hungry wolf emerges from the underbrush, teeth bared!
+  map_x: 0.5
+  map_y: 0.28
+  map_icon: 🌲
+  map_region: forest
+- id: forest_clearing
+  name: Forest Clearing
+  description: A small clearing where the path forks. An old signpost points east toward 'Darkhollow'.
+  exits:
+    back: forest_path
+    east: darkhollow_approach
+    cave: darkhollow_approach
+    hidden path: secret_cave
+  direction_aliases:
+    w: back
+    west: back
+    e: east
+    east: east
+  items:
+  - rations
+  atmosphere_text: Birds go quiet here. An uneasy stillness.
+  enter_text: You emerge into a clearing. The trees seem to lean away from the eastern path.
+  map_x: 0.35
+  map_y: 0.38
+  map_icon: 🌳
+  map_region: forest
+- id: secret_cave
+  name: Hidden Hollow
+  description: A small natural cave hidden behind overgrown vines. It's cool and quiet inside, clearly
+    undisturbed for years.
+  exits:
+    out: forest_clearing
+    exit: forest_clearing
+  direction_aliases:
+    w: out
+    west: out
+  hidden: true
+  discovery_condition: skill:perception:14
+  discovery_hint: The vines along the cliff face seem unusually thick in one spot...
+  items:
+  - ancient_amulet
+  - healing_potion
+  - gold_coins
+  atmosphere_text: Peaceful, ancient, the scent of old magic
+  enter_text: You push through the vines and discover a hidden hollow. Treasure glints in the dim light!
+  events:
+  - id: secret_discovery
+    trigger: on_first_visit
+    narration: This hollow has been hidden for decades! Old adventurer's gear lies scattered about, including
+      some valuable items.
+  map_x: 0.2
+  map_y: 0.42
+  map_icon: 🔮
+  map_region: forest
+  map_hidden: true
+- id: darkhollow_approach
+  name: Approach to Darkhollow
+  description: The forest grows darker and more twisted. Goblin signs become visible - crude markers,
+    bones hanging from branches.
+  exits:
+    back: forest_clearing
+    cave: cave_entrance
+  direction_aliases:
+    w: back
+    west: back
+    e: cave
+    east: cave
+  items:
+  - goblin_ear
+  atmosphere_text: Ominous, the smell of something foul ahead
+  enter_text: The path narrows. Crude goblin warnings hang from the trees.
+  events:
+  - id: goblin_warning_signs
+    trigger: on_first_visit
+    narration: Crude goblin totems and skulls on spikes line the path - a clear warning to trespassers.
+  map_x: 0.65
+  map_y: 0.38
+  map_icon: ⚠️
+  map_region: forest
+- id: cave_entrance
+  name: Darkhollow Cave Entrance
+  description: A gaping maw in the rocky hillside. Goblin totems flank the entrance, and bones litter
+    the ground.
+  exits:
+    forest: darkhollow_approach
+    enter cave: cave_tunnel
+    inside: cave_tunnel
+  direction_aliases:
+    w: forest
+    west: forest
+    e: enter cave
+    east: enter cave
+    d: enter cave
+    down: enter cave
+  items:
+  - torch
+  atmosphere:
+    sounds:
+    - wind moaning through the cave mouth
+    - distant dripping
+    - faint echoes
+    - the occasional bone crunching underfoot
+    smells:
+    - decay
+    - goblin musk
+    - damp earth
+    - rotting meat
+    textures:
+    - rough stone
+    - slippery moss near entrance
+    - scattered bones
+    - crude goblin carvings
+    lighting: daylight fading into oppressive darkness
+    temperature: cold air flowing from within
+    mood: foreboding
+    danger_level: threatening
+    random_details:
+    - a human skull on a spike
+    - claw marks on the entrance stones
+    - old torch stubs ground into the dirt
+    - a tattered cloak caught on a rock
+  enter_text: Before you looms the entrance to Darkhollow Cave.
+  events:
+  - id: cave_ambience
+    trigger: on_first_visit
+    narration: A cold wind rushes out from the cave mouth, carrying the stench of goblins and something
+      worse.
+  map_x: 0.65
+  map_y: 0.5
+  map_icon: 💀
+  map_region: forest
+- id: cave_tunnel
+  name: Dark Tunnel
+  description: A narrow passage descending into darkness. The walls are slick with moisture. Distant goblin
+    chatter echoes ahead.
+  exits:
+    outside: cave_entrance
+    deeper: goblin_camp_entrance
+    forward: goblin_camp_entrance
+  direction_aliases:
+    w: outside
+    west: outside
+    u: outside
+    up: outside
+    e: deeper
+    east: deeper
+    d: deeper
+    down: deeper
+  atmosphere_text: Pitch black without light, dripping water, echoing sounds
+  enter_text: You descend into the darkness. The light fades behind you.
+  random_encounters:
+  - id: giant_spider
+    enemies:
+    - giant_spider
+    chance: 25
+    min_visits: 1
+    narration: A massive spider drops from the ceiling, blocking your path!
+  map_x: 0.5
+  map_y: 0.62
+  map_icon: 🕯️
+  map_region: cave
+- id: goblin_camp_entrance
+  name: Goblin Warren - Entrance
+  description: The tunnel opens into a larger cavern. Firelight flickers ahead, and you can see goblin
+    shadows moving.
+  exits:
+    tunnel: cave_tunnel
+    camp: goblin_camp_main
+    sneak left: goblin_camp_shadows
+  direction_aliases:
+    w: tunnel
+    west: tunnel
+    e: camp
+    east: camp
+    n: sneak left
+    north: sneak left
+  atmosphere_text: Goblin stench, crackling fire ahead, guttural voices
+  enter_text: The passage widens. You see the goblin camp ahead.
+  map_x: 0.5
+  map_y: 0.72
+  map_icon: 👁️
+  map_region: cave
+- id: goblin_camp_main
+  name: Goblin Warren - Main Camp
+  description: A large cavern lit by smoky torches. Four goblins lounge around a central fire. Cages line
+    the far wall - one holds a young girl! A sturdy door to the side is marked 'STORAGE'.
+  exits:
+    back: goblin_camp_entrance
+    cages: goblin_camp_cages
+    chief: chief_tunnel
+    storage: goblin_storage
+  direction_aliases:
+    w: back
+    west: back
+    e: cages
+    east: cages
+    n: chief
+    north: chief
+    s: storage
+    south: storage
+  exit_conditions:
+  - exit_name: storage
+    condition: has_item:storage_key
+    fail_message: The storage door is locked. You need a key.
+  npcs:
+  - goblins
+  items:
+  - shortsword
+  - rations
+  - healing_potion
+  - gold_pouch_small
+  atmosphere:
+    sounds:
+    - guttural goblin chatter
+    - crackling campfire
+    - dice rattling
+    - distant sobbing
+    - chains clinking
+    smells:
+    - unwashed bodies
+    - burnt meat
+    - smoke
+    - fear sweat
+    textures:
+    - greasy pelts on the ground
+    - crude bone dice
+    - smoky air stinging eyes
+    lighting: flickering torchlight, deep shadows in corners
+    temperature: uncomfortably warm from the fire
+    mood: chaotic and dangerous
+    danger_level: deadly
+    random_details:
+    - a goblin picking its teeth with a bone
+    - stolen village goods piled haphazardly
+    - crude drawings of violence on the walls
+    - a half-eaten rat on a plate
+  enter_text: You enter the main goblin camp. Four goblins look up from their fire.
+  encounter:
+  - goblin
+  - goblin
+  - goblin
+  - goblin
+  map_x: 0.5
+  map_y: 0.82
+  map_icon: ⚔️
+  map_region: cave
+- id: goblin_camp_shadows
+  name: Goblin Warren - Shadows
+  description: A dark alcove along the cavern wall. From here you can observe the camp without being seen.
+    Something glints in the corner.
+  exits:
+    camp: goblin_camp_main
+    cages: goblin_camp_cages
+    chief: chief_tunnel
+  direction_aliases:
+    s: camp
+    south: camp
+    e: cages
+    east: cages
+    n: chief
+    north: chief
+  items:
+  - poison_vial
+  - dagger
+  - storage_key
+  atmosphere_text: Hidden, good vantage point for surprise attack
+  enter_text: You slip into the shadows. From here you can see the whole camp.
+  events:
+  - id: shadow_discovery
+    trigger: on_first_visit
+    narration: You find a dead goblin scout here - poisoned. Someone else is hunting these creatures.
+      A brass key hangs from his belt.
+  map_x: 0.35
+  map_y: 0.78
+  map_icon: 👤
+  map_region: cave
+- id: goblin_storage
+  name: Goblin Warren - Storage Room
+  description: A cramped storage room full of stolen goods. Barrels of food, crates of weapons, and a
+    locked chest in the corner.
+  exits:
+    camp: goblin_camp_main
+  direction_aliases:
+    n: camp
+    north: camp
+  items:
+  - healing_potion
+  - healing_potion
+  - gold_pouch
+  - shortsword
+  - leather_armor
+  - silver_locket
+  - family_ring
+  atmosphere_text: Musty, piles of stolen village goods, potential treasure
+  enter_text: The storage door creaks open. You've found the goblins' loot stash!
+  events:
+  - id: storage_discovery
+    trigger: on_first_visit
+    narration: You recognize some of the stolen goods - supplies from the village! There's enough here
+      to make looting worthwhile. You spot something glinting - family heirlooms perhaps?
+    effect: xp:25
+  map_x: 0.35
+  map_y: 0.88
+  map_icon: 📦
+  map_region: cave
+- id: goblin_camp_cages
+  name: Goblin Warren - Prisoner Cages
+  description: Crude iron cages along the wall. A young girl (Lily) cowers in one, her eyes wide with
+    fear and hope.
+  exits:
+    camp: goblin_camp_main
+  direction_aliases:
+    w: camp
+    west: camp
+  npcs:
+  - lily
+  items:
+  - lockpicks
+  atmosphere_text: Lily's quiet sobs, the clink of chains
+  enter_text: You approach the cages. The girl's eyes light up with hope.
+  events:
+  - id: lily_found
+    trigger: on_first_visit
+    narration: Lily gasps and reaches through the bars. 'Please, help me! The chief wants to eat me!'
+    effect: objective:rescue_lily
+  map_x: 0.65
+  map_y: 0.82
+  map_icon: 🔒
+  map_region: cave
+- id: chief_tunnel
+  name: Passage to Chief's Lair
+  description: A passage leading to the back of the cave. It's more decorated - skulls on spikes, crude
+    paintings. An antidote vial lies forgotten in a corner.
+  exits:
+    camp: goblin_camp_main
+    lair: boss_chamber
+  direction_aliases:
+    s: camp
+    south: camp
+    n: lair
+    north: lair
+  items:
+  - antidote
+  atmosphere_text: More 'decorated' than the camp, clearly important
+  enter_text: You head toward the chief's lair. The decorations grow more gruesome.
+  events:
+  - id: tunnel_tripwire
+    trigger: on_first_visit
+    narration: A thin wire is stretched across the passage! It's a trap!
+    effect: skill_check:dex:12|damage:1d4
+  map_x: 0.5
+  map_y: 0.92
+  map_icon: ⚰️
+  map_region: cave
+- id: boss_chamber
+  name: Chief Grotnak's Throne Room
+  description: A large chamber dominated by a throne of bones. Chief Grotnak sits counting coins, flanked
+    by two goblin bodyguards.
+  exits:
+    escape: chief_tunnel
+    hidden alcove: treasure_nook
+  direction_aliases:
+    s: escape
+    south: escape
+  npcs:
+  - grotnak
+  - bodyguards
+  items:
+  - healing_potion
+  - gold_pouch
+  - longsword
+  hidden_items:
+  - item_id: chiefs_medallion
+    skill: investigation
+    dc: 14
+    hint: Something glints beneath the throne of bones...
+  atmosphere:
+    sounds:
+    - Grotnak's low chuckling
+    - coins clinking
+    - bodyguards shifting their weight
+    - dripping from stalactites
+    smells:
+    - blood
+    - wet fur
+    - smoke from braziers
+    - the chief's rancid breath
+    textures:
+    - bones underfoot
+    - cold stone walls
+    - oily torchlight on metal
+    lighting: dramatic torchlight, the throne casting long shadows
+    temperature: cold with hot braziers
+    mood: menacing confrontation
+    danger_level: deadly
+    random_details:
+    - trophies from fallen adventurers on the walls
+    - a crude map scratched into the floor
+    - the chief's rusted crown askew
+    - bodyguards' yellow eyes following every movement
+  enter_text: You enter the throne room. Chief Grotnak looks up with a wicked grin.
+  events:
+  - id: chief_confrontation
+    trigger: on_first_visit
+    narration: The Goblin Chief rises from his bone throne with a thunderous roar! 'You dare enter MY
+      domain?!'
+    effect: start_combat:goblin_boss
+  encounter:
+  - goblin_boss
+  - goblin
+  map_x: 0.5
+  map_y: 0.98
+  map_icon: 👑
+  map_region: cave
+- id: treasure_nook
+  name: Chief's Secret Stash
+  description: A cramped alcove hidden behind a false panel in the wall. The chief's personal treasure
+    hoard!
+  exits:
+    out: boss_chamber
+    back: boss_chamber
+  direction_aliases:
+    s: out
+    south: out
+  hidden: true
+  discovery_condition: skill:investigation:12
+  discovery_hint: One section of the wall behind the throne looks different from the rest...
+  items:
+  - enchanted_dagger
+  - ruby_ring
+  - gold_pile
+  - rare_scroll
+  atmosphere_text: Dusty, glittering, the smell of wealth hoarded over years
+  enter_text: You squeeze through the hidden passage into the chief's secret stash!
+  events:
+  - id: treasure_found
+    trigger: on_first_visit
+    narration: The chief was hoarding more than you realized! Piles of gold and magical items fill this
+      cramped space.
+  map_x: 0.65
+  map_y: 0.98
+  map_icon: 💎
+  map_region: cave
+  map_hidden: true
+- id: cave_exit
+  name: Cave Exit
+  description: Daylight streams through the cave entrance. Fresh air replaces the goblin stench.
+  exits:
+    outside: return_path
+  direction_aliases:
+    w: outside
+    west: outside
+  npcs:
+  - lily
+  atmosphere_text: Relief, fresh air, sense of accomplishment
+  enter_text: You emerge from the cave into blessed sunlight.
+  map_x: 0.65
+  map_y: 0.5
+  map_icon: ☀️
+  map_region: forest
+- id: return_path
+  name: Return Journey
+  description: The forest path back to the village. The journey feels lighter now.
+  exits:
+    village: village_return
+  direction_aliases:
+    w: village
+    west: village
+  npcs:
+  - lily
+  atmosphere_text: Lighter mood, Lily's grateful chatter
+  enter_text: The journey home begins. Lily walks beside you, still shaken but safe.
+  map_x: 0.5
+  map_y: 0.28
+  map_icon: 🏃
+  map_region: forest
+- id: village_return
+  name: Village - Hero's Return
+  description: The village square, but now filled with people. Word has spread of your success!
+  exits:
+    tavern: tavern_celebration
+  npcs:
+  - bram
+  - villagers
+  atmosphere_text: Cheering crowds, tearful reunion
+  enter_text: The village erupts in cheers as you return with Lily!
+  map_x: 0.5
+  map_y: 0.08
+  map_icon: 🎊
+  map_region: village
+- id: tavern_celebration
+  name: The Rusty Dragon - Celebration
+  description: The tavern is packed! Drinks flow freely and the villagers toast your heroism.
+  npcs:
+  - bram
+  - barkeep
+  - villagers
+  atmosphere_text: Celebration, gratitude, hints of future adventures
+  enter_text: The tavern welcomes you as a hero. Bram approaches with tears in his eyes.
+  map_x: 0.15
+  map_y: 0.08
+  map_icon: 🎉
+  map_region: village

@@ -1,0 +1,293 @@
+# Goblin Cave NPCs. Fields map 1:1 to npc.NPC.
+
+- id: bram
+  name: Bram
+  description: A panicked farmer in his 40s with bloodshot eyes from sleepless nights. His daughter Lily
+    was kidnapped by goblins, and trauma has made his memory unreliable.
+  role: QUEST_GIVER
+  location_id: tavern_main
+  dialogue:
+    greeting: Please, you have to help me! The goblins - they took my Lily!
+    quest: They came at night - a whole swarm of them! Or... or maybe just a few, but they moved so fast
+      in the dark. Dragged her off toward Darkhollow Cave. I'll give you everything I have - 50 gold -
+      just bring her back safely!
+    about_goblins: '*wrings hands nervously* Wicked little creatures. I saw six or seven... maybe more?
+      It was dark, I could barely see. They moved like shadows, like wolves. Or was it four? I can''t...
+      I can''t remember clearly.'
+    about_lily: She's only sixteen. Strong-willed, like her mother was. She'll be fighting them, I know
+      it. *voice cracks* She has to be okay. She HAS to be.
+    about_cave: Darkhollow Cave, half a day east through the Whisperwood. Dark place. Bad reputation.
+      *shudders* The villagers tell stories about it. I never believed them until now.
+    farewell: '*grabs player''s arm* Please hurry. Every moment they have her... I can''t bear it.'
+  disposition: 30
+  quests:
+  - rescue_lily
+  personality:
+    traits:
+    - desperate
+    - loving father
+    - unreliable witness
+    - prone to panic
+    speech_style: fragmented, interrupts himself, repeats key points
+    voice_notes: voice trembles and cracks, speaks rapidly when emotional
+    motivations:
+    - save daughter Lily
+    - keep family safe
+    fears:
+    - losing Lily forever
+    - goblins returning
+    - being helpless
+    quirks:
+    - wrings hands when anxious
+    - grabs listener's arm for emphasis
+    - contradicts his own numbers
+    secrets:
+    - only saw 3-4 goblins but panic made him think there were more
+    - blames himself for not being home that night
+- id: barkeep
+  name: Barkeep
+  description: A stout, graying man with a watchful eye. He knows all the village gossip and has heard
+    tales from travelers passing through.
+  role: INFO
+  location_id: tavern_main
+  dialogue:
+    greeting: What'll it be, traveler?
+    about_goblins: Those goblins have been getting bolder lately. Used to stay in their caves, but now
+      they're raiding farms. Something's stirred them up.
+    about_cave: Darkhollow Cave? Bad place. Old stories say it goes deep, connects to tunnels that run
+      under the mountains. Goblins have nested there for generations.
+    about_village: Small farming community. Good folk, but not fighters. When trouble comes, they pray
+      for adventurers like yourself.
+    about_rumors: Word is the goblins have a new chief. Bigger, smarter than the rest. Some travelers
+      went missing on the east road last month.
+    farewell: Safe travels. And watch your back in those woods.
+  personality:
+    traits:
+    - observant
+    - pragmatic
+    - discreet
+    - worldly-wise
+    speech_style: measured and calm, never wastes words
+    voice_notes: low gravelly voice, pauses before answering sensitive questions
+    motivations:
+    - keep tavern running
+    - protect villagers
+    - gather useful information
+    fears:
+    - village being destroyed
+    - trouble that's bad for business
+    quirks:
+    - wipes glasses while talking
+    - glances at door when discussing danger
+    - lowers voice for rumors
+    secrets:
+    - knows more about the goblins than he lets on
+    - has a hidden cellar in case the village is attacked
+- id: marcus
+  name: Marcus
+  description: A weathered sellsword with a scarred face and a well-maintained greatsword. He sits alone
+    at a corner table, nursing a drink and watching the room.
+  role: RECRUITABLE
+  location_id: tavern_main
+  dialogue:
+    greeting: Looking for muscle? I'm between jobs. Name's Marcus.
+    about_self: Twenty years as a mercenary. Fought in the Border Wars, the Siege of Blackgate, dozen
+      smaller conflicts. I've killed more men than I care to remember.
+    about_goblins: Goblins are easy prey if you know what you're doing. Quick, cowardly, but dangerous
+      in numbers. They fight dirty.
+    about_work: My last employer couldn't pay. That's why I'm here, drinking away the last of my coin.
+      If you've got gold, I've got steel.
+    recruit_accept: Twenty-five gold and we have a deal. My sword is yours until the job's done.
+    recruit_decline: Convince me you're worth my time, or come back with coin. I don't work for free.
+    farewell: You know where to find me. The offer stands.
+  disposition: -5
+  is_recruitable: true
+  recruitment_condition: gold:25
+  personality:
+    traits:
+    - gruff
+    - pragmatic
+    - experienced
+    - weary
+    - professional
+    speech_style: direct and blunt, military precision, no wasted words
+    voice_notes: deep gravelly voice, speaks slowly and deliberately
+    motivations:
+    - find steady work
+    - earn enough to retire
+    - stay alive
+    fears:
+    - dying poor and forgotten
+    - becoming what he's fought against
+    quirks:
+    - sharpens sword while talking
+    - checks exits when entering rooms
+    - never sits with back to door
+    secrets:
+    - deserted from army after war crimes he couldn't stomach
+    - has a daughter in distant city he sends money to
+- id: elira
+  name: Elira
+  description: A tall, lean elf woman with sharp eyes and a longbow across her back. She moves with the
+    quiet grace of a hunter. Her expression is grim, vengeful.
+  role: RECRUITABLE
+  location_id: forest_clearing
+  dialogue:
+    greeting: You're heading to Darkhollow? So am I. Those goblins killed my brother.
+    about_self: I'm a ranger. I've been tracking this clan for three weeks. They ambushed a patrol from
+      my village. My brother was with them.
+    about_goblins: There's about a dozen in the main cave. But I've seen signs of more in the tunnels.
+      They're organized now. That's unusual for goblins.
+    about_cave: I've scouted the entrance. Two guards, usually drunk. We could take them quietly if we
+      work together.
+    recruit_accept: A fellow hunter? Very well. But understand - I'm not leaving until every last goblin
+      pays.
+    recruit_decline: I work alone. Unless... you can prove you're worth trusting.
+    farewell: We'll meet again at the cave. Don't slow me down.
+  disposition: 10
+  is_recruitable: true
+  recruitment_condition: skill:charisma:12
+  personality:
+    traits:
+    - vengeful
+    - skilled
+    - guarded
+    - grief-stricken
+    - deadly calm
+    speech_style: clipped and direct, no pleasantries, tactical focus
+    voice_notes: cold and controlled, but voice tightens when mentioning brother
+    motivations:
+    - avenge brother's death
+    - eliminate the goblin threat
+    fears:
+    - failing to avenge brother
+    - letting emotions compromise the mission
+    quirks:
+    - touches bow when talking about combat
+    - scans surroundings constantly
+    - refuses to smile
+    secrets:
+    - secretly fears she's becoming consumed by vengeance
+    - brother was trying to negotiate peace when killed
+- id: shade
+  name: Shade
+  description: A hooded figure barely visible in the darkness. Quick eyes glint from beneath the cowl,
+    and a pair of daggers hang at their belt.
+  role: RECRUITABLE
+  location_id: goblin_camp_shadows
+  dialogue:
+    greeting: So... you noticed me. Impressive. Most don't until it's too late.
+    about_self: Names are dangerous things to share in my line of work. Call me Shade. I'm here for my
+      own reasons.
+    about_goblins: These vermin stole something from my employer. I intend to retrieve it. Our goals may
+      align... temporarily.
+    about_stealth: I've been watching them for hours. The guards change every two hours, the chief sleeps
+      light, and there's a back passage they don't guard well.
+    recruit_accept: An alliance of convenience. I watch your back, you watch mine. But don't expect me
+      to stick around after we're done here.
+    recruit_decline: You'll need to prove you can move quietly before I trust you at my back. Too many
+      have gotten me caught before.
+    farewell: I'll be watching. If you survive, perhaps we'll talk again.
+  disposition: -10
+  is_recruitable: true
+  recruitment_condition: skill:charisma:14
+  personality:
+    traits:
+    - mysterious
+    - calculating
+    - observant
+    - distrustful
+    - efficient
+    speech_style: soft whispers, careful word choice, never reveals more than necessary
+    voice_notes: barely audible, pauses often as if listening for danger
+    motivations:
+    - complete the mission
+    - survive
+    - uncover secrets
+    fears:
+    - betrayal
+    - being exposed
+    - losing the shadows
+    quirks:
+    - disappears mid-conversation
+    - appears from unexpected directions
+    - never makes eye contact for long
+    secrets:
+    - assassin sent to kill the goblin chief for political reasons
+    - has killed before and will again if necessary
+- id: lily
+  name: Lily
+  description: A young woman of sixteen with dirty clothes and a defiant expression. Despite her captivity,
+    her spirit is unbroken.
+  role: INFO
+  location_id: goblin_camp_main
+  dialogue:
+    greeting: You came! Father sent you, didn't he?
+    about_escape: They keep the key on the big one's belt. The chief. He's in the back chamber.
+    about_goblins: There's so many of them. But at night, most of them sleep. That's when I've seen chances...
+    about_chief: He's different from the others. Bigger, smarter. He speaks Common! I heard him talking
+      about 'the tunnels' and 'the others below.'
+    farewell: Please be careful. And thank you.
+  disposition: 50
+  personality:
+    traits:
+    - brave
+    - resourceful
+    - observant
+    - hopeful despite fear
+    speech_style: whispered urgency, quick to share useful info
+    voice_notes: hushed and hurried, glances at guards frequently
+    motivations:
+    - escape captivity
+    - see father again
+    - help rescuers succeed
+    fears:
+    - being moved deeper into caves
+    - rescuers getting killed
+    quirks:
+    - grips cage bars when speaking
+    - listens for goblin footsteps mid-sentence
+    secrets:
+    - overheard goblins talking about 'something bigger' in the deep tunnels
+    - has been secretly loosening a bar in her cage
+- id: gavin
+  name: Gavin the Blacksmith
+  description: A burly man in his fifties with a soot-stained leather apron and arms like tree trunks.
+    His forge-roughened hands are surprisingly gentle with his craft.
+  role: MERCHANT
+  location_id: blacksmith_shop
+  dialogue:
+    greeting: '*wipes hands on apron* Welcome to me forge! Looking for steel?'
+    about_weapons: Everything I make is battle-tested. Not like that mass-produced city rubbish. Each
+      blade has character.
+    about_armor: Good armor's like good ale - worth every coin. I've saved more lives with me anvil than
+      any healer.
+    about_goblins: '*scowls* Nasty business. If you''re heading to Darkhollow, you''ll want proper equipment.
+      Those little blighters are vicious.'
+    about_lily: Bram's girl? Sweet child. I hope someone finds her. *sets down hammer* Tell you what -
+      help rescue her, and I'll give you a discount.
+    haggle_success: '*chuckles* Sharp tongue you''ve got. Fine, I can work with that price.'
+    haggle_fail: '*frowns* I''ve got a business to run. Price is what it is.'
+    farewell: May your steel stay sharp and your armor hold true!
+  disposition: 10
+  personality:
+    traits:
+    - gruff
+    - honest
+    - proud of craft
+    - protective of village
+    speech_style: direct, occasional forge metaphors, northern accent
+    voice_notes: deep gravelly voice, rhythmic like hammer strikes
+    motivations:
+    - run a successful business
+    - protect the village
+    - craft the finest steel
+    fears:
+    - seeing young people die with poor equipment
+    - the village falling to threats
+    quirks:
+    - taps anvil when thinking
+    - judges people by their weapon maintenance
+    secrets:
+    - served as a soldier decades ago
+    - hides a masterwork sword under the forge for emergencies

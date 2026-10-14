@@ -1,0 +1,82 @@
+# Goblin Cave quests. Fields map 1:1 to quest.Quest.
+
+- id: rescue_lily
+  name: Rescue Lily
+  description: Farmer Bram's daughter Lily has been kidnapped by goblins and taken to Darkhollow Cave.
+    Find her and bring her home safely.
+  giver_npc_id: bram
+  quest_type: MAIN
+  objectives:
+  - id: reach_cave
+    description: Enter Darkhollow Cave
+    objective_type: REACH_LOCATION
+    target: cave_entrance
+  - id: find_lily
+    description: Find and rescue Lily
+    objective_type: TALK_TO
+    target: lily
+  - id: return_lily
+    description: Return Lily to the village
+    objective_type: REACH_LOCATION
+    target: tavern_celebration
+  rewards:
+    xp: 100
+    gold: 50
+    items:
+    - healing_potion
+- id: recover_heirlooms
+  name: Recover the Family Heirlooms
+  description: The goblins also stole family heirlooms during their raid - a silver locket and Bram's
+    father's ring. Search the goblin lair to find them.
+  giver_npc_id: bram
+  quest_type: MINOR
+  objectives:
+  - id: find_locket
+    description: Find the silver locket
+    objective_type: FIND_ITEM
+    target: silver_locket
+  - id: find_ring
+    description: Find the family ring
+    objective_type: FIND_ITEM
+    target: family_ring
+  rewards:
+    xp: 50
+    gold: 25
+  prerequisites:
+  - rescue_lily
+- id: clear_the_path
+  name: Clear the Path
+  description: Wolves and goblins have been threatening travelers on the road to Darkhollow. Eliminate
+    them to make the path safer.
+  giver_npc_id: barkeep
+  objectives:
+  - id: kill_wolves
+    description: Eliminate wolves on the forest path
+    objective_type: KILL
+    target: wolf
+    required_count: 2
+  - id: kill_goblins
+    description: Clear goblins from the cave
+    objective_type: KILL
+    target: goblin
+    required_count: 6
+  rewards:
+    xp: 75
+    gold: 30
+- id: chiefs_treasure
+  name: The Chief's Treasure
+  description: Rumors say Chief Grotnak has amassed quite a hoard. Defeat him and claim the treasure for
+    yourself.
+  giver_npc_id: barkeep
+  objectives:
+  - id: defeat_chief
+    description: Defeat Chief Grotnak
+    objective_type: KILL
+    target: goblin_chief
+  - id: find_treasure
+    description: Discover the treasure nook
+    objective_type: REACH_LOCATION
+    target: treasure_nook
+  rewards:
+    xp: 100
+    gold: 100

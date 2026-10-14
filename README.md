@@ -1,280 +1,146 @@
-# AI D&D Text RPG - Project Documentation
+# AI D&D Text RPG
 
-## Overview
-A text-based Dungeons & Dragons style RPG where Google Gemini AI acts as the Dungeon Master, creating an interactive storytelling experience.
+A text-based Dungeons & Dragons–style RPG where an LLM (Google Gemini, or any
+OpenAI-compatible server such as vLLM) acts as the Dungeon Master. A Flask API
+runs the game rules; a React frontend renders the story, map and character.
 
-**Architecture**: API-first design with Flask backend and React frontend.
-
-**Security**: 🛡️ 125/125 security tests passing (16 vulnerabilities identified and fixed)
+The rules engine, not the LLM, decides when you roll and what the result is:
+each action goes through an **arbiter** (keyword rules, then a JSON-only LLM
+call) that picks the skill check and DC, the dice are rolled in code, and the
+**narrator** LLM only describes the outcome. Rewards and other effects come from
+control tags in the DM's reply (`[GOLD: 10]`, `[ITEM: torch]`, ...), which are
+applied by the server and stripped before the player sees the text.
 
 ---
 
-## Quick Start
+## Quick start
 
-### Prerequisites
-- Python 3.10+
-- Node.js 18+ (for frontend)
-- Google Gemini API key
+Prerequisites: Python 3.10+, Node.js 18+, and either a Gemini API key or an
+OpenAI-compatible LLM server.
 
-### Backend Setup
 ```bash
-# Create virtual environment
+# Backend
 python -m venv .venv
-.venv\Scripts\activate  # Windows
-source .venv/bin/activate  # Linux/Mac
-
-# Install dependencies
+.venv\Scripts\activate          # Windows
+source .venv/bin/activate       # Linux/macOS
 pip install -r requirements.txt
+cp .env.example .env            # then set GOOGLE_API_KEY, or the VLLM_* settings
+python src/api_server.py        # http://127.0.0.1:5000
 
-# Configure API key
-cp .env.example .env
-# Edit .env and add your GOOGLE_API_KEY
-
-# Start backend
-python src/api_server.py
-```
-
-### Frontend Setup
-```bash
+# Frontend (second terminal)
 cd frontend/option1-react
 npm install
-npm run dev
+npm run dev                     # http://localhost:3000 (proxies /api to :5000)
 ```
 
-### Play the Game
-- Backend API: http://localhost:5000
-- React Frontend: http://localhost:3000
+The server binds to `127.0.0.1` with debug off by default. The API has no
+authentication, so only set `API_HOST=0.0.0.0` on a network you trust, and never
+enable `DEBUG` on a reachable host. See `.env.example` for all settings.
 
 ---
 
-## Project Structure
+## Project layout
 
 ```
-AI RPG V2/
-├── .env                    # Environment variables (API keys) - DO NOT COMMIT
-├── .venv/                  # Python virtual environment
-├── README.md               # This file
-├── requirements.txt        # Python dependencies
-├── tasksync.md             # TaskSync protocol
-├── saves/                  # Game save files (auto-created)
-├── docs/
-│   ├── CHANGELOG.md            # Version history
-│   ├── DEVELOPER_GUIDE.md      # Technical documentation (5000+ lines)
-│   ├── DEVELOPMENT_PLAN.md     # Phased development roadmap
-│   ├── HOSTILE_PLAYER_TESTING.md # Security testing results (125 tests)
-│   ├── FLUTTER_SETUP.md        # Flutter installation guide
-│   ├── THEME_SYSTEM_SPEC.md    # DLC-ready theme architecture
-│   └── UI_DESIGN_SPEC.md       # UI/UX specifications
-├── src/                    # Backend (Flask API)
-│   ├── api_server.py       # Flask REST API (main entry point, 35 endpoints)
-│   ├── dm_engine.py        # Shared DM logic (prompts, parsing)
-│   ├── character.py        # Character system (stats, XP, leveling)
-│   ├── combat.py           # Combat system (multi-enemy, surprise)
-│   ├── inventory.py        # Items and inventory
-│   ├── npc.py              # NPC system (dialogue, shops, relationships)
-│   ├── party.py            # Party/companion system
-│   ├── quest.py            # Quest tracking system
-│   ├── save_system.py      # Save/Load persistence
-│   ├── scenario.py         # Adventure scenarios
-│   └── shop.py             # Shop/merchant system
-├── frontend/
-│   └── option1-react/      # React + Vite + Tailwind frontend
-│       ├── src/
-│       │   ├── App.jsx
-│       │   ├── components/
-│       │   │   ├── CharacterCreation.jsx
-│       │   │   ├── GameScreen.jsx
-│       │   │   ├── WorldMap.jsx
-│       │   │   └── DiceRoller.jsx
-│       │   └── store/
-│       │       └── gameStore.js   # Zustand state management
-│       └── package.json
-├── backup/
-│   └── legacy/
-│       └── game.py         # Archived terminal version
-└── tests/                  # 821+ unit tests + 125 security tests
-    ├── test_api_integration.py  # API integration tests
-    ├── test_character.py        # Character system (26 tests)
-    ├── test_combat.py           # Combat mechanics (31 tests)
-    ├── test_location.py         # Location system (200 tests)
-    ├── test_party.py            # Party system (72 tests)
-    ├── test_quest.py            # Quest tracking (57 tests)
-    ├── hostile_final.py         # Security stress test (75 tests)
-    └── ...
+src/
+  api_server.py       Flask app: routes, sessions, combat/shop/travel endpoints
+  turn_service.py     One player turn: guards → arbiter → (narrator) → mechanics
+  dm_arbiter.py       Decides whether an action needs a skill check
+  dm_scene.py         Scene rules (free first look, roll-outcome fallbacks)
+  dm_engine.py        DM system prompt, control-tag parsing, skill rolls
+  llm_client.py       Gemini / vLLM behind one chat interface
+  game_mechanics.py   Defeat, hostile-action combat gate, travel pipeline
+  text_match.py       Whole-word keyword matching used by every rule
+  character.py  combat.py  inventory.py  party.py  quest.py  npc.py  shop.py
+  scenario.py         Scene / location / world-map engine
+  scenario_loader.py  Loads scenario content from data/scenarios/
+  data_codec.py       Dataclass <-> plain-data conversion for content files
+  save_system.py      Save/load (JSON files in saves/)
+
+data/scenarios/goblin_cave/   The Goblin Cave adventure (YAML content)
+frontend/option1-react/       React + Vite + Tailwind + Zustand frontend
+tests/                        Offline pytest suite
+tests/live/                   Scripts needing a real LLM or running server
+docs/                         CHANGELOG, scenario format; docs/archive/ is historical
 ```
 
 ---
 
-## API Architecture
+## Adding a scenario
 
-The game uses an **API-first architecture**:
-
-| Layer | Technology | Port |
-|-------|------------|------|
-| Backend API | Flask | 5000 |
-| Frontend | React + Vite | 3000 |
-| AI Model | Gemini 2.5 Pro | - |
-| State | Zustand (React) | - |
-
-### Key API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/scenarios` | GET | List available adventures |
-| `/api/classes` | GET | List available character classes |
-| `/api/races` | GET | List available character races |
-| `/api/game/start` | POST | Create character & start game |
-| `/api/game/action/stream` | POST | Send action (SSE streaming) |
-| `/api/game/state` | GET | Get current game state |
-| `/api/game/save` | POST | Save game |
-| `/api/game/load` | POST | Load game |
-| `/api/game/saves` | GET | List available saves |
-| `/api/game/end` | POST | End session |
-| `/api/travel` | POST | Travel to location |
-| `/api/locations` | GET | Get available locations |
-| `/api/combat/status` | GET | Get combat state |
-| `/api/combat/attack` | POST | Attack in combat |
-| `/api/combat/defend` | POST | Defend in combat |
-| `/api/combat/flee` | POST | Flee from combat |
-| `/api/character/levelup` | POST | Level up character |
-| `/api/character/rest` | POST | Rest to heal |
-| `/api/inventory/use` | POST | Use an item |
-| `/api/inventory/equip` | POST | Equip weapon/armor |
-| `/api/shop/browse` | GET | Browse shop inventory |
-| `/api/shop/buy` | POST | Buy from shop |
-| `/api/shop/sell` | POST | Sell to shop |
-| `/api/party/view` | GET | View party members |
-| `/api/party/recruit` | POST | Recruit companion |
-| `/api/quests/list` | GET | List active/completed quests |
-| `/api/reputation` | GET | Get NPC relationships |
-| `/api/sessions/stats` | GET | Session monitoring |
+Create `data/scenarios/<your_id>/` with `scenario.yaml`, `locations.yaml`,
+`npcs.yaml`, `quests.yaml` and `shops.yaml`. It is picked up automatically, with
+no code changes. See [docs/SCENARIOS.md](docs/SCENARIOS.md) and use
+`data/scenarios/goblin_cave/` as the reference.
 
 ---
 
-## Features
+## What's in the game
 
-### ✅ AI Dungeon Master
-- **Google Gemini 2.5 Pro** provides intelligent, contextual responses
-- **SSE Streaming** - Text appears word-by-word as AI generates
-- **Conversation Memory** - Chat history maintained throughout session
-- **Character-Aware** - AI knows your race, class, and stats
-- **Scene-Aware** - AI follows structured scenario guidance
-- **NPC Context** - AI uses correct NPC names from scenarios
+- **Characters:** 9 races and 12 classes, 4d6-drop-lowest stats, class starting gear,
+  XP levels 1–5.
+- **Skill checks:** arbiter-decided with a d20 + modifier vs DC. Failed social checks
+  have consequences (retries with the same approach are blocked, and three failures
+  end the game).
+- **Combat:** structured turns with initiative, multiple enemies, surprise, attack /
+  defend / flee, companion attacks, and loot and XP on victory. Hostile actions
+  ("I attack the guard") start combat instead of free-form narration.
+- **World:** locations with exits, conditional exits (items, skills, objectives),
+  hidden locations, location events, random encounters and an interactive map.
+- **Inventory and shops:** equip, use and buy/sell at merchants.
+- **Quests and party:** quest journal with objectives; recruit up to 2 companions.
+- **Rest:** short rests spend hit dice, which are restored on level-up and boss kills.
+- **Save/load:** 3 save slots in the UI, including scenario, quest, party and location state.
 
-### ✅ Character System
-- **Character Creation** - Choose name, race (9 options), class (12 options)
-- **Stat Rolling** - 4d6-drop-lowest for authentic D&D feel
-- **Starting Equipment** - Class-based starting gear
-- **Starting Gold** - Random 10-25 gold
-- **HP/AC Calculation** - Based on class and constitution/dexterity
-- **XP & Leveling** - Level 1-5 with milestone XP (100/300/600/1000)
-- **Proficiency Bonus** - Scales with level (+2 to +3)
+Engine code exists for a few features the web game doesn't expose yet:
+shop haggling, NPC gifts, companion class abilities and flanking, and
+"approach" choices for dangerous travel.
 
-### ✅ Frontend Features
-- **React + Tailwind CSS** - Modern, responsive UI
-- **Character Sidebar** - Shows HP, XP, AC, ATK, ability scores, gold
-- **Inventory Modal** - View items with stats and descriptions
-- **Quest Journal** - Track active/completed quests with objectives
-- **World Map** - Interactive location navigation
-- **Quick Actions** - One-click buttons for common actions
-- **Save/Load** - Persist game progress
+---
 
-### ✅ Combat System
-- **D&D 5e Rules** - Initiative, attack rolls, damage
-- **Multi-Enemy Combat** - Fight multiple enemies simultaneously
-- **Surprise Rounds** - Ambush mechanics with advantage
-- **Turn Order** - Initiative-based combat sequence
-- **Defend Action** - +2 AC bonus until next turn
-- **Flee Option** - Escape combat with DEX check
+## API
 
-### ✅ Inventory System
-- **Item Types** - Weapons, armor, consumables, quest items
-- **Stats Display** - Damage dice, AC bonus, heal amount shown
-- **Equipment** - Weapons and armor affect combat
-- **Loot Drops** - Random loot from defeated enemies
-- **Gold Tracking** - Currency system
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/health` | Health check |
+| GET | `/api/classes`, `/api/races`, `/api/scenarios` | Character and adventure options |
+| POST | `/api/game/start` | Create a character and start a session |
+| POST | `/api/game/action/stream` | Player action, streamed as Server-Sent Events |
+| POST | `/api/game/action` | Player action, single JSON response |
+| GET | `/api/game/state`, `/api/game/character` | Current state |
+| POST | `/api/game/roll` | Manual dice roll |
+| POST | `/api/game/save`, `/api/game/load` · GET `/api/game/saves` | Saves |
+| POST | `/api/game/end` | End a session |
+| GET | `/api/locations`, `/api/location/scan` · POST `/api/travel` | Travel and map |
+| GET | `/api/combat/status` · POST `/api/combat/attack`, `/defend`, `/flee` | Combat |
+| POST | `/api/character/levelup`, `/api/character/rest` | Character |
+| POST | `/api/inventory/use`, `/api/inventory/equip` | Inventory |
+| GET | `/api/shop/browse` · POST `/api/shop/buy`, `/api/shop/sell` | Shops |
+| GET | `/api/party/view` · POST `/api/party/recruit` | Party |
+| GET | `/api/quests/list` · POST `/api/quests/complete` | Quests |
+| GET | `/api/reputation` | NPC relationships |
+| GET | `/api/sessions/stats` | Session monitoring |
 
-### ✅ Scenario System
-- **Structured Adventures** - Scenes with objectives and transitions
-- **"The Goblin Cave"** - Complete rescue quest with 6 scenes
-- **NPC System** - Named NPCs with roles (Bram, Lily, Barkeep, etc.)
-- **Quest Tracking** - Objectives with progress percentages
-
-### ✅ Shop System
-- **Browse & Buy** - Purchase items from merchant NPCs
-- **Sell Loot** - Sell items for 50% of base value
-- **Haggle Mechanic** - CHA check for discount
-- **Stock Tracking** - Merchants have limited quantities
-
-### ✅ NPC Relationships
-- **Disposition System** - NPCs remember how you treat them (-100 to +100)
-- **Gift Giving** - Improve relationships with gifts
-- **Reputation** - Actions affect how NPCs perceive you
-- **Dialogue Variety** - NPCs respond based on relationship
-
-### ✅ Party System
-- **Companion Recruitment** - Recruit NPCs to join your party (max 2)
-- **Party Combat** - Companions fight alongside you with their own abilities
-- **Class Abilities** - Fighter (Shield Wall), Ranger (Hunter's Mark), Rogue (Sneak Attack), Cleric (Heal), Wizard (Magic Missile)
-- **Flanking Bonus** - +2 to attack when you and companion target same enemy
-- **Party Persistence** - Party saved/loaded with game state
-
-### ✅ Travel System  
-- **Travel Menu** - Numbered destination selection with danger indicators
-- **Two-Phase Travel** - Approach selection for dangerous areas (sneak, carefully, run)
-- **Surprise Mechanics** - Successful stealth grants combat advantage
-- **Natural Language** - "go to the tavern", "head north", etc.
-
-### ✅ Rest & Healing
-- **Hit Dice System** - Pool = character level, restored on boss kills/level up
-- **Short Rest** - Spend Hit Die for 1d6 + CON healing
-- **Strategic Resource** - Prevents rest spam, rewards major victories
+Sessions are kept in memory and expire after 60 minutes of inactivity.
 
 ---
 
 ## Testing
 
-### Run API Integration Tests
 ```bash
-python tests/test_api_integration.py
+pip install -r requirements-dev.txt
+pytest                 # offline suite; never calls an LLM
+ruff check src tests   # syntax errors and undefined names
 ```
 
-### Run All Unit Tests
-```bash
-pytest tests/ -v
-```
+CI (`.github/workflows/ci.yml`) runs both, plus the frontend build.
 
-### Test Coverage
-- **821+ unit tests** across all game systems
-- **125 security tests** (hostile player testing)
-- All 16 identified vulnerabilities fixed
-
----
-
-## Development
-
-### VS Code Tasks
-The workspace includes predefined tasks:
-- **🎮 Start Backend (Flask)** - Start API server on port 5000
-- **🌐 Start Frontend (React)** - Start dev server on port 3000
-- **🚀 Start Full Stack** - Start both simultaneously
-
-### Key Files
-- `src/api_server.py` - Main Flask application
-- `src/dm_engine.py` - DM system prompt and parsing logic
-- `frontend/option1-react/src/store/gameStore.js` - Frontend state
-- `frontend/option1-react/src/components/GameScreen.jsx` - Main game UI
-
----
-
-## Credits
-- AI: Google Gemini 2.5 Pro
-- Game System: D&D 5e (simplified)
-- Frontend: React + Vite + Tailwind CSS
-- Backend: Python Flask
+`tests/live/` holds DM-behaviour and security scripts that need a configured LLM
+and/or a running API server. Run them directly, e.g.
+`python tests/live/test_dm_adversarial.py`, or include them with `pytest --live`.
 
 ---
 
 ## License
+
 This project is for educational purposes.

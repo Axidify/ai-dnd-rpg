@@ -3,12 +3,20 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 
 # Save data
 saves/
 
-# Temp test files
+# Frontend build output
+node_modules/
+dist/
+
+# Logs and generated test output
+*.log
 test_output.json
 test_session.txt
 test_sid.txt
-notes.log
+tests/live/*_report.json
+tests/live/*_results.txt

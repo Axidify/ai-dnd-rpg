@@ -1,0 +1,245 @@
+# The Goblin Cave: scenario metadata and scenes.
+# Fields map 1:1 to scenario.Scene / scenario.Scenario (see src/scenario_loader.py).
+
+id: goblin_cave
+name: The Goblin Cave
+description: Rescue a farmer's daughter from a goblin lair. A classic starter adventure.
+hook: A desperate farmer's daughter has been kidnapped by goblins. Will you brave the depths of Darkhollow
+  Cave to save her?
+estimated_duration: 20-40 minutes
+scenes:
+  tavern:
+    id: tavern
+    name: The Rusty Dragon Tavern
+    description: A small-town tavern where adventure begins
+    setting: A cozy but weathered tavern. A fire crackles in the hearth. Locals murmur over their drinks.
+    mood: welcoming, mysterious undertones
+    dm_instructions: |
+      Introduce a worried farmer named Bram who approaches the player.
+      His daughter Lily was taken by goblins who raided their farm last night.
+      He offers the family's savings (50 gold) as reward.
+      The goblin lair is in Darkhollow Cave, a half-day's journey east.
+      Let the player ask questions, gather information from locals.
+
+      IMPORTANT - WHEN PLAYER ACCEPTS THE QUEST:
+      - Give the [XP: ...] reward
+      - Give any items (torch, etc.)
+      - Describe Bram's relief and gratitude
+      - END YOUR RESPONSE in the tavern
+      - DO NOT narrate the journey - the player will navigate using 'go' commands
+      - Suggest the player can explore the village or head east toward the forest
+
+      LOCATION NOTES:
+      - Player starts in main room, can explore bar or go outside
+      - Bram is in the main room
+      - Barkeep has gossip if asked
+      - Player uses 'go outside' to leave tavern to village_square
+      - Player uses 'go east' from village to start the journey
+    min_exchanges: 3
+    objectives:
+    - meet_bram
+    - accept_quest
+    objective_xp:
+      meet_bram: 10
+      accept_quest: 15
+    transition_hint: Player accepts the quest and prepares to leave
+    next_scene_id: journey
+    location_ids:
+    - tavern_main
+    - tavern_bar
+    - village_square
+    - blacksmith_shop
+    - forest_path
+    starting_location_id: tavern_main
+  journey:
+    id: journey
+    name: The Road to Darkhollow
+    description: Traveling through the forest toward the cave
+    setting: A winding forest path. Afternoon sun filters through autumn leaves. Birds go quiet as you
+      travel deeper.
+    mood: atmospheric, building tension
+    dm_instructions: |
+      Describe the journey through increasingly wild terrain.
+      Include sensory details: crunching leaves, distant animal sounds, cooling air.
+      Partway through, have the player encounter EITHER:
+      - A frightened merchant whose cart was raided (information source)
+      - Goblin tracks and signs of recent passage
+      - An old woodsman who warns of increased goblin activity
+      Build tension as they approach the cave.
+
+      LOCATION NOTES:
+      - Player moves from forest_path → forest_clearing → darkhollow_approach
+      - Merchant encounter at clearing
+      - Goblin signs at darkhollow_approach
+    transition_hint: Player arrives at Darkhollow Cave entrance
+    next_scene_id: cave_entrance
+    location_ids:
+    - village_square
+    - blacksmith_shop
+    - forest_path
+    - forest_clearing
+    - darkhollow_approach
+    - secret_cave
+    starting_location_id: forest_path
+  cave_entrance:
+    id: cave_entrance
+    name: Cave Entrance
+    description: The mouth of Darkhollow Cave
+    setting: A rocky hillside with a dark cave opening. Goblin totems and bones mark the entrance. Faint
+      sounds echo from within.
+    mood: ominous, dangerous
+    dm_instructions: |
+      Describe the cave entrance: crude goblin warnings, a foul smell, distant echoing sounds.
+      Let the player investigate the area. They might find:
+      - Recent footprints (many goblins, plus small human - Lily!)
+      - Discarded supplies from other victims
+      - A narrow entrance that forces single-file
+      When player enters, describe the descent into darkness.
+      Ask how they're providing light (torch, magic, etc.)
+
+      LOCATION NOTES:
+      - Cave entrance outside, then dark tunnel inside
+      - Ask about light source when entering tunnel
+    objectives:
+    - examine_entrance
+    objective_xp:
+      examine_entrance: 15
+    transition_hint: Player enters the cave
+    next_scene_id: goblin_camp
+    location_ids:
+    - darkhollow_approach
+    - cave_entrance
+    - cave_tunnel
+    starting_location_id: cave_entrance
+  goblin_camp:
+    id: goblin_camp
+    name: The Goblin Warren
+    description: A goblin encampment deep in the cave
+    setting: A large cavern lit by smoky torches. Exactly 4 goblins lounge around a fire. Cages line the
+      far wall. The smell is overwhelming.
+    mood: tense, combat-ready
+    dm_instructions: |
+      The player enters a main cavern with:
+      - EXACTLY 4 goblins (distracted, gambling, eating) - DO NOT vary this number
+      - A cage with a young girl (Lily, scared but alive)
+      - Tunnels leading deeper (to the chief's chamber)
+      - Crude fortifications (overturnable tables, weapon racks)
+
+      Let the player choose their approach:
+      - Stealth: Sneak past or to ambush position (go to shadows location)
+      - Combat: Fight the goblins - USE EXACTLY [COMBAT: goblin, goblin, goblin, goblin]
+      - Distraction: Create diversion
+      - Negotiation: (Very hard, goblins are hostile)
+
+      ⚠️ FIXED ENCOUNTER: When combat occurs at goblin_camp_main, you MUST use:
+      [COMBAT: goblin, goblin, goblin, goblin]
+      Do NOT add or remove enemies - this ensures fair, balanced gameplay.
+
+      Resolve the encounter. If player frees Lily, she says the chief has more prisoners.
+      Chief is in the back chamber with the treasure.
+
+      LOCATION NOTES:
+      - goblin_camp_entrance: can see camp, plan approach
+      - goblin_camp_shadows: stealth position for surprise
+      - goblin_camp_main: direct confrontation (4 goblins)
+      - goblin_camp_cages: where Lily is held
+    min_exchanges: 3
+    objectives:
+    - deal_with_goblins
+    - find_lily
+    objective_xp:
+      deal_with_goblins: 25
+      find_lily: 50
+    transition_hint: Player either clears the camp or sneaks through to the chief's chamber
+    next_scene_id: boss_chamber
+    location_ids:
+    - cave_tunnel
+    - goblin_camp_entrance
+    - goblin_camp_main
+    - goblin_camp_shadows
+    - goblin_camp_cages
+    - chief_tunnel
+    - goblin_storage
+    starting_location_id: goblin_camp_entrance
+  boss_chamber:
+    id: boss_chamber
+    name: Chief Grotnak's Lair
+    description: The goblin chief's personal chamber
+    setting: A larger chamber with a crude throne made of bones. A brutish goblin chief sits counting
+      coins. Exactly two goblin bodyguards flank him.
+    mood: climactic, dangerous, decisive
+    dm_instructions: |
+      BOSS ENCOUNTER: Chief Grotnak
+      - Larger, meaner, smarter than regular goblins
+      - Has EXACTLY 2 goblin bodyguards (not more, not less)
+      - Sits on bone throne with a chest of stolen treasure nearby
+      - If player has Lily, he might threaten her
+      - If player caused commotion earlier, he's prepared
+
+      ⚠️ FIXED ENCOUNTER: When combat starts, you MUST use:
+      [COMBAT: goblin_boss, goblin, goblin]
+      Do NOT add or remove enemies - this ensures fair, balanced gameplay.
+
+      This is the climax! Make it dramatic:
+      - Describe his menacing appearance
+      - Let player make tactical choices
+      - Include dramatic moments in the fight
+      - When defeated, describe his fall dramatically
+
+      Treasure includes: gold, a minor magic item, personal effects from victims.
+
+      LOCATION NOTES:
+      - chief_tunnel: approach, can hear him counting coins
+      - boss_chamber: the confrontation (1 boss + 2 bodyguards)
+    min_exchanges: 3
+    objectives:
+    - defeat_chief
+    objective_xp:
+      defeat_chief: 50
+    transition_hint: Chief Grotnak is defeated
+    next_scene_id: resolution
+    location_ids:
+    - goblin_camp_main
+    - chief_tunnel
+    - boss_chamber
+    - treasure_nook
+    starting_location_id: chief_tunnel
+  resolution:
+    id: resolution
+    name: Heroes Return
+    description: The aftermath and reward
+    setting: Emerging from the cave into daylight, then back to the village as heroes.
+    mood: triumphant, satisfying, hopeful
+    dm_instructions: |
+      Wrap up the adventure:
+      1. Describe leaving the cave (relief, satisfaction)
+      2. The journey back (lighter mood, Lily's gratitude)
+      3. Return to village (crowds gather, word has spread)
+      4. Bram's tearful reunion with Lily
+      5. Reward: 50 gold + a family heirloom (e.g., grandfather's dagger)
+      6. Celebration at the tavern
+      7. Hint at future adventures (other problems mentioned, traveler with a map, etc.)
+
+      Make the player feel HEROIC. This is their first victory.
+      End with a sense of completion but also possibility.
+
+      LOCATION NOTES:
+      - cave_exit: leaving the cave
+      - return_path: journey home with Lily
+      - village_return: hero's welcome
+      - tavern_celebration: reward and celebration
+    transition_hint: Player receives reward and the adventure concludes
+    location_ids:
+    - boss_chamber
+    - cave_exit
+    - return_path
+    - village_return
+    - tavern_celebration
+    starting_location_id: cave_exit
+scene_order:
+- tavern
+- journey
+- cave_entrance
+- goblin_camp
+- boss_chamber
+- resolution

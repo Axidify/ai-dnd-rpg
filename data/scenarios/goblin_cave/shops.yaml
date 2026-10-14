@@ -1,0 +1,29 @@
+# Goblin Cave shops. Fields map 1:1 to shop.Shop.
+
+- id: gavins_forge
+  name: Gavin's Forge
+  owner_npc_id: gavin
+  location_id: blacksmith_shop
+  shop_type: BLACKSMITH
+  inventory:
+  - item_id: dagger
+  - item_id: shortsword
+    stock: 3
+    max_stock: 3
+  - item_id: longsword
+    stock: 2
+    max_stock: 2
+  - item_id: handaxe
+    stock: 3
+    max_stock: 3
+  - item_id: club
+  - item_id: leather_armor
+    stock: 2
+    max_stock: 2
+  - item_id: chain_shirt
+    stock: 1
+    max_stock: 1
+  - item_id: shield
+    stock: 3
+    max_stock: 3
+  base_markup: 1.15

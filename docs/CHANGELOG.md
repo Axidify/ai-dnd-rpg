@@ -8,6 +8,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Arbiter skipped required rolls: substring matching treated "crossbow" as a greeting ("bow"), "swim in" as quest acceptance ("im in"), and ran the no-roll social shortcuts before stealth/lockpicking/athletics checks
+- Buying several stackable items multiplied them (5 potions → 16): inventory stored the caller's object and stacked onto it
+- `/api/game/load` could read any JSON file on disk and `/api/game/save` accepted a path in `slot`; both are now confined to `saves/`
+- Loading a save at 0 HP revived the character at full HP; `Character.from_dict` discarded saved HP, AC and weapon
+- `quick_save` passed chat history as the quest manager
+- Server crashed with `NameError: ENV_PATH` when no LLM was configured
+- `has_item` exits crashed (inventory is a list), hidden-location item conditions never passed, and `objective:` conditions never opened
+- Hostile-action gate: "using all my force" started a fight with an orc, "strike a deal" was an attack, "attacking" was not
+- Narration containing "falls" or "victory" completed the boss objective; combat objectives now complete only on an actual combat victory
+- JSON and streaming action endpoints had drifted (quest updates, reward text, transcripts, fallback narration); both now share one implementation
+
+### Changed
+- Player turns run through `turn_service.py` (shared by `/api/game/action` and `/api/game/action/stream`)
+- All keyword rules use whole-word matching (`text_match.py`)
+- Goblin Cave content moved from `scenario.py` to `data/scenarios/goblin_cave/*.yaml`; new scenarios are discovered from `data/scenarios/` (see `docs/SCENARIOS.md`)
+- Server defaults: binds `127.0.0.1`, debug off, CORS limited to the dev origins, actions capped at 1000 characters (`API_HOST`, `DEBUG`, `CORS_ORIGINS` in `.env`)
+- Tests: offline by default via `tests/conftest.py`; live-LLM and running-server scripts moved to `tests/live/` (`pytest --live`); tests for the deleted terminal game removed
+- Added CI (pytest, ruff, frontend build), `pyproject.toml`, `requirements-dev.txt`
+- Historical docs moved to `docs/archive/`; README rewritten to match the code
+
+### Removed
+- `run_terminal.py` (launched the deleted terminal game); unused `detect_combat_intent`; unused Goblin Cave map-region definitions
+- Abandoned Godot frontend prototype (`frontend/option2-godot/`); the comparison doc is in `docs/archive/FRONTEND_COMPARISON.md`
+
 ---
 
 ## [1.2.0] - 2026-06-05
