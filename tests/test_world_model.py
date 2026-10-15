@@ -285,3 +285,30 @@ def test_rescue_quest_progresses_when_speaking_to_lily(session, monkeypatch):
     turn(session, monkeypatch, 'I say: "Lily, your father sent me."', "Lily sobs with relief.")
     objective = next(o for o in qm.get_quest("rescue_lily").objectives if o.id == "find_lily")
     assert objective.completed
+
+
+# --- step 3: narrate from facts ----------------------------------------------
+
+def capture_narrator_facts(session, monkeypatch, action, narration="You do it."):
+    seen = {}
+
+    def fake(sess, *a, **k):
+        seen["facts"] = list(sess.turn_premise.facts) if sess.turn_premise else []
+        return narration
+    monkeypatch.setattr(api_server, "get_dm_response", fake)
+    with app.test_client() as client:
+        body = client.post("/api/game/action", json={"session_id": session.session_id, "action": action}).get_json()
+    return body, seen["facts"]
+
+
+def test_pickup_happens_before_narration_and_narrator_is_told(session, monkeypatch):
+    move(session, "darkhollow_approach")
+    body, facts = capture_narrator_facts(session, monkeypatch, "I pick up the goblin ear.")
+    assert any("took Goblin Ear and now carries it" in f for f in facts)
+    assert any(i.name == "Goblin Ear" for i in session.character.inventory)
+    assert body["message"].count("You take: Goblin Ear") == 1  # shown once, after the narration
+
+
+def test_nothing_to_tell_when_nothing_happened(session, monkeypatch):
+    _, facts = capture_narrator_facts(session, monkeypatch, "I hum a tune.")
+    assert not any("ALREADY HAPPENED" in f for f in facts)

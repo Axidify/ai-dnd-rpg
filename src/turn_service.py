@@ -223,6 +223,8 @@ class TurnStart:
     arbiter_roll_result: Optional[dict] = None
     scene_action: Optional[str] = None
     arbiter_no_roll: bool = False
+    # Items picked up before narration (None: pickups weren't resolved early)
+    picked: Optional[set] = None
 
 
 @dataclass
@@ -347,13 +349,55 @@ def start_turn(session, action: str) -> TurnStart:
         # The UI renders the roll card before the narration arrives
         pre_events.append({"type": "roll", "result": arbiter_roll_result})
 
+    # Narrate from facts: what the roll uncovers and what the hero picks up is
+    # decided now, and the narrator is told, so the story matches the state
+    picked = _resolve_before_narration(session, action, arbiter_roll_result, pre_events)
+
     return TurnStart(
         finished=False,
         events=pre_events,
         arbiter_roll_result=arbiter_roll_result,
         scene_action=turn["scene_action"],
         arbiter_no_roll=turn["arbiter_no_roll"],
+        picked=picked,
     )
+
+
+def _resolve_before_narration(session, action: str, roll: Optional[dict],
+                              events: List[Dict[str, Any]]) -> set:
+    """
+    Apply search discoveries and pickups before the narrator writes. Their
+    player-facing lines are shown after the narration (session.turn_moments)
+    and the narrator gets them as facts that already happened.
+    """
+    lines: List[str] = []
+
+    def collect(text: str) -> None:
+        lines.append(text.strip())
+
+    _apply_search_discoveries(session, roll, events, collect)
+    picked = _apply_pickups(session, action, roll, events, collect)
+    if lines:
+        session.turn_moments = list(getattr(session, "turn_moments", None) or []) + lines
+        facts = [f"ALREADY HAPPENED (the game applied this; describe it, don't contradict it): "
+                 f"{_as_fact(line)}" for line in lines]
+        premise = session.turn_premise or Premise()
+        for fact in facts:
+            premise.note(fact)
+        session.turn_premise = premise
+    return picked
+
+
+def _as_fact(line: str) -> str:
+    """'📦 You take: Goblin Ear' -> 'The hero took Goblin Ear and now carries it.'"""
+    text = re.sub(r"^[^\w*]+", "", line).replace("**", "").strip()
+    m = re.match(r"You take: (.+)", text)
+    if m:
+        return f"The hero took {m.group(1)} and now carries it (they keep it)."
+    m = re.match(r"You take the (.+?): (\d+) gold", text)
+    if m:
+        return f"The hero took the {m.group(1)} ({m.group(2)} gold) and keeps it."
+    return text
 
 
 SEARCH_SKILLS = {"perception", "investigation"}
@@ -524,7 +568,9 @@ def finish_turn(
             events.append({"type": "roll", "result": outcome.roll_result})
 
     # A successful search can reveal secret exits and hidden items here
-    _apply_search_discoveries(session, outcome.roll_result, events, say)
+    if start.picked is None or outcome.roll_result is not start.arbiter_roll_result:
+        # Not resolved before narration (or the narrator asked for its own roll)
+        _apply_search_discoveries(session, outcome.roll_result, events, say)
 
     # [COMBAT: ...]
     enemies, surprise = parse_combat_request(narrator_text)
@@ -544,7 +590,8 @@ def finish_turn(
         say(f"\n\n⚔️ COMBAT STARTED! Enemies: {', '.join(enemies)}")
 
     # "I take the key": pick up items lying here, whatever the narrator does
-    picked = _apply_pickups(session, action, outcome.roll_result, events, say)
+    picked = start.picked if start.picked is not None else \
+        _apply_pickups(session, action, outcome.roll_result, events, say)
 
     # [ITEM: name]
     for item_name in parse_item_rewards(narrator_text):
