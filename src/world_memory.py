@@ -202,7 +202,23 @@ def npc_briefing(session) -> str:
         out += "\n\n".join(sections) + "\n"
     if brief:
         out += "\nOTHER KNOWN NPCS (not here; ONLY these exist - never invent new named characters):\n" + brief + "\n"
+    creatures = actor_lines(session)
+    if creatures:
+        out += "\nCREATURES AND CROWDS (use these exact names):\n" + creatures + "\n"
     return out
+
+
+def actor_lines(session) -> str:
+    """Scenario actors (Chief Grotnak, the goblins) with where they stand."""
+    from world_model import people
+
+    lines = []
+    for p in people(session):
+        if p["kind"] != "actor":
+            continue
+        state = "DEAD" if not p["alive"] else ("here" if p["here"] else "elsewhere")
+        lines.append(f"  - {p['name']} [id: {p['id']}] - {state}")
+    return "\n".join(lines)
 
 
 def quest_briefing(session) -> str:

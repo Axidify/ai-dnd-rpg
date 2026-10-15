@@ -38,6 +38,7 @@ from dm_scene import (
 from game_mechanics import (
     complete_ready_quests,
     start_structured_combat,
+    _matching_encounter,
     apply_scenario_transition,
     is_session_blocked,
     try_hostile_combat_gate,
@@ -386,7 +387,7 @@ def _apply_search_discoveries(session, roll: Optional[dict], events: List[Dict[s
 
 
 TAKE_VERBS = ["take", "grab", "pick up", "pocket", "loot", "collect", "snatch", "gather"]
-TAKE_ALL = ["everything", "all of it", "it all", "the loot"]
+TAKE_ALL = ["everything", "all of it", "it all", "the loot", "i loot", "loot the"]
 
 
 def _apply_pickups(session, action: str, roll: Optional[dict], events: List[Dict[str, Any]], say) -> set:
@@ -506,6 +507,15 @@ def finish_turn(
 
     # [COMBAT: ...]
     enemies, surprise = parse_combat_request(narrator_text)
+    if enemies:
+        # The narrator can start a location's fixed fight (all of it), never
+        # conjure enemies that aren't there or bring the defeated back
+        encounter_loc = _matching_encounter(session, enemies[0])
+        if encounter_loc:
+            enemies = list(encounter_loc.encounter)
+        else:
+            reject(f"No fight started: there are no {', '.join(enemies)} here to fight.", "combat", enemies)
+            enemies = []
     if enemies:
         outcome.combat_started = True
         start_structured_combat(session, enemies, surprise)

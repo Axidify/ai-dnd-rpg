@@ -723,6 +723,25 @@ def _matching_encounter(session, enemy_id: str):
     return None
 
 
+def combat_target_exists(session, action: str, enemies: List[str]) -> bool:
+    """
+    Outside a fixed encounter, a fight needs someone real to fight. Monsters
+    ("the chief", "a wolf") only exist through encounters, so naming one that
+    isn't here starts nothing. A brawl with townsfolk (bandit stats as the
+    stand-in) needs a living person or crowd present.
+    """
+    from world_model import people
+
+    manager = session.location_manager
+    if not (manager and manager.get_current_location()):
+        return True  # free mode: no world loaded to check against
+    monster_named = enemies[0] != "bandit" or has_phrase(action, "bandit")
+    if monster_named:
+        return False
+    hero = session.character.name if session.character else ""
+    return any(p["here"] and p["alive"] and p["name"] != hero for p in people(session))
+
+
 def try_hostile_combat_gate(session, action: str) -> Optional[Dict[str, Any]]:
     """
     Intercept hostile player actions and start structured combat instead of
@@ -739,6 +758,10 @@ def try_hostile_combat_gate(session, action: str) -> Optional[Dict[str, Any]]:
         # Fight the whole group that's actually there, once
         enemies = list(encounter_loc.encounter)
         encounter_loc.encounter_triggered = True
+    elif not combat_target_exists(session, action, enemies):
+        # Nothing of that kind is here (or it's already dead): no fight is
+        # conjured; the narrator describes the empty swing via the engine check
+        return None
     start_structured_combat(session, enemies)
     names = ", ".join(enemies)
     msg = (

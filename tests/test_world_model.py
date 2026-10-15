@@ -222,3 +222,47 @@ def test_failed_examine_roll_does_not_block_pickup(session, monkeypatch):
     picked = _apply_pickups(session, "I quietly take the shortsword",
                             {"skill": "Sleight_of_Hand", "success": False}, [], lambda t: None)
     assert picked == set()
+
+
+# --- fights only against enemies that exist ----------------------------------
+
+def test_defeated_boss_is_not_fought_again(session):
+    from game_mechanics import try_hostile_combat_gate
+    move(session, "boss_chamber")
+    here = session.location_manager.get_current_location()
+    here.encounter_triggered = here.encounter_defeated = True
+    assert try_hostile_combat_gate(session, "I charge at Chief Grotnak with my longsword!") is None
+    assert not session.in_combat
+
+
+def test_monsters_are_not_conjured(session):
+    from game_mechanics import try_hostile_combat_gate
+    move(session, "village_square")
+    assert try_hostile_combat_gate(session, "I attack the goblin chief!") is None
+    assert try_hostile_combat_gate(session, "I punch the villager") is None  # nobody here to brawl with
+
+
+def test_brawl_needs_someone_present(session):
+    from game_mechanics import try_hostile_combat_gate
+    assert try_hostile_combat_gate(session, "I punch the barkeep") is not None
+
+
+def test_fixed_encounter_still_fights_the_whole_group(session):
+    from game_mechanics import try_hostile_combat_gate
+    move(session, "goblin_camp_main")
+    result = try_hostile_combat_gate(session, "I draw my longsword and attack the goblins!")
+    assert result["enemies"] == ["goblin", "goblin", "goblin", "goblin"]
+
+
+def test_narrator_cannot_conjure_a_fight(session, monkeypatch):
+    move(session, "cave_tunnel")
+    turn(session, monkeypatch, "I listen.", "A wolf leaps at you! [COMBAT: wolf]")
+    assert not session.in_combat
+    assert any("No fight started" in n for n in session.dm_notes)
+
+
+def test_looting_takes_what_lies_here(session):
+    from turn_service import _apply_pickups
+    move(session, "goblin_camp_main")
+    picked = _apply_pickups(session, "I loot the camp.", None, [], lambda t: None)
+    assert {"Shortsword", "Rations", "Healing Potion"} <= picked

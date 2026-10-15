@@ -189,3 +189,11 @@ def test_memory_moments_are_shown_once_per_npc(session, monkeypatch):
     name = session.npc_manager.get_npc("bram").name
     assert body["message"].count(f"{name} will remember that.") == 1
     assert f"{name} warms to you." in body["message"]
+
+
+def test_briefing_names_creatures_and_their_state(session):
+    camp = session.location_manager.locations["boss_chamber"]
+    camp.encounter_triggered = camp.encounter_defeated = True
+    text = state_briefing(session)
+    assert "Chief Grotnak [id: grotnak] - DEAD" in text
+    assert "the goblins [id: goblins] - elsewhere" in text
