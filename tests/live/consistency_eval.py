@@ -189,6 +189,8 @@ def snapshot(session):
         "completed_quests": list(session.quest_manager.completed_quests),
         "active_quests": [q.id for q in session.quest_manager.get_active_quests()],
         "chronicle": list(session.chronicle),
+        "world": {k: (dict(v) if isinstance(v, dict) else list(v))
+                  for k, v in (getattr(session, "world", None) or {}).items()},
     }
 
 
@@ -334,7 +336,13 @@ def describe_changes(before, after, moments):
     started = set(after["active_quests"]) - set(before["active_quests"])
     if started:
         parts.append("quests accepted: " + ", ".join(started))
-    parts += [m.strip() for m in moments if m.strip().startswith("💭")]
+    world_before, world_after = before.get("world", {}), after.get("world", {})
+    for npc_id, status in (world_after.get("npc_status") or {}).items():
+        if (world_before.get("npc_status") or {}).get(npc_id) != status:
+            parts.append(f"{npc_id} is now {status}")
+    for npc_id in set(world_after.get("followers") or []) - set(world_before.get("followers") or []):
+        parts.append(f"{npc_id} now travels with the hero")
+    parts += [m.strip() for m in moments if m.strip().startswith(("💭", "🎉"))]
     return "; ".join(parts) or "none"
 
 
