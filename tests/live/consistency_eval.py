@@ -98,10 +98,18 @@ SCRIPT = [
     ("saveload",),
     ("probe", "recall", "I think back on why I'm here. Whose daughter am I rescuing, and what did I promise?",
      ["bram", "lily", "daughter"]),
+    ("go", "sneak left"),
+    ("act", "I take the storage key and the dagger."),
     ("go", "camp"),
+    # No fight has happened yet: there are no bodies to check
+    ("probe", "refuse", "I check the fallen goblins. Is any of them still moving?",
+     [r"\b(none|neither) of them (is|are) (breathing|moving)", r"\bthe (dead|fallen|slain) goblins\b",
+      r"\bcorpses?\b", r"\blifeless\b"]),
+    ("act", "I draw my longsword and attack the goblins!"),
     ("act", "I check the fallen goblins. Is any of them still moving?"),
     ("act", "I loot the camp."),
     ("go", "cages"),
+    ("act", "I take the lockpicks."),
     ("act", "I pick the lock on Lily's cage and free her."),
     ("say", "Lily, your father sent me. We're going home."),
     ("go", "camp"),
@@ -110,6 +118,7 @@ SCRIPT = [
     ("go", "camp"),
     ("go", "chief"),
     ("go", "lair"),
+    ("act", "I charge at Chief Grotnak with my longsword!"),
     ("probe", "refuse", "I ask the goblin chief where he hid his treasure.",
      [r"(?<!no )\b(chief|grotnak|boss)\b[^.]{0,30}\b(says|growls|snarls|replies|answers|laughs)\b"]),
     ("go", "hidden alcove"),
@@ -374,6 +383,8 @@ class Run:
     def fight(self):
         rounds = 0
         while self.session.in_combat and rounds < 40:
+            hero = self.session.character
+            hero.current_hp = max(hero.current_hp, 30)  # keep the run going; this measures consistency
             status = self.client.get(f"/api/combat/status?session_id={self.sid}").get_json() or {}
             alive = [i for i, e in enumerate(status.get("enemies") or []) if not e.get("is_dead")]
             payload = {"session_id": self.sid}

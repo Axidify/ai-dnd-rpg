@@ -7,6 +7,23 @@ description: Rescue a farmer's daughter from a goblin lair. A classic starter ad
 hook: A desperate farmer's daughter has been kidnapped by goblins. Will you brave the depths of Darkhollow
   Cave to save her?
 estimated_duration: 20-40 minutes
+# Creatures and crowds named in locations' npc lists that aren't full NPCs.
+actors:
+  grotnak:
+    name: Chief Grotnak
+    aliases: [grotnak, chief, chieftain, goblin chief, goblin boss, boss]
+  goblins:
+    name: the goblins
+    aliases: [goblin, goblins, guards, goblin guards]
+  bodyguards:
+    name: Grotnak's bodyguards
+    aliases: [bodyguard, bodyguards]
+  locals:
+    name: the locals
+    aliases: [locals, patrons, drinkers]
+  villagers:
+    name: the villagers
+    aliases: [villagers, townsfolk, crowd]
 scenes:
   tavern:
     id: tavern
@@ -22,8 +39,7 @@ scenes:
       Let the player ask questions, gather information from locals.
 
       IMPORTANT - WHEN PLAYER ACCEPTS THE QUEST:
-      - Give the [XP: ...] reward
-      - Give any items (torch, etc.)
+      - Bram can hand over his spare torch: [ITEM: torch] (XP is awarded by the game)
       - Describe Bram's relief and gratitude
       - END YOUR RESPONSE in the tavern
       - DO NOT narrate the journey - the player will navigate using 'go' commands

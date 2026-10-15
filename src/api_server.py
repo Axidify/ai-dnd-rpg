@@ -60,6 +60,7 @@ from game_mechanics import (
 
 from text_match import has_any
 from world_memory import chronicle, people_view, state_briefing
+from world_model import grants_briefing, premise_instruction
 from turn_service import (
     start_turn,
     finish_turn,
@@ -320,6 +321,7 @@ class GameSession:
         self.previous_location_id = None  # Last place travelled from (flee destination)
         self.dm_notes = []  # Facts the DM must learn on its next turn (e.g. combat results)
         self.chronicle = []  # Persistent hard facts the DM must never contradict (world_memory)
+        self.turn_premise = None  # Engine facts about the current action (world_model)
         
         # Social check tracking (retry prevention + game over)
         self.failed_social_checks = 0  # Total failed social checks
@@ -529,6 +531,10 @@ def apply_combat_victory(session: GameSession, enemies: list, result_messages: l
     for enemy in enemies:
         if enemy.is_dead:
             record_quest_kill(session, enemy, result_messages)  # allies' kills count too
+    # The location's fixed encounter is over: those enemies are dead for good
+    here = session.location_manager.get_current_location() if session.location_manager else None
+    if here and here.encounter and here.encounter_triggered and enemies and all(e.is_dead for e in enemies):
+        here.encounter_defeated = True
     if fallen:
         session.dm_notes.append(
             f"The party won a fight and killed: {', '.join(fallen)}. They are dead and stay dead."
@@ -705,12 +711,16 @@ def refresh_chat_context(session: GameSession):
     context_update = f"""[CONTEXT UPDATE - Current game state:]
 {state_briefing(session)}
 Current Location: {session.current_location or 'Unknown'}
-{build_scenario_context(session.scenario)}{build_location_context(session.location_manager)}"""
+{build_scenario_context(session.scenario)}{build_location_context(session.location_manager)}
+{grants_briefing(session)}"""
     if session.dm_notes:
         notes = "\n".join(f"- {note}" for note in session.dm_notes)
         context_update += f"\n\n[SINCE YOUR LAST NARRATION - these are facts, narrate consistently:]\n{notes}"
         session.dm_notes = []
-    
+    if session.turn_premise:
+        context_update += "\n" + premise_instruction(session.turn_premise)
+        session.turn_premise = None
+
     return context_update
 
 
@@ -969,7 +979,7 @@ def build_dm_context(session: GameSession, player_action: str) -> str:
         conversation_history=session.messages,
         player_action=player_action,
         available_enemies=list(ENEMIES.keys()),
-        state_ctx=state_briefing(session),
+        state_ctx=state_briefing(session) + "\n" + grants_briefing(session),
     )
 
 

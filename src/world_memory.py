@@ -72,11 +72,13 @@ def shift_attitude(npc, delta: int) -> int:
     return npc.disposition - before
 
 
-def apply_memory_tags(session, narrator_text: str) -> List[Dict[str, Any]]:
+def apply_memory_tags(session, narrator_text: str, allowed_ids=None) -> List[Dict[str, Any]]:
     """
     Apply [REMEMBER] and [ATTITUDE] tags from the narrator's raw text.
-    Tags naming unknown NPCs are ignored. Returns events (for the UI/log);
-    these are never shown to the player as text.
+    Tags naming unknown NPCs are ignored, and so are NPCs outside
+    ``allowed_ids`` (those in the scene): someone who isn't here can't learn
+    or feel anything about what just happened. Returns events (for the
+    UI/log); these are never shown to the player as text.
     """
     events: List[Dict[str, Any]] = []
     manager = session.npc_manager
@@ -85,12 +87,14 @@ def apply_memory_tags(session, narrator_text: str) -> List[Dict[str, Any]]:
 
     for ref, fact in REMEMBER_PATTERN.findall(narrator_text):
         npc = resolve_npc(manager, ref)
+        if npc and allowed_ids is not None and npc.id not in allowed_ids:
+            continue
         if npc and remember(npc, fact):
             events.append({"type": "npc_memory", "npc_id": npc.id, "fact": npc.memories[-1]})
 
     for ref, delta, reason in ATTITUDE_PATTERN.findall(narrator_text):
         npc = resolve_npc(manager, ref)
-        if not npc:
+        if not npc or (allowed_ids is not None and npc.id not in allowed_ids):
             continue
         applied = shift_attitude(npc, int(delta))
         if applied:

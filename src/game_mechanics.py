@@ -247,6 +247,7 @@ def serialize_session_state(session) -> Dict[str, Any]:
                 "recruited": npc.recruited,
                 "location_id": npc.location_id,
                 "memories": list(npc.memories),
+                "gifts": list(npc.gifts),
             }
             for npc in (session.npc_manager.get_all_npcs() if session.npc_manager else [])
         },

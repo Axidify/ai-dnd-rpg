@@ -8,9 +8,10 @@ import pytest
 import api_server
 from api_server import app, game_sessions
 
+# The torch is Bram's to give; gold and XP are the engine's, so those tags are rejected
 NARRATION = (
-    "You pry open the chest and find a small pouch. "
-    "[GOLD: 10] [ITEM: healing potion] [XP: 25 | found the stash]"
+    "Bram presses his spare torch into your hands. "
+    "[ITEM: torch] [GOLD: 10] [XP: 25 | kindness]"
 )
 
 
@@ -43,7 +44,7 @@ def _sse_events(response):
     return [json.loads(line[6:]) for line in body.splitlines() if line.startswith("data: ")]
 
 
-ACTION = "I open the old chest by the wall"
+ACTION = "I thank Bram for his help"
 
 
 def test_json_and_stream_apply_same_mechanics(client):
@@ -55,23 +56,25 @@ def test_json_and_stream_apply_same_mechanics(client):
     events = _sse_events(client.post("/api/game/action/stream",
                                      json={"session_id": stream_sid, "action": ACTION}))
 
-    # JSON summary
-    assert body["gold_gained"] == 10
-    assert body["xp_gained"] == 25
-    assert body["items_gained"] == ["healing potion"]
+    # JSON summary: the gift went through; narrated gold and XP did not
+    assert body["items_gained"] == ["torch"]
+    assert body["gold_gained"] == 0 and body["xp_gained"] == 0
     assert "[GOLD" not in body["message"] and "[ITEM" not in body["message"]
 
     # Stream events carry the same mechanics, and no raw tags leak in chunks
     types = [e["type"] for e in events]
-    assert "gold" in types and "item" in types and "xp" in types
+    assert "item" in types and "gold" not in types and "xp" not in types
+    assert [e["kind"] for e in events if e["type"] == "grant_rejected"] == ["gold", "xp"]
     assert types[-1] == "done"
     streamed_text = "".join(e["content"] for e in events if e["type"] == "chunk")
     assert "[" not in streamed_text
 
     json_session, stream_session = game_sessions[json_sid], game_sessions[stream_sid]
     for sid, session in ((json_sid, json_session), (stream_sid, stream_session)):
-        assert session.character.gold == gold_before[sid] + 10
-        assert session.character.experience == 25
+        assert session.character.gold == gold_before[sid]
+        assert session.character.experience == 0
+        # The narrator is corrected next turn
+        assert any("did NOT gain 10 gold" in note for note in session.dm_notes)
 
     # Same transcript text (ignoring each hero's random starting gold and the
     # spacing left where the stream filter removed tags), and each endpoint

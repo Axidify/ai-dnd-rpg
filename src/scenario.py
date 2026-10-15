@@ -603,6 +603,7 @@ class Location:
     # Combat Encounters (Phase 3.2.2 - Fixed difficulty)
     encounter: List[str] = field(default_factory=list)  # Fixed enemy types for this location
     encounter_triggered: bool = False  # Whether encounter has already occurred
+    encounter_defeated: bool = False   # Whether the party won that fight (the enemies are dead)
     
     # Random Encounters (Phase 3.2.1 - Priority 7)
     random_encounters: List[RandomEncounter] = field(default_factory=list)  # Possible random encounters
@@ -642,6 +643,7 @@ class Location:
             "items": self.items.copy(),  # Phase 3.2.1: Save picked-up items state
             "hidden_items": [hi.to_dict() for hi in self.hidden_items],  # Phase 3.3.5: Hidden items
             "encounter_triggered": self.encounter_triggered,  # Phase 3.2.2: Save encounter state
+            "encounter_defeated": self.encounter_defeated,
             "unlocked_exits": self.unlocked_exits.copy(),  # Phase 3.2.1: Save unlocked doors
             "random_encounter_triggers": self.random_encounter_triggers.copy(),  # Phase 3.2.1 Priority 7
             "random_encounter_last_visit": self.random_encounter_last_visit.copy()  # Phase 3.2.1 Priority 7
@@ -665,6 +667,7 @@ class Location:
                     hi.found = saved_hidden[hi.item_id].get("found", False)
         # Restore encounter state (Phase 3.2.2)
         location.encounter_triggered = state.get("encounter_triggered", False)
+        location.encounter_defeated = state.get("encounter_defeated", False)
         # Restore unlocked exits (Phase 3.2.1)
         location.unlocked_exits = state.get("unlocked_exits", [])
         # Restore random encounter state (Phase 3.2.1 Priority 7)
@@ -1657,6 +1660,11 @@ class Scenario:
     # Runtime state
     current_scene_id: Optional[str] = None
     is_complete: bool = False
+
+    # Named creatures and crowds that appear in locations' npc lists but
+    # aren't full NPCs (e.g. "grotnak", "goblins"): {ref: {name, aliases}}.
+    # Lets the world model tell who the player is referring to.
+    actors: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     # Objectives completed by events that aren't in the current scene's
     # objective list (e.g. "objective:rescue_lily" from a location event).
     extra_objectives_complete: List[str] = field(default_factory=list)

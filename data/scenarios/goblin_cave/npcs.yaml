@@ -5,6 +5,8 @@
   description: A panicked farmer in his 40s with bloodshot eyes from sleepless nights. His daughter Lily
     was kidnapped by goblins, and trauma has made his memory unreliable.
   role: QUEST_GIVER
+  aliases: [farmer, old man, old farmer, father, lily's father]
+  gifts: [torch]
   location_id: tavern_main
   dialogue:
     greeting: Please, you have to help me! The goblins - they took my Lily!
@@ -49,6 +51,7 @@
   description: A stout, graying man with a watchful eye. He knows all the village gossip and has heard
     tales from travelers passing through.
   role: INFO
+  aliases: [bartender, innkeeper, tavern keeper]
   location_id: tavern_main
   dialogue:
     greeting: What'll it be, traveler?
@@ -88,6 +91,7 @@
   description: A weathered sellsword with a scarred face and a well-maintained greatsword. He sits alone
     at a corner table, nursing a drink and watching the room.
   role: RECRUITABLE
+  aliases: [mercenary, sellsword]
   location_id: tavern_main
   dialogue:
     greeting: Looking for muscle? I'm between jobs. Name's Marcus.
@@ -131,6 +135,7 @@
   description: A tall, lean elf woman with sharp eyes and a longbow across her back. She moves with the
     quiet grace of a hunter. Her expression is grim, vengeful.
   role: RECRUITABLE
+  aliases: [ranger, the elf]
   location_id: forest_clearing
   dialogue:
     greeting: You're heading to Darkhollow? So am I. Those goblins killed my brother.
@@ -174,6 +179,7 @@
   description: A hooded figure barely visible in the darkness. Quick eyes glint from beneath the cowl,
     and a pair of daggers hang at their belt.
   role: RECRUITABLE
+  aliases: [rogue, the thief]
   location_id: goblin_camp_shadows
   dialogue:
     greeting: So... you noticed me. Impressive. Most don't until it's too late.
@@ -220,6 +226,7 @@
   description: A young woman of sixteen with dirty clothes and a defiant expression. Despite her captivity,
     her spirit is unbroken.
   role: INFO
+  aliases: [girl, daughter, child, bram's daughter, the prisoner]
   location_id: goblin_camp_main
   dialogue:
     greeting: You came! Father sent you, didn't he?
@@ -255,6 +262,7 @@
   description: A burly man in his fifties with a soot-stained leather apron and arms like tree trunks.
     His forge-roughened hands are surprisingly gentle with his craft.
   role: MERCHANT
+  aliases: [blacksmith, smith]
   location_id: blacksmith_shop
   dialogue:
     greeting: '*wipes hands on apron* Welcome to me forge! Looking for steel?'

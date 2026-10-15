@@ -197,6 +197,10 @@ class NPC:
 
     # What this NPC remembers about the hero (see world_memory.py)
     memories: List[str] = field(default_factory=list)
+
+    # World model (see world_model.py)
+    aliases: List[str] = field(default_factory=list)  # How players refer to them ("farmer", "the girl")
+    gifts: List[str] = field(default_factory=list)    # Item keys they can still hand the hero
     
     def __post_init__(self):
         """Validate NPC data after initialization."""
@@ -459,6 +463,8 @@ class NPCManager:
                     npc.location_id = state["location_id"]
                 if "memories" in state:
                     npc.memories = list(state["memories"])
+                if "gifts" in state:
+                    npc.gifts = list(state["gifts"])
 
 
 # =============================================================================

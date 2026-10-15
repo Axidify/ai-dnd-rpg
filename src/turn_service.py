@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from world_memory import apply_memory_tags, chronicle, memory_lines, remember, resolve_npc
+from world_model import analyze_action, claim_item, fair_price, merchant_here, npc_is_here, present_npcs
 
 from dm_engine import (
     parse_roll_request, parse_combat_request, parse_item_rewards,
@@ -275,6 +276,16 @@ def start_turn(session, action: str) -> TurnStart:
             response={"combat_started": True},
         )
 
+    # The world model checks what the action assumes (is Lily here? do I own
+    # that potion?). The facts reach the narrator with the context update.
+    premise = analyze_action(session, action)
+    session.turn_premise = premise
+    if premise.facts:
+        print(f"   🧭 Engine check: {' | '.join(premise.facts)}")
+    if premise.blocks_roll:
+        # Nothing real to roll against: the narrator describes reality instead
+        return TurnStart(finished=False, arbiter_no_roll=True)
+
     # Phase 1: arbiter + scene rules
     context_for_arbiter = f"Location: {session.current_location or 'Unknown'}"
     if session.quest_manager:
@@ -324,6 +335,8 @@ def start_turn(session, action: str) -> TurnStart:
 
 
 SEARCH_SKILLS = {"perception", "investigation"}
+# Failed rolls with these skills mean the taking itself failed
+PICKUP_BLOCKING_SKILLS = {"sleight_of_hand", "athletics", "acrobatics", "stealth"}
 
 
 def _apply_search_discoveries(session, roll: Optional[dict], events: List[Dict[str, Any]], say) -> None:
@@ -379,12 +392,15 @@ TAKE_ALL = ["everything", "all of it", "it all", "the loot"]
 def _apply_pickups(session, action: str, roll: Optional[dict], events: List[Dict[str, Any]], say) -> set:
     """
     Pick up items listed at the current location that the player asked to
-    take (by name, key or main noun, or "everything"). Skipped if the action
-    called for a roll and the roll failed. Gold pouches become gold.
+    take (by name, key or main noun, or "everything"). Skipped only when a
+    roll about the taking itself failed. Gold pouches become gold.
     Returns the names of items picked up.
     """
     picked = set()
-    if roll and not roll.get("success"):
+    # Items here lie in plain sight: only a failed roll about the taking itself
+    # (lifting it quietly, reaching it) stops a pickup, not a failed "examine it"
+    if roll and not roll.get("success") and \
+            str(roll.get("skill", "")).lower() in PICKUP_BLOCKING_SKILLS:
         return picked
     if not has_any(action, TAKE_VERBS):
         return picked
@@ -440,6 +456,12 @@ def finish_turn(
     events: List[Dict[str, Any]] = []
     # Everything the player sees this turn, for the transcript
     display_parts = [strip_dm_tags(narrator_text) if shown_narration is None else shown_narration]
+
+    def reject(note: str, kind: str, value) -> None:
+        """A grant the world can't back: apply nothing, correct the narrator next turn."""
+        session.dm_notes.append(note)
+        events.append({"type": "grant_rejected", "kind": kind, "value": value})
+        print(f"   🚫 Rejected narrator {kind}: {value}")
 
     def say(text: str) -> None:
         display_parts.append(text)
@@ -500,6 +522,11 @@ def finish_turn(
             continue
         if item.name in picked:
             continue  # already picked up deterministically this turn
+        allowed, _key = claim_item(session, item_name)
+        if not allowed:
+            reject(f"The hero did NOT receive {item.name}: nothing like it was here to give. "
+                   f"It is not theirs; never refer to it as theirs.", "item", item_name)
+            continue
         add_item_to_inventory(character.inventory, item)
         outcome.items_gained.append(item_name)
         events.append({"type": "item", "item": item_name, "message": f"Received: {item.name}"})
@@ -512,27 +539,22 @@ def finish_turn(
                     events.append({"type": "quest_update", "quest_id": quest_id,
                                    "objective_id": objective.id, "quest": quest.to_dict()})
 
-    # [GOLD: amount]
-    gold_gained = parse_gold_rewards(narrator_text)
-    if gold_gained > 0 and character:
-        character.gold += gold_gained
-        outcome.gold_gained = gold_gained
-        events.append({"type": "gold", "amount": gold_gained, "total": character.gold})
-        say(f"\n\n💰 Received {gold_gained} gold (Total: {character.gold})")
-
-    # [XP: amount | reason]
-    for xp_amount, reason in parse_xp_rewards(narrator_text):
-        if not character:
-            continue
-        leveled_up = bool(character.gain_xp(xp_amount, reason).get("level_up", False))
-        outcome.xp_gained += xp_amount
-        outcome.leveled_up = outcome.leveled_up or leveled_up
-        events.append({"type": "xp", "amount": xp_amount, "reason": reason, "leveled_up": leveled_up})
-        say(f"\n\n⭐ Gained {xp_amount} XP: {reason}" + (" 🎉 LEVEL UP!" if leveled_up else ""))
+    # [GOLD] / [XP]: the engine awards these (loot, quests, objectives,
+    # combat). Narration can't, so a model that tags them anyway is corrected.
+    gold_claimed = parse_gold_rewards(narrator_text)
+    if gold_claimed > 0:
+        reject(f"The hero did NOT gain {gold_claimed} gold; their gold is exactly what CHARACTER lists.",
+               "gold", gold_claimed)
+    for xp_amount, _reason in parse_xp_rewards(narrator_text):
+        reject("XP is awarded by the game, not by narration; none was gained from that.", "xp", xp_amount)
 
     # [BUY: item, price]
     for item_name, price in parse_buy_transactions(narrator_text):
         if not (character and character.gold >= price):
+            continue
+        if not (merchant_here(session) and fair_price(item_name, price)):
+            reject(f"No purchase happened: {item_name} can only be bought from a merchant here at its "
+                   f"price.", "buy", item_name)
             continue
         item = get_item(item_name)
         if item:
@@ -558,6 +580,9 @@ def finish_turn(
             session.party = Party()
         if session.party.is_full:
             continue
+        if not npc_is_here(session, npc_id):
+            reject(f"{npc_id} did NOT join the party: they are not here.", "recruit", npc_id)
+            continue
         member = get_recruitable_npc(npc_id)
         if member:
             session.party.add_member(member)
@@ -571,7 +596,7 @@ def finish_turn(
             print(f"   🎉 {member.name} joined the party!")
 
     # [REMEMBER: npc | fact] / [ATTITUDE: npc | +N | reason] - validated, persisted
-    memory_events = apply_memory_tags(session, narrator_text)
+    memory_events = apply_memory_tags(session, narrator_text, allowed_ids={n.id for n in present_npcs(session)})
     events.extend(memory_events)
     for line in memory_lines(session, memory_events):
         say(f"\n\n{line}")
