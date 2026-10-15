@@ -64,7 +64,7 @@ export default function HomeScreen({ onNewGame, onContinue }) {
         <p className="caps-muted mb-3">An AI-guided adventure</p>
         <h1 className="display text-5xl sm:text-6xl mb-4 tracking-tight">By Lamplight</h1>
         <p className="font-read text-[var(--ink-2)] text-lg leading-relaxed mb-9 max-w-xs mx-auto">
-          A Dungeon Master who remembers every choice. Speak your intent, and the story unfolds.
+          A Game Master who remembers every choice. Speak your intent, and the story unfolds.
         </p>
 
         <button

@@ -1,6 +1,6 @@
-# AI D&D Text RPG - Development Plan
+# By Lamplight — AI Text RPG - Development Plan
 
-**Project:** Text-based D&D RPG with AI Dungeon Master  
+**Project:** Text-based RPG with AI Game Master  
 **Status:** Phase 5 - Backend API & Community Modding (IN PROGRESS)  
 **Architecture:** API-First (dm_engine.py → api_server.py → React/Flutter/Godot)  
 **Methodology:** Terminal-First Development (Build → Test → Expose → Display)  
@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-A text-based role-playing game where an AI acts as the Dungeon Master, narrating adventures, managing encounters, and responding to player actions in real-time. 
+A text-based role-playing game where an AI acts as the Game Master, narrating adventures, managing encounters, and responding to player actions in real-time. 
 
 **Target Platforms:** React Web, Flutter Mobile, Godot Game Client  
 **Architecture:** API-first design using `dm_engine.py` → `api_server.py` → Frontend clients  
@@ -39,7 +39,7 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 ---
 
 ### Phase 2: Core Game Mechanics ✅ Complete
-**Goal:** Add actual D&D gameplay rules
+**Goal:** Add actual gameplay rules
 
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
@@ -78,7 +78,7 @@ A text-based role-playing game where an AI acts as the Dungeon Master, narrating
 ```
 - DM triggers with [COMBAT: enemy1, enemy2, enemy3]
 - All enemies roll initiative individually
-- Proper D&D turn order (sorted by initiative)
+- Proper initiative turn order (sorted by initiative)
 ```
 
 **Surprise & Advantage Features (2.5.2):**
@@ -1670,13 +1670,13 @@ class _WorldMapWidgetState extends State<WorldMapWidget> {
 ---
 
 ### Phase 5: Advanced AI DM Features ⬜ Not Started
-**Goal:** Smarter, more immersive AI dungeon master
+**Goal:** Smarter, more immersive AI game master
 
 | Step | Feature | Description | Status |
 |------|---------|-------------|--------|
 | 5.1 | Context Memory | AI remembers story events and player decisions | ⬜ |
 | 5.2 | Dynamic Story Generation | AI creates encounters based on player actions | ⬜ |
-| 5.3 | Rule Enforcement | AI validates actions against D&D rules | ⬜ |
+| 5.3 | Rule Enforcement | AI validates actions against rules | ⬜ |
 | 5.4 | Faction System | Track relationships with different groups | ⬜ |
 | 5.5 | Consequence Engine | Past choices affect future encounters | ⬜ |
 
@@ -2048,7 +2048,7 @@ Priority 3 - Moderation & Safety: ⬜ NOT STARTED
 | 6.1 | Flutter Project Setup | Initialize Flutter project, dependencies | ⬜ |
 | 6.2 | Theme System | 6 themes (Dark Fantasy, Light Parchment, Forest Green, Dungeon Stone, Royal Purple, Blood Crimson) + system default, theme persistence | ⬜ |
 | 6.3 | Chat Interface | Text input, scrollable message history, typing indicator, styled bubbles | ⬜ |
-| 6.4 | Character Screen | View stats, abilities, HP, AC in D&D-style layout | ⬜ |
+| 6.4 | Character Screen | View stats, abilities, HP, AC in tabletop-style layout | ⬜ |
 | 6.5 | Inventory Screen | Equipped items, backpack, gold tracker | ⬜ |
 | 6.6 | Dice Roller UI | Visual dice rolling animations, modifier support | ⬜ |
 | 6.7 | Settings Screen | Theme selector gallery, save/load, API config | ⬜ |

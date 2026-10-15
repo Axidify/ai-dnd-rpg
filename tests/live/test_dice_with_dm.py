@@ -1,6 +1,6 @@
 """
 Skill Check + AI DM Integration Test
-Test how SKILL CHECKS integrate with the AI Dungeon Master.
+Test how SKILL CHECKS integrate with the AI Game Master.
 (Combat/Attack rolls will be implemented separately)
 
 Run with: python tests/test_dice_with_dm.py
@@ -134,7 +134,7 @@ def format_roll(result: dict) -> str:
 # =============================================================================
 
 # System prompt for testing SKILL CHECKS (no combat/attacks)
-DM_SYSTEM_PROMPT = """You are an experienced Dungeon Master running a D&D adventure.
+DM_SYSTEM_PROMPT = """You are an experienced Game Master running a adventure.
 
 ## SKILL CHECK SYSTEM (THIS TEST ONLY COVERS SKILL CHECKS)
 
@@ -250,7 +250,7 @@ def main():
     chat = model.start_chat(history=[])
     
     # Initial scene setup
-    print("\n🎲 Dungeon Master:")
+    print("\n🎲 Game Master:")
     dm_response = get_dm_response(
         chat, 
         "Set an exploration scene where Thorn enters a mysterious area. Create tension through environmental or social challenges that require skill checks. Request a skill check using [ROLL: SkillName DC X] format. Remember: no combat in this test."
@@ -281,7 +281,7 @@ def main():
                 result_msg += " (NATURAL 1!)"
             result_msg += "]"
             
-            print(f"\n🎲 Dungeon Master:")
+            print(f"\n🎲 Game Master:")
             dm_response = get_dm_response(chat, result_msg)
             print()
         
@@ -297,7 +297,7 @@ def main():
             continue
         
         # Send action to DM
-        print("\n🎲 Dungeon Master:")
+        print("\n🎲 Game Master:")
         dm_response = get_dm_response(chat, action)
 
 

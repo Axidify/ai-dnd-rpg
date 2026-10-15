@@ -117,7 +117,7 @@ export default function StoryEntry({ message, isOpening }) {
 
       {awaitingNarration ? (
         <p className="font-read italic text-[var(--ink-2)] text-base" aria-live="polite">
-          The Dungeon Master weighs the outcome
+          The Game Master weighs the outcome
           <span className="caret" aria-hidden />
         </p>
       ) : prose ? (

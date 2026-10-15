@@ -1,5 +1,5 @@
 """
-Party System for AI D&D Text RPG
+Party System for AI Text RPG
 Handles party member management, recruitment, and combat integration.
 
 FEATURES:

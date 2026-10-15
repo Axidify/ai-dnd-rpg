@@ -1,6 +1,6 @@
 # Flutter Setup Guide
 
-## AI D&D Text RPG - Flutter Development Environment
+## By Lamplight — AI Text RPG - Flutter Development Environment
 
 This guide walks you through setting up Flutter for developing the cross-platform app.
 

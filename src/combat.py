@@ -1,5 +1,5 @@
 """
-Combat System for AI D&D Text RPG
+Combat System for AI Text RPG
 Handles attack rolls, damage, and combat encounters.
 """
 

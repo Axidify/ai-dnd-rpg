@@ -5,7 +5,7 @@
 
 ## Executive Summary
 
-The AI Dungeon Master was comprehensively assessed for mechanics compliance across **two test suites**:
+The AI Game Master was comprehensively assessed for mechanics compliance across **two test suites**:
 
 ### Test Suite 1: Mechanics Compliance (27 tests)
 | Metric | Value |
@@ -64,7 +64,7 @@ The DM did not invent:
 ### ✅ EXCELLENT: Format Compliance (100% compliant)
 
 - Uses correct `[ROLL: SkillName DC X]` format
-- Uses only valid D&D 5e skill names (after fix)
+- Uses only valid skill names (after fix)
 - Reasonable DC values (10-15 range)
 
 ### ⚠️ NEEDS IMPROVEMENT: Reroll Prevention (87.5%)
@@ -303,7 +303,7 @@ The two minor deviations found (skill naming, reroll edge case) have been fixed 
 **2. Unarmed Strike**
 - Player: "I tackle the goblin and wrestle him to the ground!"  
 - Result: DM used Athletics DC 13 instead of combat
-- Analysis: **Actually Correct D&D 5e** - Grappling is an Athletics check
+- Analysis: **Actually Correct d20 rules** - Grappling is an Athletics check
 - Severity: **None** - correct RAW interpretation
 
 ### Conclusion
@@ -314,4 +314,4 @@ The AI DM demonstrates excellent combat mechanics compliance:
 - **Proper SURPRISE usage** - uses [COMBAT: ... | SURPRISE] appropriately
 - **Good edge case handling** - uses skill checks where appropriate
 
-No fixes required - the 2 "failures" are actually valid D&D interpretations.
+No fixes required - the 2 "failures" are actually valid interpretations.

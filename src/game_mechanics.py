@@ -18,7 +18,7 @@ from combat import roll_dice, ENEMIES
 from inventory import get_item, add_item_to_inventory, remove_item_from_inventory, find_item_in_inventory
 from text_match import has_any, has_phrase
 
-# D&D 5e class skill proficiencies (simplified — one primary skill per class)
+# Class skill proficiencies (simplified — one primary skill per class)
 CLASS_SKILL_PROFICIENCIES = {
     "Fighter": ["athletics"],
     "Barbarian": ["athletics"],

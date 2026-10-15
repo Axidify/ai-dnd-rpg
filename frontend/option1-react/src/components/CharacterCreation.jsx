@@ -136,7 +136,7 @@ export default function CharacterCreation({ onBack }) {
                   <p className="text-sm text-[var(--ink-3)] font-read italic mt-3" aria-live="polite">
                     {name.trim().length === 1
                       ? 'A little longer: at least 2 letters.'
-                      : 'This is how the Dungeon Master will know you.'}
+                      : 'This is how the Game Master will know you.'}
                   </p>
                 </div>
               )}
@@ -205,7 +205,7 @@ export default function CharacterCreation({ onBack }) {
                     })}
                   </div>
                   <p className="text-sm text-[var(--ink-3)] font-read italic mt-4">
-                    Heritage shapes how the world sees you and how the Dungeon Master tells your story. It doesn't change your stats.
+                    Heritage shapes how the world sees you and how the Game Master tells your story. It doesn't change your stats.
                   </p>
                 </div>
               )}
@@ -302,7 +302,7 @@ export default function CharacterCreation({ onBack }) {
                   >
                     <div className="font-display text-lg text-[var(--ink)]">An open road</div>
                     <div className="text-sm text-[var(--ink-3)] font-read mt-0.5">
-                      Freeform: no map, quests or set story. The Dungeon Master improvises everything.
+                      Freeform: no map, quests or set story. The Game Master improvises everything.
                     </div>
                   </button>
                 </div>

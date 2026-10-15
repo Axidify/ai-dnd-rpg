@@ -171,7 +171,7 @@ export default function GameScreen({ onLeaveGame }) {
                   role="status"
                 >
                   <p className="font-ui text-sm text-[var(--ink-2)]">
-                    The Dungeon Master can't be reached right now.
+                    The Game Master can't be reached right now.
                     {lastAction ? ' Your action can be sent again.' : ' Your tale is ready when they are.'}
                   </p>
                   <button

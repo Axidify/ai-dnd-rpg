@@ -1,1 +1,1 @@
-# AI D&D Text RPG
+# By Lamplight — AI Text RPG

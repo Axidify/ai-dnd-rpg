@@ -1,7 +1,7 @@
-# AI D&D Text RPG
+# By Lamplight — AI Text RPG
 
-A text-based Dungeons & Dragons–style RPG where an LLM (Google Gemini, or any
-OpenAI-compatible server such as vLLM) acts as the Dungeon Master. A Flask API
+A text-based tabletop-style fantasy RPG where an LLM (Google Gemini, or any
+OpenAI-compatible server such as vLLM) acts as the Game Master. A Flask API
 runs the game rules; a React frontend renders the story, map and character.
 
 The rules engine, not the LLM, decides when you roll and what the result is:

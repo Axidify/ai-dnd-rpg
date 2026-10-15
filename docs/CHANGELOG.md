@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the AI D&D Text RPG project will be documented in this file.
+All notable changes to the AI Text RPG project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
@@ -1026,7 +1026,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Multi-Enemy Combat System** - Fight multiple enemies simultaneously
   - DM triggers multi-enemy combat with `[COMBAT: goblin, goblin, wolf]` format
   - All enemies roll initiative individually
-  - Proper D&D turn order - each combatant acts in initiative order
+  - Proper initiative turn order - each combatant acts in initiative order
   - Target selection with `attack 1`, `attack 2`, or just type the number
   - All enemies displayed with numbered targeting: `[1] Goblin 1`, `[2] Goblin 2`
 
@@ -1103,7 +1103,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.5.0] - 2024-12-16
 
 ### Added
-- **Phase 2.3: Combat System** - Full D&D-style turn-based combat
+- **Phase 2.3: Combat System** - Full tabletop-style turn-based combat
   - `src/combat.py` module with complete combat mechanics
   - **Initiative System**: d20 + DEX modifier, determines turn order
   - **Attack Rolls**: d20 + STR/DEX + proficiency vs AC
@@ -1155,7 +1155,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Phase 2.1: Skill Check System** - Integrated dice rolling with AI DM
   - Automatic dice rolling when DM requests checks
   - DM uses `[ROLL: SkillName DC X]` format to request rolls
-  - Full D&D 5e skill-to-ability mapping (18 skills)
+  - Full skill-to-ability mapping (18 skills)
   - Press Enter to roll mechanic for player engagement
   - Natural 20 and Natural 1 special handling
   - Visual roll results with success/failure indicators
@@ -1230,8 +1230,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - New `src/character.py` module with `Character` dataclass
   - Interactive character creation (name, race, class, stats)
   - Quick start option for random character generation
-  - 9 D&D races: Human, Elf, Dwarf, Halfling, Half-Orc, Tiefling, Dragonborn, Gnome, Half-Elf
-  - 12 D&D classes: Fighter, Wizard, Rogue, Cleric, Ranger, Barbarian, Paladin, Warlock, Bard, Monk, Druid, Sorcerer
+  - 9 races: Human, Elf, Dwarf, Halfling, Half-Orc, Tiefling, Dragonborn, Gnome, Half-Elf
+  - 12 classes: Fighter, Wizard, Rogue, Cleric, Ranger, Barbarian, Paladin, Warlock, Bard, Monk, Druid, Sorcerer
   - 4d6-drop-lowest stat rolling
   - ASCII character sheet display with HP bar
   - HP and AC calculation based on class and stats
@@ -1266,7 +1266,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 - **Phase 1.1: Simple Chat Loop** - Core game functionality
-  - Main game file (`src/game.py`) with AI Dungeon Master
+  - Main game file (`src/game.py`) with AI Game Master
   - Google Gemini 2.0 Flash integration via `google-generativeai`
   - System prompt defining DM behavior and narrative style
   - Interactive conversation loop with player input

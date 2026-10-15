@@ -1,5 +1,5 @@
 """
-Save/Load System for AI D&D Text RPG (Phase 3, Step 3.1)
+Save/Load System for AI Text RPG (Phase 3, Step 3.1)
 Handles game state persistence using JSON files.
 
 MULTI-PLATFORM NOTES:

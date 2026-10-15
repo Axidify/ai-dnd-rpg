@@ -1,8 +1,8 @@
 # Developer Documentation
 
-## AI D&D Text RPG - Technical Guide
+## By Lamplight — AI Text RPG - Technical Guide
 
-This document provides comprehensive technical documentation for developers who want to understand, maintain, or contribute to the AI D&D Text RPG project.
+This document provides comprehensive technical documentation for developers who want to understand, maintain, or contribute to the AI Text RPG project.
 
 ---
 
@@ -302,10 +302,10 @@ ai-dnd-rpg/
 
 ### 1. System Prompt (`DM_SYSTEM_PROMPT_BASE`)
 
-The system prompt is **critical** - it defines how the AI behaves as a Dungeon Master.
+The system prompt is **critical** - it defines how the AI behaves as a Game Master.
 
 ```python
-DM_SYSTEM_PROMPT_BASE = """You are an experienced Dungeon Master...
+DM_SYSTEM_PROMPT_BASE = """You are an experienced Game Master...
 
 Your responsibilities:
 - Narrate the story in an engaging, immersive way
@@ -362,7 +362,7 @@ def create_client(character: Character = None):
 
 ```python
 def get_dm_response(chat, player_input, stream=True):
-    """Get a response from the AI Dungeon Master."""
+    """Get a response from the AI Game Master."""
     try:
         if stream:
             response = chat.send_message(player_input, stream=True)
@@ -407,7 +407,7 @@ def main():
     chat = model.start_chat(history=[])
     
     # 3. Opening narration (streamed)
-    print("🎲 Dungeon Master:")
+    print("🎲 Game Master:")
     get_dm_response(chat, f"Welcome {character.name}...")
     
     # 4. Game loop with commands
@@ -425,7 +425,7 @@ def main():
             continue
         
         # Get AI response (streams to terminal)
-        print("🎲 Dungeon Master:")
+        print("🎲 Game Master:")
         get_dm_response(chat, player_input)
 ```
 
@@ -440,7 +440,7 @@ class Character:
     char_class: str     # Fighter, Wizard, Rogue, etc.
     level: int = 1
     
-    # Ability Scores (D&D 5e)
+    # Ability Scores 
     strength: int
     dexterity: int
     constitution: int
@@ -460,7 +460,7 @@ class Character:
 - `character.get_stat_block()` - ASCII art character sheet
 - `character.get_context_for_dm()` - Formatted info for AI prompt
 
-**D&D Rules Implemented:**
+**Rules Implemented:**
 - 4d6-drop-lowest stat rolling
 - HP = Hit die + CON modifier (varies by class)
 - AC = 10 + DEX modifier (unarmored)
@@ -1149,7 +1149,7 @@ src/
 
 ## DM Response Tags Reference
 
-The AI Dungeon Master uses special tags to trigger game mechanics. These tags are parsed from DM responses and processed by the game system.
+The AI Game Master uses special tags to trigger game mechanics. These tags are parsed from DM responses and processed by the game system.
 
 ### All DM Tags
 
@@ -5556,5 +5556,5 @@ def show_travel_menu(location, loc_mgr) -> dict:
 
 - [Google Gemini API Docs](https://ai.google.dev/docs)
 - [python-dotenv](https://pypi.org/project/python-dotenv/)
-- [D&D 5e SRD](https://www.5esrd.com/) (for game mechanics reference)
+- [SRD](https://www.5esrd.com/) (for game mechanics reference)
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) (project roadmap)

@@ -1,5 +1,5 @@
 """
-Character System for AI D&D Text RPG (Phase 1, Step 1.2)
+Character System for AI Text RPG (Phase 1, Step 1.2)
 Handles player character creation and stat management.
 """
 
@@ -7,7 +7,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Optional
 
-# D&D 5e Classes
+# Classes
 CLASSES = [
     "Fighter",
     "Wizard",
@@ -23,7 +23,7 @@ CLASSES = [
     "Sorcerer"
 ]
 
-# D&D 5e Races
+# Races
 RACES = [
     "Human",
     "Elf",
@@ -73,7 +73,7 @@ LEVEL_BENEFITS = {
 
 @dataclass
 class Character:
-    """Represents a player character with D&D stats."""
+    """Represents a player character with d20 ability scores."""
     
     # Basic Info
     name: str = "Unnamed Hero"
@@ -280,7 +280,7 @@ class Character:
     
     @staticmethod
     def roll_stat() -> int:
-        """Roll 4d6, drop lowest (standard D&D stat generation)."""
+        """Roll 4d6, drop lowest (standard d20 stat generation)."""
         rolls = [random.randint(1, 6) for _ in range(4)]
         rolls.remove(min(rolls))
         return sum(rolls)

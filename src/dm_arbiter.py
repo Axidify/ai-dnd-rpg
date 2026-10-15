@@ -1,5 +1,5 @@
 """
-DM Arbiter - Structured rules classifier for D&D mechanics.
+DM Arbiter - Structured rules classifier for d20 rules mechanics.
 
 This module implements a Two-Phase AI approach:
 Phase 1 (Arbiter): Decides if an action requires a skill check (structured JSON output)
@@ -32,7 +32,7 @@ class ActionType(Enum):
 
 
 class SkillName(Enum):
-    """Valid D&D 5e skills."""
+    """Valid skills."""
     PERSUASION = "Persuasion"
     INTIMIDATION = "Intimidation"
     DECEPTION = "Deception"
@@ -223,7 +223,7 @@ def check_code_overrides(action: str, context: str = "") -> Optional[ArbiterDeci
 # ARBITER AI PROMPT
 # =============================================================================
 
-ARBITER_SYSTEM_PROMPT = """You are a D&D 5e rules arbiter. Your ONLY job is to determine if a player action requires a skill check, and if so, which skill and DC.
+ARBITER_SYSTEM_PROMPT = """You are a tabletop RPG rules arbiter (d20 system). Your ONLY job is to determine if a player action requires a skill check, and if so, which skill and DC.
 
 OUTPUT: You MUST respond with ONLY a valid JSON object. No other text.
 

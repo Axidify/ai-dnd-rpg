@@ -1,6 +1,6 @@
 # UI/UX Design Specification
 
-## AI D&D Text RPG - Frontend Design Document
+## By Lamplight — AI Text RPG - Frontend Design Document
 
 ---
 
@@ -121,7 +121,7 @@ String themeId = SharedPreferences.getString('theme_id') ?? 'dark_fantasy';
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  ┌─────────────────────────────────────────┐        │
-│  │ 🎲 Dungeon Master                       │        │
+│  │ 🎲 Game Master                       │        │
 │  │                                          │        │
 │  │ You stand at the edge of the ancient    │        │ ← DM Message
 │  │ Misty Forest. The air is thick with     │        │
@@ -134,7 +134,7 @@ String themeId = SharedPreferences.getString('theme_id') ?? 'dark_fantasy';
 │              └──────────────────────────────────┘   │
 │                                                     │
 │  ┌─────────────────────────────────────────┐        │
-│  │ 🎲 Dungeon Master                       │        │
+│  │ 🎲 Game Master                       │        │
 │  │                                          │        │
 │  │ As you step into the forest, the        │        │
 │  │ canopy closes above you. Roll a         │        │

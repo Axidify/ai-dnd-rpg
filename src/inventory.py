@@ -1,5 +1,5 @@
 """
-Inventory System for AI D&D RPG
+Inventory System for AI RPG
 Handles items, equipment, consumables, and inventory management
 """
 
@@ -459,7 +459,7 @@ def parse_quality_weapon(item_name: str) -> Optional[Item]:
     return None
 
 
-# Max DEX modifier added to AC per armor type (None = no cap), per D&D 5e
+# Max DEX modifier added to AC per armor type (None = no cap), per standard d20 rules
 ARMOR_DEX_CAPS = {"light": None, "medium": 2, "heavy": 0}
 
 

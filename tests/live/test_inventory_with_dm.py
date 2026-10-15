@@ -1,6 +1,6 @@
 """
 Inventory + AI DM Integration Test
-Interactive inventory management with AI Dungeon Master narration.
+Interactive inventory management with AI Game Master narration.
 
 NOTE: The shop system in this test is a PROTOTYPE for testing AI merchant
 interactions. The shop feature is NOT yet implemented in the main game.
@@ -100,7 +100,7 @@ class MockCharacter:
 # AI DM INTEGRATION - INVENTORY & SHOPPING
 # =============================================================================
 
-DM_INVENTORY_PROMPT = """You are an experienced Dungeon Master narrating inventory and shopping scenes in a D&D game.
+DM_INVENTORY_PROMPT = """You are an experienced Game Master narrating inventory and shopping scenes in a game.
 
 ## YOUR ROLE
 Narrate item interactions, shopping, and loot discovery cinematically. React to what the player does with their items.
@@ -474,7 +474,7 @@ def run_interactive_test():
     print("\n" + "=" * 60)
     print("       🎒 INVENTORY SYSTEM INTERACTIVE TEST 🎒")
     print("=" * 60)
-    print("\nInitializing AI Dungeon Master...")
+    print("\nInitializing AI Game Master...")
     
     # Initialize AI
     dm_model = create_dm()

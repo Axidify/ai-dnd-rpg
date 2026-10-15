@@ -1,6 +1,6 @@
 # Theme System Specification
 
-## AI D&D Text RPG - DLC-Ready Theme Architecture
+## By Lamplight — AI Text RPG - DLC-Ready Theme Architecture
 
 ---
 

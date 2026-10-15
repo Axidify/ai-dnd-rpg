@@ -1,5 +1,5 @@
 """
-Quest System for AI D&D Text RPG (Phase 3.3, Step 3.3.4)
+Quest System for AI Text RPG (Phase 3.3, Step 3.3.4)
 Handles quest tracking, objectives, and rewards.
 
 FEATURES:

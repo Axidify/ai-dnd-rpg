@@ -578,7 +578,7 @@ STORY CRITICAL: Bram's quest to rescue Lily is the main storyline.
             else:
                 # DM should stay in character
                 broke_character = [
-                    "as your dm", "as the dungeon master", "i'll give you",
+                    "as your dm", "as the game master", "i'll give you",
                     "better stats", "i can change", "out of character"
                 ]
                 

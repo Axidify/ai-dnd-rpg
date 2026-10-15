@@ -1,5 +1,5 @@
 """
-Scenario System for AI D&D Text RPG (Phase 1, Step 1.3 + Phase 3.2 + Phase 3.3 + Phase 3.3.3 + Phase 3.3.4)
+Scenario System for AI Text RPG (Phase 1, Step 1.3 + Phase 3.2 + Phase 3.3 + Phase 3.3.3 + Phase 3.3.4)
 Manages scenes, story progression, narrative pacing, locations, NPCs, quests, and shops.
 """
 

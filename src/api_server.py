@@ -678,7 +678,7 @@ def init_dm_chat(session: GameSession):
     # Start chat with system context as the first message
     session.dm_chat = model.start_chat(history=[
         {"role": "user", "parts": [system_context]},
-        {"role": "model", "parts": ["I understand. I am ready to serve as your Dungeon Master. I will follow all the rules and constraints provided. Let the adventure begin!"]}
+        {"role": "model", "parts": ["I understand. I am ready to serve as your Game Master. I will follow all the rules and constraints provided. Let the adventure begin!"]}
     ])
     
     print(f"   💬 Chat session initialized")
@@ -801,7 +801,7 @@ NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome o
                 continue
             else:
                 print(f"Warning: Gemini returned empty response after {max_retries} attempts")
-                return "The Dungeon Master pauses thoughtfully... What would you like to do?"
+                return "The Game Master pauses thoughtfully... What would you like to do?"
                 
         except Exception as e:
             error_msg = str(e)
@@ -918,7 +918,7 @@ NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome o
                 else:
                     print(f"Warning: Gemini returned empty response after {max_retries} attempts")
                     print(f"  Action: {player_action[:50]}...")
-                    yield "The Dungeon Master pauses thoughtfully... What would you like to do?"
+                    yield "The Game Master pauses thoughtfully... What would you like to do?"
             
             return  # Success - exit the retry loop
                 
@@ -948,7 +948,7 @@ NARRATE the {"positive" if pre_roll_result['success'] else "negative"} outcome o
             
             if "response.text" in error_msg or "finish_reason" in error_msg:
                 session.dm_unavailable = True
-                yield ("*The Dungeon Master's response was interrupted.*\n\n"
+                yield ("*The Game Master's response was interrupted.*\n\n"
                        "Please try your action again, or try a different approach.")
             else:
                 yield get_fallback_response(session, player_action, False)
@@ -992,7 +992,7 @@ def get_fallback_response(session: GameSession, action: str, is_opening: bool = 
     # Atmosphere only: the UI shows the plain explanation and a retry button
     if is_opening:
         return "*The lamplight gutters, and the storyteller has not yet taken their seat.*"
-    return "*The lamplight gutters, and the Dungeon Master falls silent.*"
+    return "*The lamplight gutters, and the Game Master falls silent.*"
 
 
 # =============================================================================
@@ -1121,7 +1121,7 @@ HOOK: {scenario.hook}
 STARTING LOCATION: {first_scene.name if first_scene else session.current_location}
 SETTING: {first_scene.setting if first_scene else 'A mysterious location awaits.'}{npc_hint}
 
-You are the Dungeon Master. Set the scene dramatically and atmospherically. 
+You are the Game Master. Set the scene dramatically and atmospherically. 
 - Describe the immediate surroundings with vivid sensory details
 - Create tension or intrigue appropriate to the scenario
 - If introducing NPCs, use ONLY the names listed above - NEVER invent new names!
@@ -1145,7 +1145,7 @@ Keep it to 2-3 paragraphs. Be immersive and engaging."""
 
 LOCATION: Village Square of Willowbrook
 
-You are the Dungeon Master starting a free adventure. Set the scene:
+You are the Game Master starting a free adventure. Set the scene:
 - Describe the village square with vivid sensory details (sights, sounds, smells)
 - Mention nearby points of interest (tavern to the west, blacksmith to the east)
 - Create a sense of possibility and adventure
@@ -2810,7 +2810,7 @@ def get_reputation():
 def api_info():
     """Return API info since we're not serving a frontend here."""
     return jsonify({
-        'name': 'AI D&D RPG API',
+        'name': 'AI RPG API',
         'version': '1.2.0',
         'status': 'running',
         'endpoints': {

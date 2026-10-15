@@ -47,7 +47,7 @@ COMBAT_UNDERWAY_MESSAGE = (
     "⚔️ **Combat is underway!** Use **Attack**, **Defend**, or **Flee** "
     "below — narrative actions are paused until the fight ends."
 )
-EMPTY_NARRATION_FALLBACK = "The Dungeon Master pauses. *What would you like to do?*"
+EMPTY_NARRATION_FALLBACK = "The Game Master pauses. *What would you like to do?*"
 SOCIAL_BLOCK_MESSAGES = {
     "same_approach": (
         "*You consider pressing the same point again, but something in the NPC's "

@@ -1,5 +1,5 @@
 """
-NPC System for AI D&D Text RPG (Phase 3.3, Step 3.3.1)
+NPC System for AI Text RPG (Phase 3.3, Step 3.3.1)
 Handles Non-Player Characters with dialogue and quests.
 
 FEATURES:

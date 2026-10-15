@@ -134,7 +134,7 @@ export const useGameStore = create((set, get) => ({
       const timedOut = error.code === 'ECONNABORTED'
       set({
         error: timedOut
-          ? 'The Dungeon Master is taking too long to prepare your opening scene. Please try again.'
+          ? 'The Game Master is taking too long to prepare your opening scene. Please try again.'
           : error.response?.data?.error || 'Failed to create character',
         isLoading: false,
       })
@@ -316,7 +316,7 @@ export const useGameStore = create((set, get) => ({
     } catch (error) {
       const msg =
         error.name === 'AbortError'
-          ? 'The Dungeon Master took too long to respond. Please try again.'
+          ? 'The Game Master took too long to respond. Please try again.'
           : error.message || 'Streaming failed'
 
       set((state) => {

@@ -227,7 +227,7 @@ CHARACTER:
             
             # Check for role break
             role_break = ["i'm an ai", "as a language model", "i cannot roleplay", 
-                         "i'm not a dungeon master", "assistant"]
+                         "i'm not a game master", "assistant"]
             if any(ind in response.lower() for ind in role_break):
                 broke = True
                 deviation = "role_break"

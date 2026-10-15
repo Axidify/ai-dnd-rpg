@@ -1,5 +1,5 @@
 """
-Shop System for AI D&D Text RPG (Phase 3.3.3)
+Shop System for AI Text RPG (Phase 3.3.3)
 Handles merchant shops, buying, selling, haggling, and stock management.
 
 FEATURES:

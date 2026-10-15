@@ -191,7 +191,7 @@ export default function WorldMap({ isOpen, onClose }) {
             )}
             {data && total === 0 && (
               <p className="absolute inset-0 grid place-items-center px-6 text-center font-read italic text-[var(--ink-3)]">
-                This tale has no map. Wherever you wander, the Dungeon Master will describe it.
+                This tale has no map. Wherever you wander, the Game Master will describe it.
               </p>
             )}
           </div>

@@ -1,5 +1,5 @@
 """
-Unified Interactive Test Runner for AI D&D RPG
+Unified Interactive Test Runner for AI RPG
 Combines all test modules into a single menu-driven interface.
 
 Run with: python tests/run_interactive_tests.py
@@ -32,7 +32,7 @@ def show_main_menu():
     """Display the main menu."""
     print()
     print("╔" + "═" * 62 + "╗")
-    print("║" + "🎮 AI D&D RPG - INTERACTIVE TEST SUITE 🎮".center(62) + "║")
+    print("║" + "🎮 AI RPG - INTERACTIVE TEST SUITE 🎮".center(62) + "║")
     print("╠" + "═" * 62 + "╣")
     print("║" + "  UNIT TESTS (no AI required)".ljust(62) + "║")
     print("║" + "    1. Combat System Tests (31 tests)".ljust(62) + "║")
@@ -229,7 +229,7 @@ def run_interactive_shop():
     print("=" * 60)
     print("""
 This test simulates shopping with Trader Mira at the forest clearing.
-The AI Dungeon Master will narrate your shopping experience!
+The AI Game Master will narrate your shopping experience!
 
 Available commands:
   shop       - View Mira's wares
@@ -292,7 +292,7 @@ Available commands:
         # Get actual inventory for prompt
         inventory_info = get_shop_inventory_for_prompt(merchant, ITEMS)
         
-        SHOP_DM_PROMPT = f"""You are the Dungeon Master narrating a shopping interaction in a D&D-style RPG.
+        SHOP_DM_PROMPT = f"""You are the Game Master narrating a shopping interaction in a tabletop-style RPG.
 
 MERCHANT: {merchant.name}
 Description: {merchant.description}
@@ -329,7 +329,7 @@ When the player wants to talk, engage in character as Mira."""
         chat = model.start_chat(history=[])
         
         # Opening narration
-        print("\n🎲 Dungeon Master:")
+        print("\n🎲 Game Master:")
         try:
             response = chat.send_message(
                 "The adventurer approaches the merchant's stall in the forest clearing. Set the scene briefly."
@@ -359,7 +359,7 @@ When the player wants to talk, engage in character as Mira."""
         
         if lower_input in ["quit", "exit", "leave", "q"]:
             if ai_enabled and chat:
-                print("\n🎲 Dungeon Master:")
+                print("\n🎲 Game Master:")
                 try:
                     response = chat.send_message("The adventurer is leaving the shop. Give a brief farewell from Mira.")
                     print(f"  {response.text}")
@@ -383,7 +383,7 @@ When the player wants to talk, engage in character as Mira."""
             )
             print(display)
             if ai_enabled and chat:
-                print("\n🎲 Dungeon Master:")
+                print("\n🎲 Game Master:")
                 try:
                     response = chat.send_message("The player is browsing the wares. Brief reaction from Mira (1 sentence).")
                     print(f"  {response.text}")
@@ -413,7 +413,7 @@ When the player wants to talk, engage in character as Mira."""
             if not matching_item_id:
                 print(f"  ❌ Mira doesn't sell '{item_name}'.")
                 if ai_enabled and chat:
-                    print("\n🎲 Dungeon Master:")
+                    print("\n🎲 Game Master:")
                     try:
                         response = chat.send_message(f"Player tried to buy '{item_name}' but Mira doesn't have it. Her response.")
                         print(f"  {response.text}")
@@ -428,7 +428,7 @@ When the player wants to talk, engage in character as Mira."""
                 item_display = item.name if item else matching_item_id
                 print(f"  ❌ Mira is out of {item_display}!")
                 if ai_enabled and chat:
-                    print("\n🎲 Dungeon Master:")
+                    print("\n🎲 Game Master:")
                     try:
                         response = chat.send_message(f"Player tried to buy {item_display} but it's out of stock. Mira's apologetic response.")
                         print(f"  {response.text}")
@@ -449,7 +449,7 @@ When the player wants to talk, engage in character as Mira."""
             if character.gold < final_price:
                 print(f"  ❌ Not enough gold! Need {final_price}g, have {character.gold}g")
                 if ai_enabled and chat:
-                    print("\n🎲 Dungeon Master:")
+                    print("\n🎲 Game Master:")
                     try:
                         response = chat.send_message(f"Player can't afford {item.name} ({final_price}g). Mira's sympathetic but firm response.")
                         print(f"  {response.text}")
@@ -472,7 +472,7 @@ When the player wants to talk, engage in character as Mira."""
                 print(f"  💰 Remaining: {character.gold}g")
                 
                 if ai_enabled and chat:
-                    print("\n🎲 Dungeon Master:")
+                    print("\n🎲 Game Master:")
                     try:
                         stock_msg = ""
                         if remaining == 0:
@@ -499,7 +499,7 @@ When the player wants to talk, engage in character as Mira."""
             print(f"  ✅ Sold {item.name} for {sell_price}g!")
             print(f"  💰 Your gold: {character.gold}g")
             if ai_enabled and chat:
-                print("\n🎲 Dungeon Master:")
+                print("\n🎲 Game Master:")
                 try:
                     response = chat.send_message(f"Player sold {item.name} for {sell_price}g. Mira's reaction to the item.")
                     print(f"  {response.text}")
@@ -531,7 +531,7 @@ When the player wants to talk, engage in character as Mira."""
                 haggle_state[merchant.id]["discount"] = 0.20
                 print(f"\n  ✅ Success! 20% discount earned!")
                 if ai_enabled and chat:
-                    print("\n🎲 Dungeon Master:")
+                    print("\n🎲 Game Master:")
                     try:
                         response = chat.send_message(f"Player succeeded haggling (rolled {total} vs DC 12)! They get 20% discount. Narrate Mira reluctantly agreeing.")
                         print(f"  {response.text}")
@@ -544,7 +544,7 @@ When the player wants to talk, engage in character as Mira."""
                 merchant.disposition = max(0, merchant.disposition - 5)
                 print(f"\n  ❌ Failed! Prices increased by 10%!")
                 if ai_enabled and chat:
-                    print("\n🎲 Dungeon Master:")
+                    print("\n🎲 Game Master:")
                     try:
                         response = chat.send_message(f"Player failed haggling (rolled {total} vs DC 12). Mira is offended, prices go UP 10%. Narrate her annoyance.")
                         print(f"  {response.text}")
@@ -559,7 +559,7 @@ When the player wants to talk, engage in character as Mira."""
             topic = player_input.split(" ", 1)[1] if " " in player_input else "general"
             
             if ai_enabled and chat:
-                print("\n🎲 Dungeon Master:")
+                print("\n🎲 Game Master:")
                 try:
                     response = chat.send_message(f"Player wants to talk to Mira about: {topic}. Respond as Mira in character.")
                     print(f"  {response.text}")
@@ -590,7 +590,7 @@ When the player wants to talk, engage in character as Mira."""
         
         # Unknown command - let AI handle freeform input
         if ai_enabled and chat:
-            print("\n🎲 Dungeon Master:")
+            print("\n🎲 Game Master:")
             try:
                 response = chat.send_message(f"Player action in shop: '{player_input}'. React appropriately as DM/Mira.")
                 print(f"  {response.text}")
@@ -727,7 +727,7 @@ The adventure follows the Goblin Cave scenario:
     # Setup AI
     model = genai.GenerativeModel(
         model_name="gemini-2.0-flash",
-        system_instruction=f"""You are the Dungeon Master for "The Goblin Cave" adventure.
+        system_instruction=f"""You are the Game Master for "The Goblin Cave" adventure.
 
 Player: {character.name}, a level {character.level} {character.char_class}
 HP: {character.current_hp}/{character.max_hp}, AC: {character.armor_class}
@@ -768,7 +768,7 @@ When combat would occur, describe the situation but don't resolve attacks - say 
     print(f"  {location.get_exits_display()}")
     
     # Initial DM narration
-    print("\n🎲 Dungeon Master:")
+    print("\n🎲 Game Master:")
     response = chat.send_message(
         "Begin the adventure. The player has just entered the tavern. Set the scene and introduce them to the worried farmer Bram."
     )
@@ -864,7 +864,7 @@ When combat would occur, describe the situation but don't resolve attacks - say 
                     print(f"  {new_loc.get_exits_display()}")
                     
                     # AI describes the location
-                    print("\n🎲 Dungeon Master:")
+                    print("\n🎲 Game Master:")
                     response = chat.send_message(
                         f"[Player moved to {new_loc.name}. {new_loc.description}] Describe what they see."
                     )
@@ -910,7 +910,7 @@ When combat would occur, describe the situation but don't resolve attacks - say 
                 if location.has_npc(npc_name):
                     npc_display = npc_name.replace("_", " ").title()
                     print(f"\n  💬 You approach {npc_display}...")
-                    print("\n🎲 Dungeon Master:")
+                    print("\n🎲 Game Master:")
                     response = chat.send_message(
                         f"[Player wants to talk to {npc_display}] Roleplay this NPC."
                     )
@@ -929,7 +929,7 @@ When combat would occur, describe the situation but don't resolve attacks - say 
                 continue
             
             # Unknown command - pass to AI
-            print("\n🎲 Dungeon Master:")
+            print("\n🎲 Game Master:")
             response = chat.send_message(f"[Player action in {location.name}: {command}]")
             print(f"  {response.text}")
             

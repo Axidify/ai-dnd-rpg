@@ -62,7 +62,7 @@ def format_roll_result(result: dict) -> str:
     return f"{result['notation']} = {rolls_str}{mod_str} = {result['total']}"
 
 
-# Skill to ability mapping (D&D 5e)
+# Skill to ability mapping 
 SKILL_ABILITIES = {
     'athletics': 'strength',
     'acrobatics': 'dexterity',
