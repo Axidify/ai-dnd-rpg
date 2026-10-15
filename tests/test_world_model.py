@@ -266,3 +266,22 @@ def test_looting_takes_what_lies_here(session):
     move(session, "goblin_camp_main")
     picked = _apply_pickups(session, "I loot the camp.", None, [], lambda t: None)
     assert {"Shortsword", "Rations", "Healing Potion"} <= picked
+
+
+def test_talking_counts_only_for_npcs_who_are_here(session):
+    from world_model import npcs_addressed
+    move(session, "goblin_camp_cages")
+    assert npcs_addressed(session, 'I say: "Lily, your father sent me. We\'re going home."') == ["lily"]
+    assert npcs_addressed(session, "I comfort the girl and promise to get her out.") == ["lily"]
+    assert npcs_addressed(session, "I pick the lock.") == []
+    move(session, "cave_tunnel")
+    assert npcs_addressed(session, "I call out to Lily.") == []  # she isn't here
+
+
+def test_rescue_quest_progresses_when_speaking_to_lily(session, monkeypatch):
+    qm = session.quest_manager
+    assert qm.accept_quest("rescue_lily")
+    move(session, "goblin_camp_cages")
+    turn(session, monkeypatch, 'I say: "Lily, your father sent me."', "Lily sobs with relief.")
+    objective = next(o for o in qm.get_quest("rescue_lily").objectives if o.id == "find_lily")
+    assert objective.completed

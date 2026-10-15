@@ -22,7 +22,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from world_memory import apply_memory_tags, chronicle, memory_lines, remember, resolve_npc
-from world_model import analyze_action, claim_item, fair_price, merchant_here, npc_is_here, present_npcs
+from world_model import (
+    analyze_action, claim_item, fair_price, merchant_here, npc_is_here, npcs_addressed, present_npcs,
+)
 
 from dm_engine import (
     parse_roll_request, parse_combat_request, parse_item_rewards,
@@ -613,7 +615,7 @@ def finish_turn(
 
     # Quest objectives for talking to NPCs
     if session.quest_manager and session.npc_manager:
-        for npc_id in detect_npc_talk(action, session.npc_manager):
+        for npc_id in npcs_addressed(session, action):
             for quest_id, objective in session.quest_manager.on_npc_talked(npc_id):
                 quest = session.quest_manager.get_quest(quest_id)
                 if quest:

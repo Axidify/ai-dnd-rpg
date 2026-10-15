@@ -360,3 +360,21 @@ def merchant_here(session) -> bool:
 def fair_price(item_name: str, price: int) -> bool:
     item = get_item(item_name)
     return bool(item) and price >= max(1, item.value)
+
+
+SPEECH_WORDS = ["say", "ask", "tell", "talk", "speak", "greet", "hello", "call out", "whisper", "shout",
+                "reply", "answer", "promise", "reassure", "comfort", "thank", "introduce"]
+
+
+def npcs_addressed(session, action: str) -> List[str]:
+    """
+    NPCs the hero speaks to this turn: they must be here, named (or by
+    alias), and the action must be speech ('I say: "Lily, ..."', 'ask the
+    farmer', 'tell Bram'). Someone who isn't here can't be talked to.
+    """
+    text = _plain(action)
+    speaking = has_any(text, SPEECH_WORDS) or text.lstrip().startswith(("i say", '"'))
+    if not speaking:
+        return []
+    return [p["id"] for p in people(session)
+            if p["kind"] == "npc" and p["here"] and _mentions(text, p["words"])]
