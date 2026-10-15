@@ -18,6 +18,7 @@ function syncFromGameState(gameState, prev = {}) {
     inCombat: gameState.in_combat ?? prev.inCombat,
     quests: gameState.quest_log ?? prev.quests,
     party: gameState.party ?? prev.party,
+    people: gameState.people ?? prev.people ?? [],
     gameOver: gameState.game_over ?? prev.gameOver,
     gameOverReason: gameState.game_over_reason ?? prev.gameOverReason,
     dmUnavailable: gameState.dm_unavailable ?? prev.dmUnavailable ?? false,
@@ -49,6 +50,7 @@ export const useGameStore = create((set, get) => ({
   scenarios: [],
   quests: [],  // Quest log
   party: [],
+  people: [],
   gameOver: false,
   gameOverReason: null,
   dmUnavailable: false,  // last narration failed (LLM unreachable / stream error)
@@ -511,6 +513,7 @@ export const useGameStore = create((set, get) => ({
       currentLocation: null,
       quests: [],
       party: [],
+      people: [],
       gameOver: false,
       gameOverReason: null,
       combatStatus: null,

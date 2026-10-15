@@ -97,7 +97,7 @@ def apply_memory_tags(session, narrator_text: str) -> List[Dict[str, Any]]:
             events.append({"type": "npc_attitude", "npc_id": npc.id, "change": applied,
                            "disposition": npc.disposition, "reason": reason.strip()})
             if reason.strip():
-                remember(npc, f"{'Warmed to' if applied > 0 else 'Soured on'} the hero: {reason.strip()}")
+                remember(npc, reason.strip()[:1].upper() + reason.strip()[1:])
     return events
 
 
@@ -238,3 +238,55 @@ def state_briefing(session) -> str:
 def parse_memory_tags_for_test(text: str) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str, str]]]:
     """Expose raw tag parsing (used by tests)."""
     return REMEMBER_PATTERN.findall(text), ATTITUDE_PATTERN.findall(text)
+
+
+# =============================================================================
+# PLAYER-FACING VIEW
+# =============================================================================
+
+def people_view(session) -> List[Dict[str, Any]]:
+    """
+    The people the hero knows, for the UI: whoever is here, companions, and
+    anyone who remembers the hero. Public facts only (no personality secrets).
+    """
+    manager = session.npc_manager
+    if not manager:
+        return []
+    here = present_npc_ids(session)
+    party_ids = {m.id for m in session.party.members} if session.party else set()
+    people = []
+    for npc in manager.get_all_npcs():
+        is_here = npc.id in here
+        in_party = npc.id in party_ids or npc.recruited
+        if not (is_here or in_party or npc.memories):
+            continue
+        people.append({
+            "id": npc.id,
+            "name": npc.name,
+            "role": npc.role.name.lower(),
+            "description": npc.description,
+            "attitude": npc.get_disposition_level(),
+            "disposition": npc.disposition,
+            "memories": list(npc.memories),
+            "here": is_here,
+            "in_party": in_party,
+        })
+    people.sort(key=lambda p: (not p["here"], not p["in_party"], p["name"]))
+    return people
+
+
+def memory_lines(session, events: List[Dict[str, Any]]) -> List[str]:
+    """One short player-facing line per NPC whose memory or attitude changed."""
+    manager = session.npc_manager
+    lines, seen = [], set()
+    for event in events:
+        npc = manager.get_npc(event["npc_id"]) if manager else None
+        if not npc or (npc.id, event["type"]) in seen:
+            continue
+        seen.add((npc.id, event["type"]))
+        if event["type"] == "npc_memory":
+            lines.append(f"💭 {npc.name} will remember that.")
+        elif event["type"] == "npc_attitude":
+            feeling = "warms to you" if event["change"] > 0 else "cools toward you"
+            lines.append(f"💭 {npc.name} {feeling}.")
+    return lines

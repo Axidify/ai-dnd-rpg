@@ -59,7 +59,7 @@ from game_mechanics import (
 )
 
 from text_match import has_any
-from world_memory import chronicle, state_briefing
+from world_memory import chronicle, people_view, state_briefing
 from turn_service import (
     start_turn,
     finish_turn,
@@ -407,6 +407,7 @@ class GameSession:
             'messages': self.messages[-50:],  # Last 50 messages
             'quest_log': self._get_quest_log(),
             'party': party_members,
+            'people': people_view(self),
             'game_over': self.game_over,
             'game_over_reason': self.game_over_reason,
             'dm_unavailable': self.dm_unavailable,

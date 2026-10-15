@@ -348,7 +348,7 @@ export default function CharacterCreation({ onBack }) {
             >
               {isLoading ? (
                 <>
-                  <span className="w-4 h-4 rounded-full border-2 border-[#1a1408]/40 border-t-[#1a1408] animate-spin" />
+                  <span className="w-4 h-4 rounded-full border-2 border-[color-mix(in_srgb,var(--on-gold)_40%,transparent)] border-t-[var(--on-gold)] animate-spin" />
                   The DM is setting the scene…
                 </>
               ) : (

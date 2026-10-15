@@ -1,5 +1,5 @@
 import {
-  Backpack, Scroll, Map, ShoppingBag, Users, Moon, ArrowUpCircle, Save, FolderOpen, User, LogOut,
+  Backpack, Scroll, Map, ShoppingBag, Users, Moon, ArrowUpCircle, Save, FolderOpen, User, LogOut, MessageCircleHeart, Type,
 } from 'lucide-react'
 
 function Item({ icon: Icon, label, onClick, badge, accent, disabled }) {
@@ -17,7 +17,7 @@ function Item({ icon: Icon, label, onClick, badge, accent, disabled }) {
       <Icon size={20} aria-hidden />
       <span className="text-xs font-ui">{label}</span>
       {badge > 0 && (
-        <span className="absolute top-2 right-2 min-w-[16px] h-4 px-1 rounded-full bg-[var(--gold)] text-[#1a1408] text-[10px] font-semibold leading-4 text-center">
+        <span className="absolute top-2 right-2 min-w-[16px] h-4 px-1 rounded-full bg-[var(--gold)] text-[var(--on-gold)] text-[10px] font-semibold leading-4 text-center">
           {badge}
         </span>
       )}
@@ -27,12 +27,13 @@ function Item({ icon: Icon, label, onClick, badge, accent, disabled }) {
 
 export default function MenuPanel({
   questCount, canLevelUp,
-  onHero, onInventory, onQuests, onMap, onShop, onParty, onRest, onLevelUp, onSave, onLoad, onLeave,
+  onHero, onPeople, onReading, onInventory, onQuests, onMap, onShop, onParty, onRest, onLevelUp, onSave, onLoad, onLeave,
 }) {
   return (
     <div>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
         <Item icon={User} label="Hero" onClick={onHero} />
+        <Item icon={MessageCircleHeart} label="People" onClick={onPeople} />
         <Item icon={Backpack} label="Inventory" onClick={onInventory} />
         <Item icon={Scroll} label="Quests" onClick={onQuests} badge={questCount} />
         <Item icon={Map} label="Map" onClick={onMap} />
@@ -42,6 +43,7 @@ export default function MenuPanel({
         {canLevelUp && <Item icon={ArrowUpCircle} label="Level up" onClick={onLevelUp} accent />}
         <Item icon={Save} label="Save" onClick={onSave} />
         <Item icon={FolderOpen} label="Load" onClick={onLoad} />
+        <Item icon={Type} label="Reading" onClick={onReading} />
       </div>
       <button
         type="button"

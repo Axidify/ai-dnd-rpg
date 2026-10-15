@@ -436,7 +436,7 @@ def finish_quest(session, quest_id: str) -> Optional[Dict[str, Any]]:
         npc = session.npc_manager.get_npc(quest.giver_npc_id)
         if npc:
             npc.modify_disposition(quest.get_disposition_reward())
-            remember(npc, f"The hero completed '{quest.name}' for them")
+            remember(npc, f"Completed '{quest.name}' for them")
     chronicle(session, f"Quest completed: {quest.name}.")
     return rewards
 

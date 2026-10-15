@@ -1,16 +1,22 @@
-import { forwardRef } from 'react'
-import { ArrowRight, Eye, Footprints, MessageCircle, Sword, ShieldHalf, Wind } from 'lucide-react'
+import { forwardRef, useLayoutEffect, useRef } from 'react'
+import { ArrowRight, Eye, Footprints, Sword, ShieldHalf, Wind } from 'lucide-react'
+
+const MODES = [
+  { id: 'do', label: 'Do', placeholder: 'What do you do?' },
+  { id: 'say', label: 'Say', placeholder: 'What do you say?' },
+]
 
 const SUGGESTIONS = [
   { label: 'Look around', action: 'I look carefully around me.', icon: Eye },
   { label: 'Press on', action: 'I continue onward.', icon: Footprints },
-  { label: 'Speak', action: 'I speak up.', icon: MessageCircle },
 ]
 
 const CommandBar = forwardRef(function CommandBar(
   {
     input,
     setInput,
+    mode = 'do',
+    setMode,
     onSubmit,
     onSuggestion,
     isLoading,
@@ -24,6 +30,28 @@ const CommandBar = forwardRef(function CommandBar(
   ref
 ) {
   const enemies = combatStatus?.enemies || []
+  const localRef = useRef(null)
+  const setRefs = (el) => {
+    localRef.current = el
+    if (typeof ref === 'function') ref(el)
+    else if (ref) ref.current = el
+  }
+  const current = MODES.find((m) => m.id === mode) || MODES[0]
+
+  // Grow with the text, up to about six lines
+  useLayoutEffect(() => {
+    const el = localRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`
+  }, [input])
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      onSubmit?.(e)
+    }
+  }
 
   return (
     <div className="relative z-20 shrink-0 border-t border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-md">
@@ -69,42 +97,61 @@ const CommandBar = forwardRef(function CommandBar(
           <p className="text-center text-sm text-[var(--ink-3)] font-ui mb-3">
             Your adventure has ended.
           </p>
-        ) : (
-          !input.trim() && (
-            <div className="flex flex-wrap gap-2 mb-3 justify-center">
-              {SUGGESTIONS.map((s) => {
-                const Icon = s.icon
-                return (
-                  <button
-                    key={s.label}
-                    type="button"
-                    disabled={isLoading}
-                    onClick={() => onSuggestion?.(s.action)}
-                    className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--line-strong)] text-[var(--ink-2)] text-[0.8rem] font-ui hover:text-[var(--gold)] hover:border-[var(--gold)] hover:bg-[var(--gold-soft)] transition disabled:opacity-40"
-                  >
-                    <Icon size={13} aria-hidden />
-                    {s.label}
-                  </button>
-                )
-              })}
-            </div>
-          )
-        )}
+        ) : null}
 
         {!inCombat && !gameOver && (
         <form onSubmit={onSubmit}>
-          <div className="group flex items-end gap-3 border-b border-[var(--line-strong)] focus-within:border-[var(--gold)] transition-colors pb-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="mode-switch" role="group" aria-label="Action type">
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  aria-pressed={mode === m.id}
+                  onClick={() => { setMode?.(m.id); localRef.current?.focus() }}
+                  className="focus-ring"
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {input.trim() ? (
+              <span className="hidden sm:inline font-ui text-[0.7rem] text-[var(--ink-3)]">
+                Enter to send · Shift+Enter for a new line
+              </span>
+            ) : (
+              <div className="flex gap-1.5">
+                {SUGGESTIONS.map((sug) => {
+                  const Icon = sug.icon
+                  return (
+                    <button
+                      key={sug.label}
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => onSuggestion?.(sug.action)}
+                      className="focus-ring inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[var(--ink-3)] text-[0.78rem] font-ui hover:text-[var(--gold)] hover:bg-[var(--gold-soft)] transition disabled:opacity-40"
+                    >
+                      <Icon size={13} aria-hidden />
+                      {sug.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          <div className="group flex items-end gap-3 rounded-xl border border-[var(--line-strong)] bg-[var(--bg-deep)] focus-within:border-[var(--gold)] transition-colors pl-4 pr-1.5 py-1.5">
             <label htmlFor="player-action" className="sr-only">
-              Describe your action
+              {current.placeholder}
             </label>
-            <input
+            <textarea
               id="player-action"
-              ref={ref}
-              type="text"
+              ref={setRefs}
+              rows={1}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="What do you do?"
-              className="field flex-1 text-[1.05rem] py-1.5 font-read"
+              onKeyDown={onKeyDown}
+              placeholder={current.placeholder}
+              className="field flex-1 resize-none text-[1.05rem] leading-relaxed py-1.5 font-read"
               disabled={isLoading}
               autoComplete="off"
               autoFocus
@@ -113,12 +160,12 @@ const CommandBar = forwardRef(function CommandBar(
               type="submit"
               disabled={isLoading || !input.trim()}
               aria-label="Send"
-              className="focus-ring shrink-0 mb-0.5 w-9 h-9 grid place-items-center rounded-full transition disabled:opacity-30 text-[var(--gold)] hover:bg-[var(--gold-soft)] enabled:hover:scale-105"
+              className="focus-ring shrink-0 w-9 h-9 grid place-items-center rounded-lg transition disabled:opacity-30 text-[var(--on-gold)] bg-[var(--gold)] enabled:hover:bg-[var(--gold-bright)]"
             >
               {isLoading ? (
-                <span className="w-4 h-4 rounded-full border-2 border-[var(--ink-3)] border-t-[var(--gold)] animate-spin" />
+                <span className="w-4 h-4 rounded-full border-2 border-[color-mix(in_srgb,var(--on-gold)_40%,transparent)] border-t-[var(--on-gold)] animate-spin" />
               ) : (
-                <ArrowRight size={20} />
+                <ArrowRight size={18} />
               )}
             </button>
           </div>

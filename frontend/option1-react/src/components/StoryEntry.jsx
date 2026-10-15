@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { renderMarkdown } from '../lib/markdown'
+import { splitMoments, MomentList } from '../lib/moments'
 
 const TUMBLE_MS = 700
 
@@ -104,7 +105,7 @@ export default function StoryEntry({ message, isOpening }) {
   }
 
   const hasRoll = message.rollResult && typeof message.rollResult === 'object'
-  const prose = (message.content || '').trim()
+  const { prose, moments } = splitMoments(message.content)
   const awaitingNarration = message.isStreaming && hasRoll && !prose
 
   return (
@@ -130,6 +131,8 @@ export default function StoryEntry({ message, isOpening }) {
           <span className="caret" aria-hidden />
         </p>
       ) : null}
+
+      <MomentList moments={moments} />
     </motion.div>
   )
 }

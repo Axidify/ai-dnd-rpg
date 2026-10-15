@@ -8,6 +8,8 @@ import StoryEntry from './StoryEntry'
 import HeroDrawer from './HeroDrawer'
 import Modal from './Modal'
 import WorldMap from './WorldMap'
+import ScenePanel from './ScenePanel'
+import ReadingPanel from './panels/ReadingPanel'
 import InventoryPanel from './panels/InventoryPanel'
 import QuestsPanel from './panels/QuestsPanel'
 import ShopPanel from './panels/ShopPanel'
@@ -16,8 +18,18 @@ import RestPanel from './panels/RestPanel'
 import MenuPanel from './panels/MenuPanel'
 import { SavePanel, LoadPanel } from './panels/SaveLoadPanels'
 
+/** Say mode turns "Where is Lily?" into: I say: "Where is Lily?" */
+function composeAction(text, mode) {
+  if (mode !== 'say') return text
+  const quoted = /^["“].*["”]$/s.test(text) ? text : `"${text}"`
+  return `I say: ${quoted}`
+}
+
 export default function GameScreen({ onLeaveGame }) {
   const [input, setInput] = useState('')
+  const [mode, setMode] = useState('do')
+  const [showPeople, setShowPeople] = useState(false)
+  const [showReading, setShowReading] = useState(false)
   const [showHero, setShowHero] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showInventory, setShowInventory] = useState(false)
@@ -41,7 +53,7 @@ export default function GameScreen({ onLeaveGame }) {
     combatStatus, getCombatStatus, combatAttack, combatDefend, combatFlee,
     levelUp, rest, useItem, equipItem,
     shopInventory, browseShop, buyItem, sellItem,
-    party, availableRecruits, getParty, recruitMember,
+    party, availableRecruits, getParty, recruitMember, people,
   } = useGameStore()
 
   useEffect(() => {
@@ -60,7 +72,7 @@ export default function GameScreen({ onLeaveGame }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (input.trim() && !isLoading && !gameOver) {
-      sendActionStreaming(input.trim())
+      sendActionStreaming(composeAction(input.trim(), mode))
       setInput('')
       setTimeout(() => inputRef.current?.focus(), 0)
     }
@@ -85,6 +97,8 @@ export default function GameScreen({ onLeaveGame }) {
   const openRest = () => { closeAll(); setShowRest(true) }
   const openSave = () => { closeAll(); setSaveError(null); setShowSave(true) }
   const openShop = () => { closeAll(); useGameStore.setState({ shopInventory: null }); browseShop(); setShowShop(true) }
+  const openPeople = () => { closeAll(); setShowPeople(true) }
+  const openReading = () => { closeAll(); setShowReading(true) }
   const openParty = () => { closeAll(); getParty(); setShowParty(true) }
   const openLoad = async () => {
     closeAll()
@@ -129,8 +143,14 @@ export default function GameScreen({ onLeaveGame }) {
         onOpenInventory={openInventory}
         onOpenMap={openMap}
         onOpenQuests={openQuests}
+        onOpenPeople={openPeople}
+        onOpenReading={openReading}
+        peopleHere={(people || []).filter((p) => p.here).length}
         onOpenMenu={() => setShowMenu(true)}
       />
+
+      <div className="flex-1 min-h-0 flex">
+      <div className="flex-1 min-w-0 flex flex-col">
 
       {/* Story */}
       <div className="relative z-10 flex-1 overflow-y-auto">
@@ -202,7 +222,19 @@ export default function GameScreen({ onLeaveGame }) {
         onAttack={combatAttack}
         onDefend={combatDefend}
         onFlee={combatFlee}
+        mode={mode}
+        setMode={setMode}
       />
+      </div>
+
+      {/* Scene rail: who's here and what's next (wide screens) */}
+      <aside
+        className="hidden xl:block w-[21rem] shrink-0 border-l border-[var(--line)] overflow-y-auto px-6 py-8 bg-[color-mix(in_srgb,var(--bg-deep)_45%,transparent)]"
+        aria-label="Scene"
+      >
+        <ScenePanel people={people} quests={quests} />
+      </aside>
+      </div>
 
       {/* Hero drawer */}
       <HeroDrawer
@@ -226,6 +258,8 @@ export default function GameScreen({ onLeaveGame }) {
           questCount={activeQuestCount}
           canLevelUp={canLevelUp}
           onHero={() => { setShowMenu(false); setShowHero(true) }}
+          onPeople={openPeople}
+          onReading={openReading}
           onInventory={openInventory}
           onQuests={openQuests}
           onMap={openMap}
@@ -237,6 +271,14 @@ export default function GameScreen({ onLeaveGame }) {
           onLoad={openLoad}
           onLeave={handleLeave}
         />
+      </Modal>
+
+      <Modal open={showPeople} onClose={() => setShowPeople(false)} eyebrow="Your story so far" title="People & objectives" titleId="people-title" maxWidth="max-w-md">
+        <ScenePanel people={people} quests={quests} />
+      </Modal>
+
+      <Modal open={showReading} onClose={() => setShowReading(false)} eyebrow="Make it yours" title="Reading" titleId="reading-title" maxWidth="max-w-sm">
+        <ReadingPanel />
       </Modal>
 
       <Modal open={showInventory} onClose={() => setShowInventory(false)} eyebrow="Your pack" title="Inventory" titleId="inv-title">

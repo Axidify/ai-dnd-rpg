@@ -167,3 +167,25 @@ def test_memories_attitude_and_chronicle_survive_save_and_load(session):
 def test_initial_prompt_uses_briefing(session):
     prompt = api_server.build_dm_context(session, "[GAME START]")
     assert "Carrying ONLY:" in prompt and "CONSISTENCY & MEMORY" in prompt
+
+
+# --- player-facing view -----------------------------------------------------
+
+def test_people_view_lists_present_and_remembering_npcs_without_secrets(session):
+    remember(session.npc_manager.get_npc("lily"), "Was rescued by the hero")
+    people = {p["id"]: p for p in session.to_dict()["people"]}
+    assert people["bram"]["here"] and people["bram"]["attitude"]
+    assert people["lily"]["memories"] == ["Was rescued by the hero."] and not people["lily"]["here"]
+    assert "personality" not in people["bram"]
+
+
+def test_memory_moments_are_shown_once_per_npc(session, monkeypatch):
+    monkeypatch.setattr(api_server, "get_dm_response", lambda *a, **k: (
+        "He smiles. [REMEMBER: bram | Bought him a drink] [REMEMBER: bram | Was kind] "
+        "[ATTITUDE: bram | +5 | kindness]"))
+    with app.test_client() as client:
+        body = client.post("/api/game/action", json={
+            "session_id": session.session_id, "action": "I buy Bram a drink"}).get_json()
+    name = session.npc_manager.get_npc("bram").name
+    assert body["message"].count(f"{name} will remember that.") == 1
+    assert f"{name} warms to you." in body["message"]

@@ -1,4 +1,4 @@
-import { Backpack, Map, Scroll, Menu, Heart } from 'lucide-react'
+import { Backpack, Map, Scroll, Menu, Heart, MessageCircleHeart, Type } from 'lucide-react'
 import { getClassIcon } from '../lib/classIcons'
 import { getCharacterHp } from '../lib/gameConstants'
 
@@ -13,7 +13,7 @@ function IconButton({ label, onClick, badge, children }) {
     >
       {children}
       {badge > 0 && (
-        <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--gold)] text-[#1a1408] text-[10px] font-semibold leading-4 text-center">
+        <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--gold)] text-[var(--on-gold)] text-[10px] font-semibold leading-4 text-center">
           {badge}
         </span>
       )}
@@ -30,6 +30,9 @@ export default function TopBar({
   onOpenInventory,
   onOpenMap,
   onOpenQuests,
+  onOpenPeople,
+  onOpenReading,
+  peopleHere = 0,
   onOpenMenu,
 }) {
   const ClassIcon = getClassIcon(character?.char_class || character?.class)
@@ -83,6 +86,12 @@ export default function TopBar({
       {/* Actions */}
       <div className="flex items-center gap-0.5">
         <div className="hidden sm:flex items-center gap-0.5">
+          {/* The scene rail shows people on wide screens */}
+          <span className="xl:hidden">
+            <IconButton label="People & objectives" onClick={onOpenPeople} badge={peopleHere}>
+              <MessageCircleHeart size={18} aria-hidden />
+            </IconButton>
+          </span>
           <IconButton label="Quest journal" onClick={onOpenQuests} badge={questCount}>
             <Scroll size={18} aria-hidden />
           </IconButton>
@@ -91,6 +100,9 @@ export default function TopBar({
           </IconButton>
           <IconButton label="Inventory" onClick={onOpenInventory}>
             <Backpack size={18} aria-hidden />
+          </IconButton>
+          <IconButton label="Reading settings" onClick={onOpenReading}>
+            <Type size={18} aria-hidden />
           </IconButton>
         </div>
         <IconButton label="Menu" onClick={onOpenMenu}>
