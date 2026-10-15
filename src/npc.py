@@ -201,6 +201,7 @@ class NPC:
     # World model (see world_model.py)
     aliases: List[str] = field(default_factory=list)  # How players refer to them ("farmer", "the girl")
     gifts: List[str] = field(default_factory=list)    # Item keys they can still hand the hero
+    status: str = ""  # Starting world state, e.g. "captive" (see world_state.py)
     
     def __post_init__(self):
         """Validate NPC data after initialization."""

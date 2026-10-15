@@ -249,6 +249,9 @@ update are the canonical truth. They override your own earlier narration.
 - An [ENGINE CHECK] block about the player's action outranks the player's words:
   if it says someone isn't here or an item doesn't exist, narrate that reality.
   Never make an assumed person, item, or event true.
+- WORLD STATE is canonical: a captive stays locked up until the game reports
+  them freed. An "OUTCOME (already decided)" line is the result of the
+  player's attempt - narrate exactly that success or failure, nothing more.
 
 Record what NPCs should remember and how they feel (the server saves it):
 [REMEMBER: npc_id | short fact] - Something this NPC will remember about the hero

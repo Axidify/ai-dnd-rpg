@@ -259,7 +259,7 @@ class TestDialogueIntegration:
         assert elira.location_id == "forest_clearing"
         
         lily = manager.get_npc("lily")
-        assert lily.location_id == "goblin_camp_main"
+        assert lily.location_id == "goblin_camp_cages"
     
     def test_quest_giver_has_quests(self):
         """Test that quest giver NPCs have quests defined."""

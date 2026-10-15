@@ -252,6 +252,7 @@ def serialize_session_state(session) -> Dict[str, Any]:
             for npc in (session.npc_manager.get_all_npcs() if session.npc_manager else [])
         },
         "chronicle": list(getattr(session, "chronicle", [])),
+        "world": getattr(session, "world", None) or {},
         "shop_manager": (
             session.shop_manager.to_dict()
             if getattr(session, "shop_manager", None) else None
@@ -281,6 +282,12 @@ def restore_session_state(session, data: Optional[Dict[str, Any]]) -> None:
     if data.get("npc_states") and session.npc_manager:
         session.npc_manager.update_npc_states(data["npc_states"])
     session.chronicle = list(data.get("chronicle", []))
+    from world_state import new_world, on_travel, seed_world
+    session.world = {**new_world(), **(data.get("world") or {})}
+    if not data.get("world"):
+        seed_world(session)  # saves from before world state existed
+    if session.world["followers"]:
+        on_travel(session)  # followers stand where the hero stands
     if data.get("shop_manager"):
         from shop import ShopManager
         session.shop_manager = ShopManager()
@@ -563,6 +570,8 @@ def process_travel(session, destination: str) -> Dict[str, Any]:
     scenario = session.scenario.active_scenario if session.scenario else None
     if scenario:
         scenario.record_exchange()
+        from world_state import on_travel
+        on_travel(session)  # followers walk with the hero
         new_scene = scenario.advance_on_arrival(new_location.id)
 
     quest_updates: List[Dict[str, Any]] = []

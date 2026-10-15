@@ -80,6 +80,7 @@ def load_scenario(scenario_id: str):
         location_manager.add_location(from_data(Location, data))
 
     scenario = from_data(Scenario, meta)
+    scenario.interactions = list(_read(scenario_id, "interactions") or [])
     scenario.location_manager = location_manager
     scenario.npc_manager = load_npcs(scenario_id)
     return scenario

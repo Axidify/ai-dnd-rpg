@@ -1665,6 +1665,10 @@ class Scenario:
     # aren't full NPCs (e.g. "grotnak", "goblins"): {ref: {name, aliases}}.
     # Lets the world model tell who the player is referring to.
     actors: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+
+    # Ways the player can change the world, resolved by the engine (see
+    # world_state.py); loaded from interactions.yaml
+    interactions: List[Dict[str, Any]] = field(default_factory=list)
     # Objectives completed by events that aren't in the current scene's
     # objective list (e.g. "objective:rescue_lily" from a location event).
     extra_objectives_complete: List[str] = field(default_factory=list)

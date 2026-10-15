@@ -1,0 +1,40 @@
+# Ways the hero changes the world. The engine resolves these before the
+# Game Master narrates: it picks the first usable approach, rolls if needed,
+# applies the effects, and tells the narrator the outcome (src/world_state.py).
+#
+# Effects: npc_status:<npc>:<status>  follow:<npc>  unfollow:<npc>
+#          place:<npc>:<location>  chronicle:<text>  memory:<npc>:<text>
+#          talked:<npc>  objective:<id>  xp:<amount>        ({hero} = hero's name)
+
+- id: free_lily
+  location: goblin_camp_cages
+  target: [lily, cage, girl, prisoner, lock]
+  verbs: [free, release, rescue, unlock, pick, open, break, force, smash, pry]
+  approaches:
+    - {requires_item: lockpicks, skill: Sleight_of_Hand, dc: 12}
+    - {skill: Athletics, dc: 15}
+  success:
+    - npc_status:lily:freed
+    - follow:lily
+    - talked:lily
+    - objective:find_lily
+    - chronicle:{hero} freed Lily from her cage in the goblin warren.
+    - memory:lily:Freed her from the goblins' cage
+  success_fact: The cage is open. Lily is free and now travels with {hero}.
+  failure_fact: The lock holds. Lily is still locked in the cage; {hero} can try again.
+
+- id: bring_lily_home
+  location: [tavern_celebration, village_return]
+  target: [lily, bram, daughter, father, girl]
+  verbs: [bring, return, reunite, hand, deliver, take, lead, show]
+  approaches:
+    - {requires_follower: lily}
+  blocked_fact: Lily is not with the hero, so she can't be brought to Bram.
+  success:
+    - unfollow:lily
+    - npc_status:lily:home
+    - place:lily:tavern_celebration
+    - chronicle:{hero} brought Lily home to her father, Bram.
+    - memory:bram:Brought his daughter Lily home safe
+    - memory:lily:Brought her home to her father
+  success_fact: Lily is home. She runs to Bram; father and daughter are reunited.

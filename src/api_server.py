@@ -61,6 +61,7 @@ from game_mechanics import (
 from text_match import has_any
 from world_memory import chronicle, people_view, state_briefing
 from world_model import grants_briefing, premise_instruction
+from world_state import new_world, seed_world
 from turn_service import (
     start_turn,
     finish_turn,
@@ -322,6 +323,8 @@ class GameSession:
         self.dm_notes = []  # Facts the DM must learn on its next turn (e.g. combat results)
         self.chronicle = []  # Persistent hard facts the DM must never contradict (world_memory)
         self.turn_premise = None  # Engine facts about the current action (world_model)
+        self.turn_moments = []  # Engine outcomes to show after this turn's narration
+        self.world = new_world()  # Changing world state: captives, followers (world_state)
         
         # Social check tracking (retry prevention + game over)
         self.failed_social_checks = 0  # Total failed social checks
@@ -1095,6 +1098,7 @@ def start_game():
             
             # Initialize quests for the scenario (from data/scenarios/<id>/quests.yaml)
             register_quests(scenario_id, session.quest_manager)
+            seed_world(session)
             # Quests are now REGISTERED but NOT ACCEPTED: they're accepted when
             # the player agrees to help (see turn_service.detect_quest_acceptance)
 

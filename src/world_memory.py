@@ -133,6 +133,8 @@ def present_npc_ids(session) -> List[str]:
     here = manager.get_current_location() if manager else None
     if not here or not session.npc_manager:
         return []
+    from world_state import npc_pinned_location
+
     ids = []
     for ref in here.npcs:
         npc = session.npc_manager.get_npc(ref)
@@ -141,7 +143,14 @@ def present_npc_ids(session) -> List[str]:
     for npc in session.npc_manager.get_npcs_at_location(here.id):
         if npc.id not in ids:
             ids.append(npc.id)
-    return ids
+    # The world state is authoritative where it has a say: a caged captive
+    # isn't at the cave exit, a freed one walks with the hero
+    out = []
+    for npc in session.npc_manager.get_all_npcs():
+        pinned = npc_pinned_location(session, npc.id)
+        if (pinned == here.id) if pinned else (npc.id in ids):
+            out.append(npc.id)
+    return out
 
 
 def _item_label(item) -> str:
@@ -248,10 +257,20 @@ def chronicle_briefing(session) -> str:
             + "\n".join(f"- {e}" for e in recent) + "\n")
 
 
+def world_briefing(session) -> str:
+    from world_state import status_lines
+
+    lines = status_lines(session)
+    if not lines:
+        return ""
+    return ("WORLD STATE (canonical - only the game changes it):\n"
+            + "\n".join(f"- {line}" for line in lines) + "\n")
+
+
 def state_briefing(session) -> str:
     """Everything the GM must stay consistent with, as one block."""
     parts = [character_briefing(session), quest_briefing(session),
-             npc_briefing(session), chronicle_briefing(session)]
+             npc_briefing(session), world_briefing(session), chronicle_briefing(session)]
     return "\n".join(p for p in parts if p)
 
 
@@ -265,6 +284,8 @@ def parse_memory_tags_for_test(text: str) -> Tuple[List[Tuple[str, str]], List[T
 # =============================================================================
 
 def people_view(session) -> List[Dict[str, Any]]:
+    from world_state import status_label
+
     """
     The people the hero knows, for the UI: whoever is here, companions, and
     anyone who remembers the hero. Public facts only (no personality secrets).
@@ -290,6 +311,7 @@ def people_view(session) -> List[Dict[str, Any]]:
             "memories": list(npc.memories),
             "here": is_here,
             "in_party": in_party,
+            "status": status_label(session, npc.id),
         })
     people.sort(key=lambda p: (not p["here"], not p["in_party"], p["name"]))
     return people

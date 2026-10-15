@@ -31,7 +31,13 @@ function Person({ person }) {
     <li className="py-3.5 first:pt-0">
       <div className="flex items-baseline justify-between gap-3">
         <h4 className="font-display text-[1.15rem] leading-tight text-[var(--ink)]">{person.name}</h4>
-        {person.in_party && <span className="caps-muted shrink-0">Companion</span>}
+        {person.in_party ? (
+          <span className="caps-muted shrink-0">Companion</span>
+        ) : person.status ? (
+          <span className="caps-muted shrink-0" style={person.status === 'Captive' ? { color: 'var(--ember)' } : undefined}>
+            {person.status}
+          </span>
+        ) : null}
       </div>
       <div className="mt-1">
         <AttitudeMeter attitude={person.attitude} />

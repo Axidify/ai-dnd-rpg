@@ -550,7 +550,7 @@ class TestGoblinCaveNPCs:
         
         assert lily is not None
         assert lily.name == "Lily"
-        assert lily.location_id == "goblin_camp_main"
+        assert lily.location_id == "goblin_camp_cages"
     
     def test_tavern_has_npcs(self):
         """Test that tavern has correct NPCs."""

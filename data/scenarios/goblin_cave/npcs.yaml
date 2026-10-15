@@ -227,7 +227,8 @@
     her spirit is unbroken.
   role: INFO
   aliases: [girl, daughter, child, bram's daughter, the prisoner]
-  location_id: goblin_camp_main
+  location_id: goblin_camp_cages
+  status: captive  # locked in a cage until the hero frees her (see interactions.yaml)
   dialogue:
     greeting: You came! Father sent you, didn't he?
     about_escape: They keep the key on the big one's belt. The chief. He's in the back chamber.

@@ -23,8 +23,9 @@ from typing import Any, Dict, List, Optional
 
 from world_memory import apply_memory_tags, chronicle, memory_lines, remember, resolve_npc
 from world_model import (
-    analyze_action, claim_item, fair_price, merchant_here, npc_is_here, npcs_addressed, present_npcs,
+    Premise, analyze_action, claim_item, fair_price, merchant_here, npc_is_here, npcs_addressed, present_npcs,
 )
+from world_state import match_interaction, resolve_interaction
 
 from dm_engine import (
     parse_roll_request, parse_combat_request, parse_item_rewards,
@@ -268,6 +269,24 @@ def start_turn(session, action: str) -> TurnStart:
             extra_events=[{"type": "game_over", "reason": session.game_over_reason}],
             record_extra={"game_over": True},
             response={"game_over": True},
+        )
+
+    # Changing the world ("I pick the lock and free Lily") is decided by the
+    # engine first; the narrator then describes the outcome it's given.
+    # Before the hostile gate, so "hit the lock" isn't a brawl.
+    interaction = match_interaction(session, action)
+    if interaction:
+        result = resolve_interaction(session, interaction, action)
+        session.turn_premise = Premise(facts=[f"OUTCOME (already decided - narrate exactly this): {f}"
+                                              for f in result["facts"]])
+        session.turn_moments = list(result["moments"])
+        print(f"   🔧 Interaction {interaction['id']}: {'success' if result['success'] else 'failure'}")
+        roll = result["roll"]
+        return TurnStart(
+            finished=False,
+            events=[{"type": "roll", "result": roll}] if roll else [],
+            arbiter_roll_result=roll,
+            arbiter_no_roll=roll is None,
         )
 
     # Hostile action → structured combat (before narrator)
@@ -606,6 +625,11 @@ def finish_turn(
             chronicle(session, f"{member.name} joined the party.")
             say(f"\n\n🎉 {member.name} joins your party!")
             print(f"   🎉 {member.name} joined the party!")
+
+    # Outcomes the engine decided before narration (interactions)
+    for line in getattr(session, "turn_moments", None) or []:
+        say(f"\n\n{line}")
+    session.turn_moments = []
 
     # [REMEMBER: npc | fact] / [ATTITUDE: npc | +N | reason] - validated, persisted
     memory_events = apply_memory_tags(session, narrator_text, allowed_ids={n.id for n in present_npcs(session)})

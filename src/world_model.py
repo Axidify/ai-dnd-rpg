@@ -110,9 +110,10 @@ def carries(session, key: str) -> bool:
     c = session.character
     if not c:
         return False
-    if find_item_in_inventory(c.inventory, key):
-        return True
     item = get_item(key)
+    # The inventory holds display names ("Thieves' Tools" for lockpicks)
+    if find_item_in_inventory(c.inventory, key) or (item and find_item_in_inventory(c.inventory, item.name)):
+        return True
     equipped = {(c.weapon or "").lower(), (c.equipped_armor or "").lower()}
     return key in equipped or bool(item and item.name.lower() in equipped)
 
