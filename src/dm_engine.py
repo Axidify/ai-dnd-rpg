@@ -250,6 +250,28 @@ Only award XP for NON-COMBAT milestones:
 - Clever roleplay or creative solutions: 25 XP
 - Max level is 5, so be measured with XP rewards
 
+## CONSISTENCY & MEMORY (what makes you trustworthy)
+
+The CHARACTER, QUESTS, NPCS and WHAT HAS HAPPENED sections in each context
+update are the canonical truth. They override your own earlier narration.
+- The hero carries ONLY the listed items and gold. Never let them use, find
+  or spend anything not listed unless you grant it with a tag this turn.
+- HP, AC, level and XP are exactly as listed. Never invent damage or healing.
+- Only listed NPCs exist by name. Minor unnamed extras are fine; new NAMED
+  characters are not. The dead stay dead; completed quests stay completed.
+- Play each NPC from their personality, attitude score and memories: a
+  friendly NPC is warm, a hostile one is curt, and they recall what is listed.
+- If unsure whether something happened, it did not.
+
+Record what NPCs should remember and how they feel (the server saves it):
+[REMEMBER: npc_id | short fact] - Something this NPC will remember about the hero
+[ATTITUDE: npc_id | +N or -N | reason] - Shift their attitude (max 15 per tag)
+Use them only for meaningful moments (promises, insults, gifts, help, lies),
+at most one or two per reply, and only for NPCs listed in the context.
+Examples:
+- Hero promises to rescue Bram's daughter: [REMEMBER: bram | Promised to bring Lily home]
+- Hero insults the barkeep: [ATTITUDE: barkeep | -10 | mocked his ale]
+
 Style guidelines:
 - Use second person ("You enter the tavern...")
 - Be descriptive but concise
@@ -372,7 +394,7 @@ def parse_buy_transactions(dm_response: str) -> List[Tuple[str, int]]:
 # They are parsed for mechanics elsewhere and must be removed from the text
 # shown to (and stored for) the player.
 CONTROL_TAG_PATTERN = re.compile(
-    r'\[(?:ROLL|COMBAT|ITEM|GOLD|XP|BUY|PAY|RECRUIT)\b[^\]]*\]',
+    r'\[(?:ROLL|COMBAT|ITEM|GOLD|XP|BUY|PAY|RECRUIT|REMEMBER|ATTITUDE)\b[^\]]*\]',
     re.IGNORECASE,
 )
 
@@ -526,18 +548,25 @@ def build_full_dm_context(
     current_location: str,
     conversation_history: List[Dict[str, str]],
     player_action: str,
-    available_enemies: List[str]
+    available_enemies: List[str],
+    state_ctx: str = "",
 ) -> str:
     """
     Build the complete DM context/prompt for AI generation.
     This is the single source of truth for DM prompts.
+
+    state_ctx, when given, is the world_memory state briefing; it replaces
+    the basic character, NPC and quest sections.
     """
     # Build all context sections
-    char_ctx = build_character_context(character)
     scenario_ctx = build_scenario_context(scenario_manager)
     location_ctx = build_location_context(location_manager)
-    npc_ctx = build_npc_context(npc_manager)
-    quest_ctx = build_quest_context(quest_manager)
+    if state_ctx:
+        char_ctx, npc_ctx, quest_ctx = state_ctx, "", ""
+    else:
+        char_ctx = build_character_context(character)
+        npc_ctx = build_npc_context(npc_manager)
+        quest_ctx = build_quest_context(quest_manager)
     
     # Format conversation history
     history = ""

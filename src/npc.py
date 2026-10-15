@@ -194,6 +194,9 @@ class NPC:
     
     # Personality System (Phase 3.4 - Consistent Characterization)
     personality: Optional[Personality] = None  # Structured personality data for DM
+
+    # What this NPC remembers about the hero (see world_memory.py)
+    memories: List[str] = field(default_factory=list)
     
     def __post_init__(self):
         """Validate NPC data after initialization."""
@@ -324,6 +327,7 @@ class NPC:
             "location_id": self.location_id,
             "dialogue": self.dialogue.copy(),
             "disposition": self.disposition,
+            "memories": list(self.memories),
             "quests": self.quests.copy(),
             "is_recruitable": self.is_recruitable,
             "recruitment_condition": self.recruitment_condition,
@@ -348,6 +352,7 @@ class NPC:
             location_id=data.get("location_id", ""),
             dialogue=data.get("dialogue", {}),
             disposition=data.get("disposition", 0),
+            memories=list(data.get("memories", [])),
             quests=data.get("quests", []),
             is_recruitable=data.get("is_recruitable", False),
             recruitment_condition=data.get("recruitment_condition", ""),
@@ -452,6 +457,8 @@ class NPCManager:
                     npc.recruited = state["recruited"]
                 if "location_id" in state:
                     npc.location_id = state["location_id"]
+                if "memories" in state:
+                    npc.memories = list(state["memories"])
 
 
 # =============================================================================

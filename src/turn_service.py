@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from world_memory import apply_memory_tags, chronicle, remember, resolve_npc
+
 from dm_engine import (
     parse_roll_request, parse_combat_request, parse_item_rewards,
     parse_gold_rewards, parse_xp_rewards, parse_buy_transactions,
@@ -560,8 +562,16 @@ def finish_turn(
         if member:
             session.party.add_member(member)
             events.append({"type": "recruit", "npc_id": npc_id, "name": member.name})
+            npc = resolve_npc(session.npc_manager, npc_id)
+            if npc:
+                npc.recruited = True
+                remember(npc, "Joined the hero's party as a companion")
+            chronicle(session, f"{member.name} joined the party.")
             say(f"\n\n🎉 {member.name} joins your party!")
             print(f"   🎉 {member.name} joined the party!")
+
+    # [REMEMBER: npc | fact] / [ATTITUDE: npc | +N | reason] - validated, persisted
+    events.extend(apply_memory_tags(session, narrator_text))
 
     # Quest objectives for talking to NPCs
     if session.quest_manager and session.npc_manager:
@@ -587,6 +597,10 @@ def finish_turn(
                         find_item_in_inventory(character.inventory, objective.target):
                     session.quest_manager.on_item_acquired(objective.target)
         if quest:
+            giver = resolve_npc(session.npc_manager, quest.giver_npc_id) if quest.giver_npc_id else None
+            if giver:
+                remember(giver, f"The hero agreed to take on '{quest.name}'")
+            chronicle(session, f"Quest accepted: {quest.name}.")
             events.append({"type": "quest_accepted", "quest_id": quest_id, "quest": quest.to_dict()})
             say(f"\n\n📜 Quest Accepted: {quest.name}")
             print(f"   📜 Quest accepted: {quest.name}")

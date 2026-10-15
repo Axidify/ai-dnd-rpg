@@ -10,6 +10,8 @@ import random
 import re
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
+from world_memory import chronicle, remember
+
 if TYPE_CHECKING:
     from api_server import GameSession
 
@@ -244,9 +246,11 @@ def serialize_session_state(session) -> Dict[str, Any]:
                 "disposition": npc.disposition,
                 "recruited": npc.recruited,
                 "location_id": npc.location_id,
+                "memories": list(npc.memories),
             }
             for npc in (session.npc_manager.get_all_npcs() if session.npc_manager else [])
         },
+        "chronicle": list(getattr(session, "chronicle", [])),
         "shop_manager": (
             session.shop_manager.to_dict()
             if getattr(session, "shop_manager", None) else None
@@ -275,6 +279,7 @@ def restore_session_state(session, data: Optional[Dict[str, Any]]) -> None:
     # NPC disposition etc. (scenario NPCs are rebuilt fresh on load)
     if data.get("npc_states") and session.npc_manager:
         session.npc_manager.update_npc_states(data["npc_states"])
+    session.chronicle = list(data.get("chronicle", []))
     if data.get("shop_manager"):
         from shop import ShopManager
         session.shop_manager = ShopManager()
@@ -431,6 +436,8 @@ def finish_quest(session, quest_id: str) -> Optional[Dict[str, Any]]:
         npc = session.npc_manager.get_npc(quest.giver_npc_id)
         if npc:
             npc.modify_disposition(quest.get_disposition_reward())
+            remember(npc, f"The hero completed '{quest.name}' for them")
+    chronicle(session, f"Quest completed: {quest.name}.")
     return rewards
 
 

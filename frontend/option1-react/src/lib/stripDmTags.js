@@ -1,6 +1,6 @@
 /** Mirror of backend CONTROL_TAG_PATTERN — strip internal DM directives from visible text */
 const CONTROL_TAG_PATTERN =
-  /\[(?:ROLL|COMBAT|ITEM|GOLD|XP|BUY|PAY|RECRUIT)\b[^\]]*\]/gi
+  /\[(?:ROLL|COMBAT|ITEM|GOLD|XP|BUY|PAY|RECRUIT|REMEMBER|ATTITUDE)\b[^\]]*\]/gi
 
 export function stripDmTags(text, { trim = false } = {}) {
   if (!text) return ''

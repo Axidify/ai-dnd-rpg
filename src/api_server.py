@@ -59,6 +59,7 @@ from game_mechanics import (
 )
 
 from text_match import has_any
+from world_memory import chronicle, state_briefing
 from turn_service import (
     start_turn,
     finish_turn,
@@ -318,6 +319,7 @@ class GameSession:
         self.dm_unavailable = False  # Last narration failed: the LLM couldn't be reached
         self.previous_location_id = None  # Last place travelled from (flee destination)
         self.dm_notes = []  # Facts the DM must learn on its next turn (e.g. combat results)
+        self.chronicle = []  # Persistent hard facts the DM must never contradict (world_memory)
         
         # Social check tracking (retry prevention + game over)
         self.failed_social_checks = 0  # Total failed social checks
@@ -691,20 +693,19 @@ def refresh_chat_context(session: GameSession):
         return init_dm_chat(session)
     
     # Build context update message (without full history since chat tracks it)
-    from dm_engine import (
-        build_character_context,
-        build_scenario_context,
-        build_location_context,
-        build_npc_context,
-        build_quest_context
-    )
-    
-    context_update = f"""[CONTEXT UPDATE - Current game state:]
-{build_character_context(session.character)}
-Current Location: {session.current_location or 'Unknown'}
-{build_scenario_context(session.scenario)}{build_location_context(session.location_manager)}{build_npc_context(session.npc_manager)}{build_quest_context(session.quest_manager)}"""
+    from dm_engine import build_scenario_context, build_location_context
+
     if session.dm_notes:
-        # Things that happened outside narration (fights resolved by the rules engine)
+        # Things that happened outside narration (fights resolved by the rules
+        # engine) become permanent chronicle facts
+        for note in session.dm_notes:
+            chronicle(session, note)
+
+    context_update = f"""[CONTEXT UPDATE - Current game state:]
+{state_briefing(session)}
+Current Location: {session.current_location or 'Unknown'}
+{build_scenario_context(session.scenario)}{build_location_context(session.location_manager)}"""
+    if session.dm_notes:
         notes = "\n".join(f"- {note}" for note in session.dm_notes)
         context_update += f"\n\n[SINCE YOUR LAST NARRATION - these are facts, narrate consistently:]\n{notes}"
         session.dm_notes = []
@@ -966,7 +967,8 @@ def build_dm_context(session: GameSession, player_action: str) -> str:
         current_location=session.current_location,
         conversation_history=session.messages,
         player_action=player_action,
-        available_enemies=list(ENEMIES.keys())
+        available_enemies=list(ENEMIES.keys()),
+        state_ctx=state_briefing(session),
     )
 
 
