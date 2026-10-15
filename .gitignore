@@ -20,3 +20,4 @@ test_session.txt
 test_sid.txt
 tests/live/*_report.json
 tests/live/*_results.txt
+tests/live/consistency_report.md
