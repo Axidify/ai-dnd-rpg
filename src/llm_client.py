@@ -30,11 +30,37 @@ def _get_genai():
     return _GEMINI_MODULE
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return max(64, int(os.getenv(name, "")))
+    except ValueError:
+        return default
+
+
+# Output budgets. Thinking models (e.g. Gemini 2.5+/3.x) spend part of this
+# budget on hidden reasoning before any visible text, so a tight cap cuts the
+# reply off mid-sentence or mid-JSON. Length is controlled by the prompts;
+# these are ceilings, not targets. Deliberately generous during development;
+# override in .env (and trim) once real usage shows what's needed.
+NARRATION_MAX_TOKENS = _env_int("LLM_NARRATION_MAX_TOKENS", 8192)
+CLASSIFIER_MAX_TOKENS = _env_int("LLM_CLASSIFIER_MAX_TOKENS", 4096)
+
+
+def _vllm_narration_limit() -> dict:
+    """
+    vLLM rejects requests whose max_tokens + prompt exceed the model's context
+    window, so narration is uncapped there (vLLM then uses the remaining
+    context) unless LLM_NARRATION_MAX_TOKENS is set explicitly.
+    """
+    if os.getenv("LLM_NARRATION_MAX_TOKENS"):
+        return {"max_tokens": NARRATION_MAX_TOKENS}
+    return {}
+
 DM_GENERATION_CONFIG = {
     "temperature": 0.9,
     "top_p": 0.95,
     "top_k": 40,
-    "max_output_tokens": 2048,
+    "max_output_tokens": NARRATION_MAX_TOKENS,
 }
 
 
@@ -81,7 +107,7 @@ class VllmChat:
             model=self._model,
             messages=self._messages,
             temperature=0.9,
-            max_tokens=2048,
+            **_vllm_narration_limit(),
         )
         text = response.choices[0].message.content or ""
         self._messages.append({"role": "assistant", "content": text})
@@ -92,7 +118,7 @@ class VllmChat:
             model=self._model,
             messages=self._messages,
             temperature=0.9,
-            max_tokens=2048,
+            **_vllm_narration_limit(),
             stream=True,
         )
 
@@ -167,7 +193,7 @@ def generate_text(
     prompt: str,
     *,
     temperature: float = 0.9,
-    max_tokens: int = 2048,
+    max_tokens: int = NARRATION_MAX_TOKENS,
     json_mode: bool = False,
     model_name: Optional[str] = None,
     max_retries: int = 1,

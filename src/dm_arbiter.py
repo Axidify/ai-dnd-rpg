@@ -10,6 +10,7 @@ the tendency for AI to skip mechanics for storytelling purposes.
 """
 
 import json
+import re
 from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -284,6 +285,43 @@ NO ROLL NEEDED:
 IMPORTANT: When a player negotiates price, demands more money, or haggles - ALWAYS require Persuasion or Intimidation, even if the NPC is desperate to give them the quest."""
 
 
+ARBITER_CONTEXT_CHARS = 4000  # generous during development; trim when tuning cost
+
+
+def parse_arbiter_json(text: str) -> Dict[str, Any]:
+    """
+    Parse the arbiter's reply, tolerating what models actually send: code
+    fences, prose around the object, and replies cut off mid-object. A
+    truncated reply is salvaged field by field when the essential fields
+    (action_type, requires_roll, and skill/dc for a roll) made it through.
+    Raises json.JSONDecodeError when nothing usable is there.
+    """
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", (text or "").strip(), flags=re.IGNORECASE)
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start != -1 and end > start:
+        try:
+            return json.loads(cleaned[start:end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    def field(name: str, pattern: str):
+        m = re.search(rf'"{name}"\s*:\s*{pattern}', cleaned, re.IGNORECASE)
+        return m.group(1) if m else None
+
+    action_type = field("action_type", r'"([a-z_]+)"')
+    requires = field("requires_roll", r"(true|false)")
+    if action_type is None or requires is None:
+        raise json.JSONDecodeError("No usable arbiter JSON", cleaned, 0)
+    decision: Dict[str, Any] = {
+        "action_type": action_type,
+        "requires_roll": requires.lower() == "true",
+        "skill": field("skill", r'"([A-Za-z_ ]+)"'),
+        "dc": int(field("dc", r"(\d+)") or 0) or None,
+        "reasoning": field("reasoning", r'"([^"]*)') or "",
+    }
+    return decision
+
+
 def get_arbiter_ai_decision(
     action: str, 
     context: str,
@@ -301,7 +339,7 @@ def get_arbiter_ai_decision(
     prompt = f"""{ARBITER_SYSTEM_PROMPT}
 
 GAME CONTEXT:
-{context[:500]}  
+{context[:ARBITER_CONTEXT_CHARS]}
 
 PLAYER ACTION: {action}
 
@@ -310,11 +348,11 @@ Respond with JSON only:"""
     for attempt in range(max_retries):
         try:
             # json_mode is very slow on some local models; prompt already demands JSON.
-            from llm_client import get_llm_provider
+            from llm_client import CLASSIFIER_MAX_TOKENS, get_llm_provider
             response_text = generate_text(
                 prompt,
                 temperature=0.1,
-                max_tokens=200,
+                max_tokens=CLASSIFIER_MAX_TOKENS,
                 json_mode=get_llm_provider() != "vllm",
                 max_retries=1,
             )
@@ -323,8 +361,7 @@ Respond with JSON only:"""
                 print(f"⚠️ Arbiter empty response (attempt {attempt + 1})")
                 continue
 
-            # Parse JSON
-            decision = json.loads(response_text)
+            decision = parse_arbiter_json(response_text)
             
             # Validate structure
             if "action_type" not in decision:
@@ -399,6 +436,17 @@ def get_fallback_decision(action: str) -> ArbiterDecision:
             source="fallback"
         )
     
+    # Clear attempts to change an NPC's mind still get their check
+    if has_any(action, CONVINCE_KEYWORDS):
+        return ArbiterDecision(
+            action_type=ActionType.SOCIAL.value,
+            requires_roll=True,
+            skill="Persuasion",
+            dc=12,
+            reasoning="Fallback: trying to persuade someone",
+            source="fallback"
+        )
+
     # Default: no roll needed (be less aggressive)
     return ArbiterDecision(
         action_type=ActionType.OTHER.value,
